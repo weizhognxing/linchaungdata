@@ -1,16 +1,180 @@
 CREATE DATABASE IF NOT EXISTS picco DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE picco;
 
-CREATE TABLE IF NOT EXISTS admins (
+CREATE TABLE `admins` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE `diseases` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `field_settings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `field_name` varchar(64) NOT NULL,
+  `data_type` varchar(30) NOT NULL,
+  `unit` varchar(50) DEFAULT NULL,
+  `reference_range` varchar(100) DEFAULT NULL,
+  `test_method` varchar(100) DEFAULT NULL,
+  `comment_text` varchar(255) DEFAULT NULL,
+  `form_label` varchar(120) NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `field_name` (`field_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `form_settings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `disease_id` int(11) NOT NULL,
+  `field_id` int(11) NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_disease_field` (`disease_id`,`field_id`),
+  KEY `fk_setting_field` (`field_id`),
+  CONSTRAINT `fk_setting_disease` FOREIGN KEY (`disease_id`) REFERENCES `diseases` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setting_field` FOREIGN KEY (`field_id`) REFERENCES `field_settings` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `lab_records` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `patient_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `disease_id` int(11) NOT NULL,
+  `photo_path` varchar(255) DEFAULT NULL,
+  `ai_raw` text,
+  `wbc` decimal(10,2) DEFAULT NULL COMMENT 'ç™½ç»†èƒž',
+  `crp` decimal(10,2) DEFAULT NULL COMMENT 'Cååº”è›‹ç™½',
+  `pct` decimal(10,2) DEFAULT NULL COMMENT 'é™é’™ç´ åŽŸ',
+  `lactate` decimal(10,2) DEFAULT NULL COMMENT 'ä¹³é…¸',
+  `creatinine` decimal(10,2) DEFAULT NULL COMMENT 'è‚Œé…',
+  `alt` decimal(10,2) DEFAULT NULL COMMENT 'è°·ä¸™è½¬æ°¨é…¶',
+  `ast` decimal(10,2) DEFAULT NULL COMMENT 'è°·è‰è½¬æ°¨é…¶',
+  `remark` text COMMENT 'å¤‡æ³¨',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `baixibao` int(11) DEFAULT NULL COMMENT '白细胞个数',
+  `neu` decimal(10,2) DEFAULT NULL COMMENT '10^9/L',
+  `lym` decimal(10,2) DEFAULT NULL COMMENT '10^9/L',
+  `mono` decimal(10,2) DEFAULT NULL COMMENT '10^9/L',
+  `eos` decimal(10,2) DEFAULT NULL COMMENT '10^9/L',
+  `baso` decimal(10,2) DEFAULT NULL COMMENT '10^9/L',
+  `neu_r` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `lym_r` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `mono_r` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `eos_r` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `baso_r` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `rbc` decimal(10,2) DEFAULT NULL COMMENT '10^12/L',
+  `hgb` int(11) DEFAULT NULL COMMENT 'g/L',
+  `hct` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `mcv` decimal(10,2) DEFAULT NULL COMMENT 'fl',
+  `mch` decimal(10,2) DEFAULT NULL COMMENT 'pg',
+  `mchc` int(11) DEFAULT NULL COMMENT 'g/L',
+  `rdw_sd` decimal(10,2) DEFAULT NULL COMMENT 'fl',
+  `rdw_cv` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `plt` int(11) DEFAULT NULL COMMENT '10^9/L',
+  `mpv` decimal(10,2) DEFAULT NULL COMMENT 'fl',
+  `pdw` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `p_lcr` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `hscrp` decimal(10,2) DEFAULT NULL COMMENT 'mg/L',
+  `ast_alt` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `tp` decimal(10,2) DEFAULT NULL COMMENT 'g/L',
+  `alb` decimal(10,2) DEFAULT NULL COMMENT 'g/L',
+  `glo` decimal(10,2) DEFAULT NULL COMMENT 'g/L',
+  `a_g` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `tbil` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `dbil` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `ibil` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `tba` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `ggt` decimal(10,2) DEFAULT NULL COMMENT 'U/L',
+  `alp` decimal(10,2) DEFAULT NULL COMMENT 'U/L',
+  `pa` decimal(10,2) DEFAULT NULL COMMENT 'mg/L',
+  `urea` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `ua` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `crea` decimal(10,2) DEFAULT NULL COMMENT 'μmol/L',
+  `k` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `na` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `cl` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `ca` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `co2` decimal(10,2) DEFAULT NULL COMMENT 'mmol/l',
+  `p` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `mg` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `fe` decimal(10,2) DEFAULT NULL COMMENT 'umol/L',
+  `gfr` decimal(10,2) DEFAULT NULL COMMENT 'mL/min',
+  `ag` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `hemo` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `icte` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `lipe` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `ph` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `pco2` decimal(10,2) DEFAULT NULL COMMENT 'mmHg',
+  `po2` decimal(10,2) DEFAULT NULL COMMENT 'mmHg',
+  `ca__` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `glu` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `lac_la` decimal(10,2) DEFAULT NULL COMMENT 'mmol/L',
+  `thb` decimal(10,2) DEFAULT NULL COMMENT 'g/dl',
+  `so2` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `o2hb` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `pt` decimal(10,2) DEFAULT NULL COMMENT 's',
+  `pt_inr` decimal(10,2) DEFAULT NULL COMMENT 'INR',
+  `pt_ratio` decimal(10,2) DEFAULT NULL COMMENT '比率',
+  `aptt` decimal(10,2) DEFAULT NULL COMMENT 's',
+  `aptt_r` decimal(10,2) DEFAULT NULL COMMENT '-',
+  `tt` decimal(10,2) DEFAULT NULL COMMENT 's',
+  `fib` decimal(10,2) DEFAULT NULL COMMENT 'g/L',
+  `d_di` decimal(10,2) DEFAULT NULL COMMENT 'ug/ml',
+  `fdp` decimal(10,2) DEFAULT NULL COMMENT 'ug/ml',
+  `at3` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `nt_probnp` decimal(10,2) DEFAULT NULL COMMENT 'pg/ml',
+  `hs_ctnt_stat` decimal(10,2) DEFAULT NULL COMMENT 'ng/ml',
+  `myo_stat` decimal(10,2) DEFAULT NULL COMMENT 'ng/ml',
+  `ck_mb_stat` decimal(10,2) DEFAULT NULL COMMENT 'ng/ml',
+  `hbalc` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `hbao` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `hbala` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `hbalb` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `laic_1` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `hbf` decimal(10,2) DEFAULT NULL COMMENT '%',
+  `spn` varchar(1000) DEFAULT NULL COMMENT '-',
+  `sau` varchar(1000) DEFAULT NULL COMMENT '-',
+  `mrs` varchar(1000) DEFAULT NULL COMMENT '-',
+  `kpn` varchar(1000) DEFAULT NULL COMMENT '-',
+  `pae` varchar(1000) DEFAULT NULL COMMENT '-',
+  `aba` varchar(1000) DEFAULT NULL COMMENT '-',
+  `sma` varchar(1000) DEFAULT NULL COMMENT '-',
+  `hin` varchar(1000) DEFAULT NULL COMMENT '-',
+  PRIMARY KEY (`id`),
+  KEY `fk_lab_patient` (`patient_id`),
+  KEY `fk_lab_user` (`user_id`),
+  KEY `fk_lab_disease` (`disease_id`),
+  CONSTRAINT `fk_lab_disease` FOREIGN KEY (`disease_id`) REFERENCES `diseases` (`id`),
+  CONSTRAINT `fk_lab_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`),
+  CONSTRAINT `fk_lab_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `patients` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) NOT NULL,
+  `gender` varchar(20) DEFAULT NULL,
+  `age` int(11) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `id_number` varchar(40) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_patient_lookup` (`name`,`phone`,`id_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(80) NOT NULL,
   `email` varchar(120) NOT NULL,
@@ -21,81 +185,10 @@ CREATE TABLE IF NOT EXISTS users (
   `department` varchar(100) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `status` enum('pending','approved','disabled') NOT NULL DEFAULT 'pending',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   UNIQUE KEY `phone` (`phone`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS diseases (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(80) NOT NULL,
-  `sort_order` int(11) NOT NULL DEFAULT '0',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS patients (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(80) NOT NULL,
-  `gender` varchar(20) DEFAULT NULL,
-  `age` int(11) DEFAULT NULL,
-  `phone` varchar(30) DEFAULT NULL,
-  `id_number` varchar(40) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_patient_lookup` (`name`,`phone`,`id_number`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS lab_records (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `patient_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `disease_id` int(11) NOT NULL,
-  `photo_path` varchar(255) DEFAULT NULL,
-  `ai_raw` text,
-  `wbc` decimal(10,2) DEFAULT NULL COMMENT '白细胞',
-  `crp` decimal(10,2) DEFAULT NULL COMMENT 'C反应蛋白',
-  `pct` decimal(10,2) DEFAULT NULL COMMENT '降钙素原',
-  `lactate` decimal(10,2) DEFAULT NULL COMMENT '乳酸',
-  `creatinine` decimal(10,2) DEFAULT NULL COMMENT '肌酐',
-  `alt` decimal(10,2) DEFAULT NULL COMMENT '谷丙转氨酶',
-  `ast` decimal(10,2) DEFAULT NULL COMMENT '谷草转氨酶',
-  `remark` text COMMENT '备注',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `fk_lab_patient` (`patient_id`),
-  KEY `fk_lab_user` (`user_id`),
-  KEY `fk_lab_disease` (`disease_id`),
-  CONSTRAINT `fk_lab_disease` FOREIGN KEY (`disease_id`) REFERENCES `diseases` (`id`),
-  CONSTRAINT `fk_lab_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`),
-  CONSTRAINT `fk_lab_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS field_settings (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `field_name` varchar(64) NOT NULL,
-  `data_type` varchar(30) NOT NULL,
-  `comment_text` varchar(255) DEFAULT NULL,
-  `form_label` varchar(120) NOT NULL,
-  `enabled` tinyint(1) NOT NULL DEFAULT '1',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `field_name` (`field_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS form_settings (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `disease_id` int(11) NOT NULL,
-  `field_id` int(11) NOT NULL,
-  `sort_order` int(11) NOT NULL DEFAULT '0',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_disease_field` (`disease_id`,`field_id`),
-  KEY `fk_setting_field` (`field_id`),
-  CONSTRAINT `fk_setting_disease` FOREIGN KEY (`disease_id`) REFERENCES `diseases` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_setting_field` FOREIGN KEY (`field_id`) REFERENCES `field_settings` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
