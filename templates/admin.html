@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PICCO 管理后台</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="admin-shell">
+  <main class="admin-layout login-mode" id="adminLayout">
+    <aside class="sidebar hidden" id="adminSidebar">
+      <img src="/static/images/logo.png" alt="PICCO Logo" class="sidebar-logo">
+      <p class="eyebrow">PICCO ADMIN</p>
+      <h1>PICCO管理后台</h1>
+      <button class="tab active" data-tab="members">会员管理</button>
+      <button class="tab" data-tab="fields">数据字段管理</button>
+      <button class="tab" data-tab="forms">表单显示配置</button>
+    </aside>
+
+    <section id="adminLogin" class="panel admin-login hidden">
+      <h2>管理员登录</h2>
+      <input id="adminUser" value="admin" placeholder="账号">
+      <input id="adminPass" type="password" value="admin123" placeholder="密码">
+      <button id="adminLoginBtn">登录后台</button>
+      <p class="message" id="adminLoginMsg"></p>
+    </section>
+
+    <section id="adminContent" class="content hidden">
+      <div id="members" class="admin-tab-page">
+        <h2>会员管理</h2>
+        <table><thead><tr><th>姓名</th><th>电话</th><th>单位/科室</th><th>状态</th><th>操作</th></tr></thead><tbody id="userRows"></tbody></table>
+      </div>
+
+      <div id="fields" class="admin-tab-page hidden">
+        <h2>数据表字段管理</h2>
+        <div class="panel inline-form">
+          <input id="fieldLabel" placeholder="网页表单显示名称">
+          <input id="fieldName" placeholder="字段名，如 serum_na">
+          <select id="fieldType"><option value="decimal">小数</option><option value="int">整数</option><option value="varchar">短文本</option><option value="text">长文本</option><option value="date">日期</option><option value="datetime">日期时间</option></select>
+          <input id="fieldUnit" placeholder="单位">
+          <input id="fieldRefRange" placeholder="参考区间">
+          <input id="fieldTestMethod" placeholder="实验方法">
+          <button id="addFieldBtn">新增字段</button>
+        </div>
+        <p class="hint">字段名只能使用小写字母、数字和下划线，并且所有新增字段允许为空。</p>
+        <div class="search-bar">
+          <input id="fieldSearch" placeholder="搜索表单名称...">
+          <button id="fieldSearchBtn">搜索</button>
+        </div>
+        <table><thead><tr><th>表单名称</th><th>字段名</th><th>类型</th><th>单位</th><th>参考区间</th><th>实验方法</th></tr></thead><tbody id="fieldRows"></tbody></table>
+        <div class="pagination" id="fieldPagination"></div>
+      </div>
+
+      <div id="forms" class="admin-tab-page hidden">
+        <h2>表单显示配置</h2>
+        <select id="diseaseSelect"></select>
+        <div id="formFieldChecks" class="check-list"></div>
+        <button id="saveFormSettingBtn">保存配置</button>
+        <p class="message" id="formSettingMsg"></p>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>

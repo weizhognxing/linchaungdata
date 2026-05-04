@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PICCO 客户端</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="client-shell">
+  <main class="phone-card">
+    <section class="hero compact">
+      <p class="eyebrow">PICCO</p>
+      <h1>临床检验数据录入</h1>
+      <p>选择疾病、拍照识别、校对表单并保存检验记录。</p>
+    </section>
+
+    <section id="loginPanel" class="panel hidden">
+      <h2>用户登录</h2>
+      <input id="loginAccount" placeholder="邮箱或手机号码">
+      <input id="loginPassword" type="password" placeholder="密码">
+      <button id="loginBtn">登录</button>
+      <div class="links"><a data-show="registerPanel">注册账号</a><a data-show="resetPanel">找回密码</a></div>
+      <p class="message" id="loginMsg"></p>
+    </section>
+
+    <section id="registerPanel" class="panel hidden">
+      <h2>注册账号</h2>
+      <div class="grid two">
+        <input name="name" placeholder="姓名">
+        <input name="email" placeholder="邮箱">
+        <input name="phone" placeholder="手机号码">
+        <input name="province" placeholder="省份">
+        <input name="city" placeholder="城市">
+        <input name="organization" placeholder="单位名称">
+        <input name="department" placeholder="科室">
+        <input name="password" type="password" placeholder="密码">
+      </div>
+      <button id="registerBtn">提交注册</button>
+      <div class="links"><a data-show="loginPanel">返回登录</a></div>
+      <p class="message" id="registerMsg"></p>
+    </section>
+
+    <section id="resetPanel" class="panel hidden">
+      <h2>找回密码</h2>
+      <input id="resetPhone" placeholder="手机号码">
+      <button id="smsBtn" class="secondary">获取短信验证码</button>
+      <input id="resetCode" placeholder="验证码，开发环境为 123456">
+      <input id="resetPassword" type="password" placeholder="新密码">
+      <button id="resetBtn">重置密码</button>
+      <div class="links"><a data-show="loginPanel">返回登录</a></div>
+      <p class="message" id="resetMsg"></p>
+    </section>
+
+    <section id="diseasePanel" class="panel hidden">
+      <h2>选择疾病</h2>
+      <div id="diseaseList" class="disease-list"></div>
+      <p class="hint">选择后会立即打开拍照/图片上传。</p>
+    </section>
+
+    <section id="photoPanel" class="panel hidden">
+      <h2 id="photoPanelTitle">拍照上传</h2>
+      <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;">
+      <input type="file" id="photoInputFile" accept="image/*" style="position:absolute;left:-9999px;opacity:0;">
+      <div id="photoActions">
+        <button id="takePhotoBtn" class="photo-btn" onclick="document.getElementById('photoInputCamera').click()">拍照</button>
+        <button id="uploadBtn" class="photo-btn secondary" onclick="document.getElementById('photoInputFile').click()">上传图片</button>
+      </div>
+      <div id="recognizeProgress" class="hidden"></div>
+      <div id="previewContainer" class="hidden">
+        <img id="previewImage" src="" alt="预览">
+      </div>
+      <button id="retryBtn" class="hidden photo-btn secondary">重新识别</button>
+      <p class="message" id="photoMsg"></p>
+    </section>
+
+    <section id="recordPanel" class="panel hidden">
+      <h2>校对检验数据</h2>
+      <div class="subhead">病患信息</div>
+      <div class="grid two">
+        <input name="patient_name" placeholder="病患姓名">
+        <input name="patient_gender" placeholder="性别">
+        <input name="patient_age" type="number" placeholder="年龄">
+        <input name="patient_phone" placeholder="联系电话">
+        <input name="patient_id_number" placeholder="身份证/住院号">
+      </div>
+      <div class="subhead">检验项目</div>
+      <div id="dynamicFields" class="grid two"></div>
+      <button id="saveRecordBtn">保存检验记录</button>
+      <p class="message" id="recordMsg"></p>
+    </section>
+  </main>
+
+  <nav id="bottomNav" class="bottom-nav hidden">
+    <a class="nav-item active" data-nav="diseasePanel">
+      <span class="nav-icon">&#9776;</span>
+      <span>选择疾病</span>
+    </a>
+    <a class="nav-item" data-nav="logout">
+      <span class="nav-icon">&#10140;</span>
+      <span>退出登录</span>
+    </a>
+  </nav>
+
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/client.js"></script>
+</body>
+</html>

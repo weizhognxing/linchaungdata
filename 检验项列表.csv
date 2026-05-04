@@ -1,0 +1,95 @@
+中文名称,英文名称,单位,参考区间,实验方法,数据类型
+白细胞数,WBC,10^9/L,3.5-9.5,流式细胞计数,decimal
+中性粒细胞数,NEU,10^9/L,1.8-6.3,流式细胞计数,decimal
+淋巴细胞数,LYM,10^9/L,1.1-3.2,流式细胞计数,decimal
+单核细胞数,MONO,10^9/L,0.1-0.6,流式细胞计数,decimal
+嗜酸性粒细胞数,EOS,10^9/L,0.02-0.52,流式细胞计数,decimal
+嗜碱性粒细胞数,BASO,10^9/L,0.00-0.06,流式细胞计数,decimal
+中性粒细胞率,NEU-R,%,40-75,流式细胞计数,decimal
+淋巴细胞率,LYM-R,%,20-50,流式细胞计数,decimal
+单核细胞率,MONO-R,%,3-10,流式细胞计数,decimal
+嗜酸性粒细胞率,EOS-R,%,0.4-8,流式细胞计数,decimal
+嗜碱性粒细胞率,BASO-R,%,0-1,流式细胞计数,decimal
+红细胞数,RBC,10^12/L,4.3-5.8,鞘流 DC 检测法,decimal
+血红蛋白,HGB,g/L,130-175,SLS 血红蛋白检测方法,int
+红细胞压积,HCT,-,0.4-0.5,RBC 累计脉冲高度检测法,decimal
+红细胞平均体积,MCV,fl,82-100,计算,decimal
+红细胞平均血红蛋白量,MCH,pg,27-34,计算,decimal
+红细胞平均血红蛋白浓度,MCHC,g/L,316-354,计算,int
+红细胞体积分布宽度标准差,RDW-SD,fl,35-56,计算,decimal
+红细胞体积分布宽度变异系数,RDW-CV,%,11-16,计算,decimal
+血小板数,PLT,10^9/L,125-350,鞘流 DC 检测法,int
+血小板平均体积,MPV,fl,9.4-12.5,计算,decimal
+血小板压积,PCT,%,0.10-0.28,计算,decimal
+血小板体积分布宽度,PDW,%,15.1-18.1,计算,decimal
+大血小板比例,P-LCR,%,13.0-43.0,计算,decimal
+超敏 C 反应蛋白,hsCRP,mg/L,0-6,散射比浊法,decimal
+丙氨酸氨基转移酶,ALT,U/L,9-50,速率法,decimal
+天冬氨酸氨基转移酶,AST,U/L,15-40,速率法,decimal
+AST/ALT,AST/ALT,-,-,计算,decimal
+总蛋白,TP,g/L,65-85,双缩脲法,decimal
+白蛋白,ALB,g/L,40-55,溴甲酚绿法,decimal
+球蛋白,GLO,g/L,20-40,计算,decimal
+白蛋白 / 球蛋白,A/G,-,1.2-2.5,计算,decimal
+总胆红素,TBIL,μmol/L,0-23,钒酸盐氧化法,decimal
+直接胆红素,DBIL,μmol/L,0-7,钒酸盐氧化法,decimal
+间接胆红素,IBIL,μmol/L,0-20,计算,decimal
+总胆汁酸,TBA,μmol/L,0-10,循环酶法,decimal
+r - 谷氨酰转移酶,GGT,U/L,10-60,IFCC 法,decimal
+碱性磷酸酶,ALP,U/L,45-125,AMP 法,decimal
+前白蛋白,PA,mg/L,200-430,透射免疫比浊,decimal
+尿素,Urea,mmol/L,3.6-9.5,尿酸酶法,decimal
+尿酸,UA,μmol/L,208-428,酶法,decimal
+肌酐,Crea,μmol/L,57-111,间接电极法,decimal
+钾,K,mmol/L,3.5-5.3,间接电极法 / 电极法,decimal
+钠,Na,mmol/L,137-147,间接电极法 / 电极法,decimal
+氯,Cl,mmol/L,99-110,比色法 / 电极法,decimal
+钙,Ca,mmol/L,2.11-2.52,比色法,decimal
+二氧化碳,CO2,mmol/l,22-29,酶法,decimal
+磷,P,mmol/L,0.85-1.51,紫外比色法,decimal
+镁,Mg,mmol/L,0.75-1.02,比色法,decimal
+铁,Fe,umol/L,10.6-36.7,比色法,decimal
+肾小球滤过率,GFR,mL/min,75-145,计算,decimal
+阴离子隙,AG,mmol/L,8-16,计算,decimal
+溶血,Hemo,-,-,光度法,decimal
+黄疸,Icte,-,-,光度法,decimal
+脂浊,Lipe,-,-,光度法,decimal
+酸碱度,PH,-,7.35-7.45,电极法,decimal
+二氧化碳分压,PCO2,mmHg,35-45,电极法,decimal
+氧分压,PO2,mmHg,83-108,光学法,decimal
+钙离子,Ca++,mmol/L,1.15-1.29,电极法,decimal
+葡萄糖,Glu,mmol/L,3.8-5.9,电极法,decimal
+乳酸,Lac/LA,mmol/L,0.5-2.2,电极法 / 酶法,decimal
+血红蛋白浓度,tHb,g/dl,12-17.5,光度法,decimal
+血氧饱和度,sO2,%,93-98,光度法,decimal
+氧合血红蛋白浓度,O2Hb,%,93-98,光度法,decimal
+凝血酶原时间,PT,s,11.0-14.5,凝固法,decimal
+国际标准化比值,PT-INR,INR,0.80-1.20,计算,decimal
+凝血酶原时间活动度,PT-%,%,70-130,计算,decimal
+凝血酶原时间比率,PT-RATIO,比率,0.8-1.2,计算,decimal
+活化部分凝血酶时间,APTT,s,26-40,凝固法,decimal
+APTT 比值,APTT-R,-,-,计算,decimal
+凝血酶时间,TT,s,14-21,凝固法,decimal
+纤维蛋白原,Fib,g/L,2-4,凝固法,decimal
+D - 二聚体,D-Di,ug/ml,0-0.5,免疫比浊法,decimal
+纤维蛋白原降解产物,FDP,ug/ml,0-5,免疫比浊法,decimal
+抗凝血活酶 - III,AT3,%,75-125,发色底物法,decimal
+降钙素原,PCT,ng/ml,0-0.05,化学发光法,decimal
+N 端 B 型钠尿肽前体测定,NT-proBNP,pg/ml,<=50 岁：<=300，排除心衰可能；<=450，心衰可能性较低；>450，心衰可能性高；50-75 岁：<=300，排除心衰可能；<=900，心衰可能性较低；>900，心衰可能性高；>75 岁：<=300，排除心衰可能；<=1800，心衰可能性较低；>1800，心衰可能性高,化学发光法,decimal
+高敏肌钙蛋白 T,hs-cTnT STAT,ng/ml,0-0.014,化学发光法,decimal
+肌红蛋白,MYO STAT,ng/ml,21-72,化学发光法,decimal
+肌酸激酶同工酶,CK-MB STAT,ng/ml,0-5.501,化学发光法,decimal
+糖化血红蛋白 A1c,HbAlc,%,4-6,HPLC 法,decimal
+未结合血红蛋白,HbAo,%,83-95,HPLC 法,decimal
+糖化血红蛋白 A1a,HbAla,%,0-1,HPLC 法,decimal
+糖化血红蛋白 A1b,HbAlb,%,0-1,HPLC 法,decimal
+不稳定糖化血红蛋白,LAIc-1,%,0-2,HPLC 法,decimal
+抗碱血红蛋白,HbF,%,0-2,HPLC 法,decimal
+肺炎链球菌,Spn,-,阴性 (-),恒温扩增芯片法,varchar
+金黄色葡萄球菌,Sau,-,阴性 (-),恒温扩增芯片法,varchar
+耐甲氧西林葡萄球菌,Mrs,-,阴性 (-),恒温扩增芯片法,varchar
+肺炎克雷伯菌,Kpn,-,阴性 (-),恒温扩增芯片法,varchar
+铜绿假单胞菌,Pae,-,阴性 (-),恒温扩增芯片法,varchar
+鲍曼不动杆菌,Aba,-,阴性 (-),恒温扩增芯片法,varchar
+嗜麦芽窄食单胞菌,Sma,-,阴性 (-),恒温扩增芯片法,varchar
+流感嗜血杆菌,Hin,-,阴性 (-),恒温扩增芯片法,varchar
