@@ -92,8 +92,18 @@ function loadFormSetting() {
   if (!diseaseId) return;
   $.getJSON(`/api/admin/form-settings/${diseaseId}`, function (res) {
     const selected = res.data.selected || {};
-    const html = res.data.fields.map(f => `<label><input type="checkbox" value="${f.id}" ${selected[f.id] ? 'checked' : ''}>${f.form_label} <span class="hint">${f.field_name}</span></label>`).join("");
-    $("#formFieldChecks").html(html);
+    const available = [];
+    const chosen = [];
+    res.data.fields.forEach(f => {
+      if (selected[f.id]) {
+        chosen.push({ id: f.id, label: f.form_label, name: f.field_name, order: selected[f.id] });
+      } else {
+        available.push({ id: f.id, label: f.form_label, name: f.field_name });
+      }
+    });
+    chosen.sort((a, b) => a.order - b.order);
+    $("#availableFields").html(available.map(f => `<option value="${f.id}">${f.label} (${f.name})</option>`).join(""));
+    $("#selectedFields").html(chosen.map(f => `<option value="${f.id}">${f.label} (${f.name})</option>`).join(""));
   });
 }
 
@@ -126,9 +136,33 @@ $("#addFieldBtn").on("click", function () {
 
 $("#diseaseSelect").on("change", loadFormSetting);
 
+$("#moveToRight").on("click", function () {
+  var from = document.getElementById("availableFields");
+  var to = document.getElementById("selectedFields");
+  for (var i = from.options.length - 1; i >= 0; i--) {
+    if (from.options[i].selected) {
+      to.appendChild(from.options[i]);
+    }
+  }
+});
+
+$("#moveToLeft").on("click", function () {
+  var from = document.getElementById("selectedFields");
+  var to = document.getElementById("availableFields");
+  for (var i = from.options.length - 1; i >= 0; i--) {
+    if (from.options[i].selected) {
+      to.appendChild(from.options[i]);
+    }
+  }
+});
+
 $("#saveFormSettingBtn").on("click", function () {
-  const ids = $("#formFieldChecks input:checked").map(function () { return $(this).val(); }).get();
-  $.ajax({ url: `/api/admin/form-settings/${$("#diseaseSelect").val()}`, method: "POST", contentType: "application/json", data: JSON.stringify({ field_ids: ids }) })
+  var opts = document.getElementById("selectedFields").options;
+  var ids = [];
+  for (var i = 0; i < opts.length; i++) {
+    ids.push(opts[i].value);
+  }
+  $.ajax({ url: "/api/admin/form-settings/" + $("#diseaseSelect").val(), method: "POST", contentType: "application/json", data: JSON.stringify({ field_ids: ids }) })
     .done(function (res) { adminMsg("formSettingMsg", res.message); })
     .fail(function (xhr) { adminMsg("formSettingMsg", xhr.responseJSON?.message || "保存失败", true); });
 });

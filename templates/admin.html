@@ -54,7 +54,20 @@
       <div id="forms" class="admin-tab-page hidden">
         <h2>表单显示配置</h2>
         <select id="diseaseSelect"></select>
-        <div id="formFieldChecks" class="check-list"></div>
+        <div class="dual-listbox">
+          <div class="listbox-panel">
+            <h4>未选择字段</h4>
+            <select id="availableFields" multiple></select>
+          </div>
+          <div class="listbox-actions">
+            <button id="moveToRight" title="添加到表单">&raquo;</button>
+            <button id="moveToLeft" title="从表单移除">&laquo;</button>
+          </div>
+          <div class="listbox-panel">
+            <h4>已选择字段</h4>
+            <select id="selectedFields" multiple></select>
+          </div>
+        </div>
         <button id="saveFormSettingBtn">保存配置</button>
         <p class="message" id="formSettingMsg"></p>
       </div>
