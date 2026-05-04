@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 uploads/*
 !uploads/.gitkeep
+config.py
+ai_config.py
