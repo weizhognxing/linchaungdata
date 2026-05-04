@@ -4,7 +4,8 @@ set -e
 
 DB_NAME="picco"
 DB_USER="root"
-DB_PASS="root"
+DB_PASS="bidos123"
+DB_HOST="localhost"
 PROJECT_DIR=$(cd "$(dirname "$0")" && pwd)
 
 echo "=============================="
@@ -46,19 +47,19 @@ fi
 
 # 配置数据库
 echo "[3/6] 配置数据库..."
-mysql -u${DB_USER} -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || {
+mysql -h${DB_HOST} -u${DB_USER} -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || {
     echo "  尝试使用密码连接..."
-    mysql -u${DB_USER} -p${DB_PASS} -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    mysql -h${DB_HOST} -u${DB_USER} -p${DB_PASS} -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 }
 
 # 设置密码（如果需要）
-mysql -u${DB_USER} -e "ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" 2>/dev/null || \
-mysql -u${DB_USER} -e "SET PASSWORD FOR '${DB_USER}'@'localhost' = PASSWORD('${DB_PASS}');" 2>/dev/null || \
+mysql -h${DB_HOST} -u${DB_USER} -e "ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" 2>/dev/null || \
+mysql -h${DB_HOST} -u${DB_USER} -e "SET PASSWORD FOR '${DB_USER}'@'localhost' = PASSWORD('${DB_PASS}');" 2>/dev/null || \
 true
 
 # 导入数据库结构
 echo "  导入数据库结构..."
-mysql -u${DB_USER} -p${DB_PASS} ${DB_NAME} < ${PROJECT_DIR}/schema.sql 2>/dev/null || echo "  数据库可能已导入，跳过..."
+mysql -h${DB_HOST} -u${DB_USER} -p${DB_PASS} ${DB_NAME} < ${PROJECT_DIR}/schema.sql 2>/dev/null || echo "  数据库可能已导入，跳过..."
 
 # 安装 Python 依赖
 echo "[4/6] 检查 Python 依赖..."
