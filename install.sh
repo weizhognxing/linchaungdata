@@ -14,14 +14,15 @@ echo "=============================="
 
 # 检测并安装 Python 3
 echo "[1/6] 检查 Python 3..."
-if command -v python3 &> /dev/null; then
-    PYTHON_VERSION=$(python3 --version 2>&1)
-    echo "  已安装: $PYTHON_VERSION"
-else
+PYTHON_BIN=$(command -v python3 2>/dev/null || echo "")
+if [ -z "$PYTHON_BIN" ]; then
     echo "  正在安装 Python 3..."
     yum install -y epel-release
     yum install -y python3 python3-pip
+    PYTHON_BIN="/usr/bin/python3"
 fi
+PYTHON_VERSION=$($PYTHON_BIN --version 2>&1)
+echo "  已安装: $PYTHON_VERSION (路径: $PYTHON_BIN)"
 
 # 检测并安装 MariaDB
 echo "[2/6] 检查 MariaDB..."
@@ -61,15 +62,15 @@ true
 echo "  导入数据库结构..."
 mysql -h${DB_HOST} -u${DB_USER} -p${DB_PASS} ${DB_NAME} < ${PROJECT_DIR}/schema.sql 2>/dev/null || echo "  数据库可能已导入，跳过..."
 
-# 安装 Python 依赖
+# 安装 Python 依赖（使用对应的 pip）
 echo "[4/6] 检查 Python 依赖..."
 cd ${PROJECT_DIR}
-if python3 -c "import flask; import pymysql" 2>/dev/null; then
-    echo "  已安装: Flask, PyMySQL"
-else
-    echo "  正在安装依赖..."
-    pip3 install -r requirements.txt
+PIP_BIN=$(dirname $PYTHON_BIN)/pip3
+if [ ! -f "$PIP_BIN" ]; then
+    PIP_BIN=$(dirname $PYTHON_BIN)/pip
 fi
+echo "  使用 pip: $PIP_BIN"
+$PIP_BIN install -r requirements.txt
 
 # 创建 systemd 服务
 echo "[5/6] 配置 systemd 服务..."
@@ -87,7 +88,7 @@ After=network.target mariadb.service
 [Service]
 User=root
 WorkingDirectory=${PROJECT_DIR}
-ExecStart=/usr/bin/python3 ${PROJECT_DIR}/app.py
+ExecStart=${PYTHON_BIN} ${PROJECT_DIR}/app.py
 Restart=always
 RestartSec=5
 Environment=FLASK_ENV=production
