@@ -41,7 +41,7 @@ def register():
             else:
                 exists = check_hospital_exact_match(organization, data.get("city"))
                 if not exists:
-                    return fail("该医院不存在，如有问题，请联系管理员：13062334508")
+                    return fail("该医院不存在，如有问题，请联系管理员：18282595851")
                 cur.execute("INSERT INTO hospitals (name) VALUES (%s)", (organization,))
                 hospital_id = cur.lastrowid
                 parent_id = 0

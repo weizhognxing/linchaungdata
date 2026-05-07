@@ -7,6 +7,7 @@ DB_USER="root"
 DB_PASS="bidos123"
 DB_HOST="localhost"
 PROJECT_DIR=$(cd "$(dirname "$0")" && pwd)
+VENV_DIR="${PROJECT_DIR}/venv"
 
 echo "=============================="
 echo " PICCO 系统安装脚本 (CentOS 7)"
@@ -62,15 +63,36 @@ true
 echo "  导入数据库结构..."
 mysql -h${DB_HOST} -u${DB_USER} -p${DB_PASS} ${DB_NAME} < ${PROJECT_DIR}/schema.sql 2>/dev/null || echo "  数据库可能已导入，跳过..."
 
-# 安装 Python 依赖（使用对应的 pip）
-echo "[4/6] 检查 Python 依赖..."
+# 安装 Python 依赖（优先使用项目虚拟环境）
+echo "[4/6] 配置 Python 虚拟环境并安装依赖..."
 cd ${PROJECT_DIR}
-PIP_BIN=$(dirname $PYTHON_BIN)/pip3
-if [ ! -f "$PIP_BIN" ]; then
-    PIP_BIN=$(dirname $PYTHON_BIN)/pip
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "  创建虚拟环境: $VENV_DIR"
+    $PYTHON_BIN -m venv "$VENV_DIR"
+else
+    echo "  复用已有虚拟环境: $VENV_DIR"
 fi
-echo "  使用 pip: $PIP_BIN"
-$PIP_BIN install -r requirements.txt
+
+VENV_PYTHON="${VENV_DIR}/bin/python"
+VENV_PIP="${VENV_DIR}/bin/pip"
+
+if [ ! -x "$VENV_PYTHON" ] || [ ! -x "$VENV_PIP" ]; then
+    echo "  虚拟环境不完整，重新创建..."
+    rm -rf "$VENV_DIR"
+    $PYTHON_BIN -m venv "$VENV_DIR"
+fi
+
+echo "  使用 Python: $VENV_PYTHON"
+echo "  使用 pip: $VENV_PIP"
+"$VENV_PIP" install -U pip
+"$VENV_PIP" install -r requirements.txt
+
+# 可选执行一次医院数据回填命令（命令存在时执行）
+if "$VENV_PYTHON" -m flask --app app --help | grep -q "migrate-hospital"; then
+    echo "  执行医院数据回填..."
+    "$VENV_PYTHON" -m flask --app app migrate-hospital || echo "  医院回填执行失败，请手动检查"
+fi
 
 # 创建 systemd 服务
 echo "[5/6] 配置 systemd 服务..."
@@ -88,7 +110,7 @@ After=network.target mariadb.service
 [Service]
 User=root
 WorkingDirectory=${PROJECT_DIR}
-ExecStart=${PYTHON_BIN} ${PROJECT_DIR}/app.py
+ExecStart=${VENV_PYTHON} ${PROJECT_DIR}/app.py
 Restart=always
 RestartSec=5
 Environment=FLASK_ENV=production
