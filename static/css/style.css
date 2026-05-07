@@ -82,8 +82,8 @@ th { background: #eff6ee; }
 .status-disabled { background: #f8d7da; color: #721c24; }
 .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .photo-actions.single-btn { grid-template-columns: 1fr; }
-.photo-btn { padding: 16px; font-size: 16px; border-radius: 16px; }
-.photo-btn.secondary { background: var(--accent); color: #2f2108; }
+.photo-btn { padding: 16px; font-size: 16px; border-radius: 16px; background: var(--brand); color: #fff; font-weight: 700; box-shadow: 0 10px 22px rgba(31, 122, 90, 0.18); }
+.photo-btn.secondary { background: var(--accent); color: #2f2108; box-shadow: 0 10px 22px rgba(220, 164, 71, 0.18); }
 .photo-btn-label { display: block; text-align: center; cursor: pointer; user-select: none; }
 .sr-only-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; border: 0; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 #previewContainer { margin-bottom: 16px; text-align: center; }
