@@ -4,3 +4,10 @@ uploads/*
 !uploads/.gitkeep
 config.py
 ai_config.py
+
+# Android/Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/

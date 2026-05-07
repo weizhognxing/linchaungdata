@@ -1,0 +1,45 @@
+name: Build Android WebView APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_url:
+        description: "Web URL loaded in app"
+        required: false
+        default: "http://10.0.2.2:5000/app"
+  push:
+    branches: [ "main" ]
+    paths:
+      - "android-shell/**"
+      - ".github/workflows/build-android-webview.yml"
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build Debug APK
+        working-directory: android-shell
+        env:
+          WEB_URL: ${{ github.event.inputs.web_url || 'http://10.0.2.2:5000/app' }}
+        run: gradle :app:assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: picco-webview-debug-apk
+          path: android-shell/app/build/outputs/apk/debug/app-debug.apk

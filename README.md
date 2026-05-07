@@ -62,3 +62,30 @@ python app.py
 - 图像识别接口目前是占位，上传图片后返回空的动态表单，后续可在 `app.py` 的 `/api/recognize` 接入阿里巴巴 AI 接口。
 - 管理员新增检验字段时会同步执行 `ALTER TABLE lab_records ADD COLUMN`，字段名只允许小写字母、数字、下划线，并且必须以小写字母开头。
 - 动态字段类型限制在 `varchar`、`text`、`int`、`decimal`、`date`、`datetime`，所有新增字段都允许为空。
+
+## Android WebView 壳与自动打包
+
+仓库已增加最小可用的 Android WebView 壳工程：`android-shell/`。
+
+- 打开入口：`MainActivity` 会加载 `WEB_URL`。
+- 默认地址：`http://10.0.2.2:5000/app`（用于本地 Android 模拟器访问本机 Flask）。
+- 如果部署到公网，请在构建时覆盖 `WEB_URL`。
+
+### 本地构建 APK
+
+```bash
+cd android-shell
+gradle :app:assembleDebug -PWEB_URL="https://your-domain/app"
+```
+
+生成路径：
+
+`android-shell/app/build/outputs/apk/debug/app-debug.apk`
+
+### GitHub Actions 自动构建
+
+已新增工作流：`.github/workflows/build-android-webview.yml`
+
+- 触发方式 1：修改 `android-shell/` 后 push 到 `main`。
+- 触发方式 2：手动 `workflow_dispatch`，并可传入 `web_url`。
+- 产物：`picco-webview-debug-apk`（可在 Actions Artifacts 下载 APK）。
