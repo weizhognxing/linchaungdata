@@ -1,6 +1,7 @@
 let selectedDiseaseId = null;
 let uploadedPhotoPath = null;
 let selectedFile = null;
+let canReviewMembers = false;
 
 // 检测是否为移动设备
 function isMobile() {
@@ -32,9 +33,16 @@ function showPanel(id) {
   if (authPanels.indexOf(id) === -1) {
     $("#bottomNav").removeClass("hidden");
     $(".nav-item").removeClass("active");
-    if (id === "diseasePanel") $(".nav-item[data-nav='diseasePanel']").addClass("active");
+    $(".nav-item[data-nav='" + id + "']").addClass("active");
+    if (id === "recordPanel" || id === "photoPanel") {
+      $(".nav-item[data-nav='diseasePanel']").addClass("active");
+    }
   } else {
     $("#bottomNav").addClass("hidden");
+  }
+
+  if (id === "memberReviewPanel") {
+    loadMemberReviews();
   }
 }
 
@@ -67,10 +75,16 @@ $(function() {
   }
   $.getJSON("/api/user/check").done(function(res) {
     if (res.success) {
+      canReviewMembers = Number(res.data.parent_id || 0) === 0;
+      $("#memberReviewNav").toggleClass("hidden", !canReviewMembers);
       loadDiseases();
       var saved = localStorage.getItem("clientPanel");
       if (saved && saved !== "loginPanel" && saved !== "registerPanel" && saved !== "resetPanel") {
-        showPanel(saved);
+        if (saved === "memberReviewPanel" && !canReviewMembers) {
+          showPanel("diseasePanel");
+        } else {
+          showPanel(saved);
+        }
       } else {
         showPanel("diseasePanel");
       }
@@ -177,7 +191,12 @@ $(document).on("click", ".nav-item", function () {
 
 $("#loginBtn").on("click", function () {
   $.post("/api/login", { account: $("#loginAccount").val(), password: $("#loginPassword").val() })
-    .done(function () { loadDiseases(); showPanel("diseasePanel"); })
+    .done(function (res) {
+      canReviewMembers = Number(res?.data?.parent_id || 0) === 0;
+      $("#memberReviewNav").toggleClass("hidden", !canReviewMembers);
+      loadDiseases();
+      showPanel("diseasePanel");
+    })
     .fail(function (xhr) { setMsg("loginMsg", xhr.responseJSON?.message || "登录失败", true); });
 });
 
@@ -211,6 +230,15 @@ $(document).on("click", ".disease-item", function () {
 // 拍照/上传：点击按钮触发隐藏的 file input
 // 文件选择变化时自动识别
 function bindFileInputs() {
+  $(document).on("click", "#takePhotoBtn", function (e) {
+    e.preventDefault();
+    document.getElementById("photoInputCamera").click();
+  });
+  $(document).on("click", "#uploadBtn", function (e) {
+    e.preventDefault();
+    document.getElementById("photoInputFile").click();
+  });
+
   document.getElementById("photoInputCamera").addEventListener("change", handleFileSelect);
   document.getElementById("photoInputFile").addEventListener("change", handleFileSelect);
 }
@@ -233,6 +261,61 @@ $(document).on("click", "#retryBtn", function () {
   if (selectedFile) {
     autoRecognize();
   }
+});
+
+function formatStatus(status) {
+  if (status === "pending") return "未审核";
+  if (status === "approved") return "已通过";
+  if (status === "disabled") return "已禁用";
+  return status || "-";
+}
+
+function loadMemberReviews() {
+  if (!canReviewMembers) {
+    $("#memberReviewBody").html('<tr><td colspan="4">无权限查看</td></tr>');
+    return;
+  }
+
+  $.getJSON("/api/member-reviews")
+    .done(function (res) {
+      if (!res.success) {
+        $("#memberReviewBody").html('<tr><td colspan="4">加载失败</td></tr>');
+        return;
+      }
+      if (!res.data.length) {
+        $("#memberReviewBody").html('<tr><td colspan="4">暂无可审核会员</td></tr>');
+        return;
+      }
+
+      const html = res.data.map(function (user) {
+        const action = user.status === "pending"
+          ? '<button class="btn-sm approve-member-btn" data-id="' + user.id + '">通过</button>'
+          : '-';
+        return '<tr>' +
+          '<td>' + (user.name || '-') + '</td>' +
+          '<td>' + (user.phone || '-') + '</td>' +
+          '<td>' + formatStatus(user.status) + '</td>' +
+          '<td>' + action + '</td>' +
+          '</tr>';
+      }).join('');
+      $("#memberReviewBody").html(html);
+    })
+    .fail(function (xhr) {
+      $("#memberReviewBody").html('<tr><td colspan="4">加载失败</td></tr>');
+      setMsg("memberReviewMsg", xhr.responseJSON?.message || "加载失败", true);
+    });
+}
+
+$(document).on("click", ".approve-member-btn", function () {
+  const targetUserId = $(this).data("id");
+  $.post("/api/member-reviews/" + targetUserId + "/approve")
+    .done(function (res) {
+      setMsg("memberReviewMsg", res.message || "操作成功");
+      loadMemberReviews();
+    })
+    .fail(function (xhr) {
+      setMsg("memberReviewMsg", xhr.responseJSON?.message || "操作失败", true);
+    });
 });
 
 $("#saveRecordBtn").on("click", function () {

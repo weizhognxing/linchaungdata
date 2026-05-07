@@ -31,7 +31,7 @@
         <input name="phone" placeholder="手机号码">
         <input name="province" placeholder="省份">
         <input name="city" placeholder="城市">
-        <input name="organization" placeholder="单位名称">
+        <input name="organization" placeholder="单位名称，要求一字不差">
         <input name="department" placeholder="科室">
         <input name="password" type="password" placeholder="密码">
       </div>
@@ -59,11 +59,11 @@
 
     <section id="photoPanel" class="panel hidden">
       <h2 id="photoPanelTitle">拍照上传</h2>
-      <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;">
-      <input type="file" id="photoInputFile" accept="image/*" style="position:absolute;left:-9999px;opacity:0;">
+      <input type="file" id="photoInputCamera" class="sr-only-input" accept="image/*" capture="environment">
+      <input type="file" id="photoInputFile" class="sr-only-input" accept="image/*">
       <div id="photoActions">
-        <button id="takePhotoBtn" class="photo-btn" onclick="document.getElementById('photoInputCamera').click()">拍照</button>
-        <button id="uploadBtn" class="photo-btn secondary" onclick="document.getElementById('photoInputFile').click()">上传图片</button>
+        <button id="takePhotoBtn" class="photo-btn">拍照</button>
+        <button id="uploadBtn" class="photo-btn secondary">上传图片</button>
       </div>
       <div id="recognizeProgress" class="hidden"></div>
       <div id="previewContainer" class="hidden">
@@ -88,12 +88,36 @@
       <button id="saveRecordBtn">保存检验记录</button>
       <p class="message" id="recordMsg"></p>
     </section>
+
+    <section id="memberReviewPanel" class="panel hidden">
+      <h2>会员审核</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>名字</th>
+              <th>电话</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="memberReviewBody">
+            <tr><td colspan="4">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="message" id="memberReviewMsg"></p>
+    </section>
   </main>
 
   <nav id="bottomNav" class="bottom-nav hidden">
     <a class="nav-item active" data-nav="diseasePanel">
       <span class="nav-icon">&#9776;</span>
       <span>选择疾病</span>
+    </a>
+    <a class="nav-item hidden" id="memberReviewNav" data-nav="memberReviewPanel">
+      <span class="nav-icon">&#10003;</span>
+      <span>会员审核</span>
     </a>
     <a class="nav-item" data-nav="logout">
       <span class="nav-icon">&#10140;</span>
