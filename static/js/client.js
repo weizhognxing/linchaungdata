@@ -230,15 +230,6 @@ $(document).on("click", ".disease-item", function () {
 // 拍照/上传：点击按钮触发隐藏的 file input
 // 文件选择变化时自动识别
 function bindFileInputs() {
-  $(document).on("click", "#takePhotoBtn", function (e) {
-    e.preventDefault();
-    document.getElementById("photoInputCamera").click();
-  });
-  $(document).on("click", "#uploadBtn", function (e) {
-    e.preventDefault();
-    document.getElementById("photoInputFile").click();
-  });
-
   document.getElementById("photoInputCamera").addEventListener("change", handleFileSelect);
   document.getElementById("photoInputFile").addEventListener("change", handleFileSelect);
 }

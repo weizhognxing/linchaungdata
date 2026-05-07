@@ -84,6 +84,7 @@ th { background: #eff6ee; }
 .photo-actions.single-btn { grid-template-columns: 1fr; }
 .photo-btn { padding: 16px; font-size: 16px; border-radius: 16px; }
 .photo-btn.secondary { background: var(--accent); color: #2f2108; }
+.photo-btn-label { display: block; text-align: center; cursor: pointer; user-select: none; }
 .sr-only-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; border: 0; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 #previewContainer { margin-bottom: 16px; text-align: center; }
 #previewImage { max-width: 100%; max-height: 300px; border-radius: 12px; border: 2px solid var(--line); }

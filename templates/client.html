@@ -61,9 +61,9 @@
       <h2 id="photoPanelTitle">拍照上传</h2>
       <input type="file" id="photoInputCamera" class="sr-only-input" accept="image/*" capture="environment">
       <input type="file" id="photoInputFile" class="sr-only-input" accept="image/*">
-      <div id="photoActions">
-        <button id="takePhotoBtn" class="photo-btn">拍照</button>
-        <button id="uploadBtn" class="photo-btn secondary">上传图片</button>
+      <div id="photoActions" class="photo-actions">
+        <label id="takePhotoBtn" class="photo-btn photo-btn-label" for="photoInputCamera">拍照</label>
+        <label id="uploadBtn" class="photo-btn photo-btn-label secondary" for="photoInputFile">上传图片</label>
       </div>
       <div id="recognizeProgress" class="hidden"></div>
       <div id="previewContainer" class="hidden">
