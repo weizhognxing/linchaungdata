@@ -68,7 +68,7 @@ python app.py
 仓库已增加最小可用的 Android WebView 壳工程：`android-shell/`。
 
 - 打开入口：`MainActivity` 会加载 `WEB_URL`。
-- 默认地址：`http://10.0.2.2:5000/app`（用于本地 Android 模拟器访问本机 Flask）。
+- 默认地址：`http://117.78.1.19:5000/app`。
 - 如果部署到公网，请在构建时覆盖 `WEB_URL`。
 
 ### 本地构建 APK

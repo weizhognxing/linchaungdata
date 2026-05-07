@@ -6,7 +6,7 @@ on:
       web_url:
         description: "Web URL loaded in app"
         required: false
-        default: "http://10.0.2.2:5000/app"
+        default: "http://117.78.1.19:5000/app"
   push:
     branches: [ "main" ]
     paths:
@@ -35,7 +35,7 @@ jobs:
       - name: Build Debug APK
         working-directory: android-shell
         env:
-          WEB_URL: ${{ github.event.inputs.web_url || 'http://10.0.2.2:5000/app' }}
+          WEB_URL: ${{ github.event.inputs.web_url || 'http://117.78.1.19:5000/app' }}
         run: gradle :app:assembleDebug
 
       - name: Upload APK Artifact

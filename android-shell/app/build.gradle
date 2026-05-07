@@ -16,7 +16,7 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        def webUrl = (project.findProperty("WEB_URL") ?: System.getenv("WEB_URL") ?: "http://10.0.2.2:5000/app").toString()
+        def webUrl = (project.findProperty("WEB_URL") ?: System.getenv("WEB_URL") ?: "http://117.78.1.19:5000/app").toString()
         buildConfigField "String", "WEB_URL", '"' + webUrl + '"'
     }
 
