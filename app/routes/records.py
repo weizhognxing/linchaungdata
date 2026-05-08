@@ -165,11 +165,25 @@ def save_record():
         return fail("请填写病患姓名并选择疾病")
 
     allowed_fields = {field["field_name"] for field in get_fields_for_disease(int(disease_id))}
-    record_values = {key: value for key, value in values.items() if key in allowed_fields}
 
     conn = db()
     try:
         with conn.cursor() as cur:
+            cur.execute("SHOW COLUMNS FROM lab_records")
+            existing_columns = {row["Field"] for row in cur.fetchall()}
+
+            # Only keep fields that are configured for the disease and already exist
+            # in lab_records to avoid runtime SQL errors from stale field settings.
+            skipped_fields = sorted(
+                [key for key in values.keys() if key in allowed_fields and key not in existing_columns]
+            )
+
+            record_values = {
+                key: value
+                for key, value in values.items()
+                if key in allowed_fields and key in existing_columns
+            }
+
             cur.execute(
                 """
                 SELECT id FROM patients
@@ -210,6 +224,11 @@ def save_record():
             cur.execute(f"INSERT INTO lab_records ({safe_columns}) VALUES ({placeholders})", params)
             record_id = cur.lastrowid
         conn.commit()
+        if skipped_fields:
+            return ok(
+                {"record_id": record_id, "patient_id": patient_id, "skipped_fields": skipped_fields},
+                "保存成功，部分字段未入库",
+            )
         return ok({"record_id": record_id, "patient_id": patient_id}, "保存成功")
     finally:
         conn.close()
