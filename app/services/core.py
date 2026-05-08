@@ -230,10 +230,14 @@ def parse_patient_info(ai_text):
     if not isinstance(patient, dict):
         return {}
 
+    age_raw = str(patient.get("age") or "").strip()
+    age_match = re.search(r"\d+", age_raw)
+    age = age_match.group(0) if age_match else ""
+
     return {
         "name": (patient.get("name") or "").strip(),
         "gender": (patient.get("gender") or "").strip(),
-        "age": str(patient.get("age") or "").strip(),
+        "age": age,
         "phone": (patient.get("phone") or "").strip(),
         "id_number": (patient.get("id_number") or "").strip(),
     }

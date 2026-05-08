@@ -128,10 +128,16 @@ function showPreview(file) {
 
 function fillPatientForm(patient) {
   if (!patient) return;
+  var normalizedAge = "";
+  if (patient.age !== undefined && patient.age !== null) {
+    var ageText = String(patient.age).trim();
+    var ageMatch = ageText.match(/\d+/);
+    normalizedAge = ageMatch ? ageMatch[0] : "";
+  }
   const map = {
     patient_name: patient.name,
     patient_gender: patient.gender,
-    patient_age: patient.age,
+    patient_age: normalizedAge,
     patient_phone: patient.phone,
     patient_id_number: patient.id_number
   };
