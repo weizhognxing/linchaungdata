@@ -59,7 +59,14 @@ function formDataFrom(panel) {
 function loadDiseases() {
   $.getJSON("/api/diseases", function (res) {
     if (!res.success) return;
-    const html = res.data.map(d => `<button class="disease-item" data-id="${d.id}">${d.name}</button>`).join("");
+    const payload = res.data || {};
+    const diseases = payload.diseases || [];
+    const total = Number(payload.total_patients || 0);
+    $("#diseaseTotalCount").text(`总共录入${total}人`);
+    const html = diseases.map(function (d) {
+      const count = Number(d.patient_count || 0);
+      return `<button class="disease-item" data-id="${d.id}"><span class="disease-name">${d.name}</span><span class="disease-count">已录入${count}人</span></button>`;
+    }).join("");
     $("#diseaseList").html(html);
   });
 }
@@ -119,6 +126,23 @@ function showPreview(file) {
   reader.readAsDataURL(file);
 }
 
+function fillPatientForm(patient) {
+  if (!patient) return;
+  const map = {
+    patient_name: patient.name,
+    patient_gender: patient.gender,
+    patient_age: patient.age,
+    patient_phone: patient.phone,
+    patient_id_number: patient.id_number
+  };
+  Object.keys(map).forEach(function (fieldName) {
+    const value = map[fieldName];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      $("[name=" + fieldName + "]").val(value);
+    }
+  });
+}
+
 // 显示识别进度
 function showRecognizeProgress(step, total, message) {
   var percent = Math.round((step / total) * 100);
@@ -153,6 +177,7 @@ function autoRecognize() {
     .done(function (res) {
       showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
       uploadedPhotoPath = res.data.photo_path;
+      fillPatientForm(res.data.patient);
 
       // 用识别结果填充表单
       var html = res.data.fields.map(function(f) {

@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 from app.common import fail, ok, required
 from app.db import db
 from app.decorators import require_user
-from app.services.core import get_fields_for_disease, parse_ai_result, recognize_image
+from app.services.core import get_fields_for_disease, parse_ai_result, parse_patient_info, recognize_image, reorder_fields_by_values
 
 
 records_bp = Blueprint("records", __name__)
@@ -19,8 +19,22 @@ def diseases():
     conn = db()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name FROM diseases ORDER BY sort_order, id")
-            return ok(cur.fetchall())
+            cur.execute(
+                """
+                SELECT d.id, d.name, COUNT(DISTINCT r.patient_id) AS patient_count
+                FROM diseases d
+                LEFT JOIN lab_records r ON r.disease_id=d.id
+                GROUP BY d.id, d.name, d.sort_order
+                ORDER BY d.sort_order, d.id
+                """
+            )
+            diseases = cur.fetchall()
+
+            cur.execute("SELECT COUNT(DISTINCT patient_id) AS total_patients FROM lab_records")
+            total_row = cur.fetchone() or {}
+            total_patients = total_row.get("total_patients", 0) or 0
+
+            return ok({"diseases": diseases, "total_patients": int(total_patients)})
     finally:
         conn.close()
 
@@ -119,21 +133,31 @@ def recognize():
             conn.close()
 
     values = {}
+    patient = {}
     if photo_path:
         try:
             ai_text = recognize_image(photo_path)
             values = parse_ai_result(ai_text, fields)
+            patient = parse_patient_info(ai_text)
+            fields = reorder_fields_by_values(fields, values)
         except Exception as e:
             print(f"AI recognition error: {e}")
 
-    return ok({"photo_path": photo_path, "fields": fields, "values": values}, "识别完成")
+    return ok({"photo_path": photo_path, "fields": fields, "values": values, "patient": patient}, "识别完成")
 
 
 @records_bp.post("/api/records")
 @require_user
 def save_record():
     data = request.get_json(silent=True) or {}
-    patient = data.get("patient") or {}
+    raw_patient = data.get("patient") or {}
+    patient = {
+        "name": (raw_patient.get("name") or "").strip(),
+        "gender": (raw_patient.get("gender") or "").strip(),
+        "age": raw_patient.get("age"),
+        "phone": (raw_patient.get("phone") or "").strip(),
+        "id_number": (raw_patient.get("id_number") or "").strip(),
+    }
     values = data.get("values") or {}
     disease_id = data.get("disease_id")
     missing = required(patient, ["name"])

@@ -148,9 +148,16 @@ def recognize_image(image_path):
         "Authorization": f"Bearer {ai_config.AI_API_KEY}",
     }
 
-    prompt = """请识别这张检验报告图片，提取所有检验项目的结果。
+    prompt = """请识别这张检验报告图片，提取患者信息和所有检验项目结果。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {
+  "patient": {
+    "name": "姓名",
+    "gender": "性别",
+    "age": "年龄",
+    "phone": "电话",
+    "id_number": "身份证号或住院号"
+  },
   "items": [
     {"name": "中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}
   ]
@@ -204,3 +211,47 @@ def parse_ai_result(ai_text, fields):
                     result[field_name] = value
                     break
     return result
+
+
+def parse_patient_info(ai_text):
+    if not ai_text:
+        return {}
+
+    json_match = re.search(r"\{.*\}", ai_text, re.DOTALL)
+    if not json_match:
+        return {}
+
+    try:
+        ai_data = json.loads(json_match.group())
+    except json.JSONDecodeError:
+        return {}
+
+    patient = ai_data.get("patient") or {}
+    if not isinstance(patient, dict):
+        return {}
+
+    return {
+        "name": (patient.get("name") or "").strip(),
+        "gender": (patient.get("gender") or "").strip(),
+        "age": str(patient.get("age") or "").strip(),
+        "phone": (patient.get("phone") or "").strip(),
+        "id_number": (patient.get("id_number") or "").strip(),
+    }
+
+
+def reorder_fields_by_values(fields, values):
+    if not fields:
+        return fields
+    if not values:
+        return fields
+
+    with_values = []
+    without_values = []
+    for field in fields:
+        field_name = field.get("field_name")
+        value = values.get(field_name)
+        if value is not None and str(value).strip() != "":
+            with_values.append(field)
+        else:
+            without_values.append(field)
+    return with_values + without_values
