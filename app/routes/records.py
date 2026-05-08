@@ -204,7 +204,9 @@ def save_record():
             columns = ["patient_id", "user_id", "disease_id", "photo_path", "ai_raw"] + list(record_values.keys())
             params = [patient_id, session["user_id"], disease_id, data.get("photo_path"), data.get("ai_raw")] + list(record_values.values())
             placeholders = ",".join(["%s"] * len(columns))
-            safe_columns = ",".join([f"`{col}`" for col in columns])
+            # PyMySQL uses Python '%' formatting internally; escape '%' in identifiers
+            # to avoid '%`' formatting errors for legacy field names like 'xxx%'.
+            safe_columns = ",".join([f"`{str(col).replace('`', '``').replace('%', '%%')}`" for col in columns])
             cur.execute(f"INSERT INTO lab_records ({safe_columns}) VALUES ({placeholders})", params)
             record_id = cur.lastrowid
         conn.commit()
