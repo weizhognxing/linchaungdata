@@ -57,6 +57,12 @@
       <p class="hint">选择后会立即打开拍照/图片上传。</p>
     </section>
 
+    <section id="caseListPanel" class="panel hidden">
+      <h2>病例列表</h2>
+      <div id="caseList" class="case-list"></div>
+      <p class="message" id="caseListMsg"></p>
+    </section>
+
     <section id="photoPanel" class="panel hidden">
       <h2 id="photoPanelTitle">拍照上传</h2>
       <input type="file" id="photoInputCamera" class="sr-only-input" accept="image/*" capture="environment">
@@ -89,6 +95,39 @@
       <p class="message" id="recordMsg"></p>
     </section>
 
+    <section id="patientDetailPanel" class="panel hidden">
+      <h2>病人详情</h2>
+      <div id="patientProfile" class="patient-profile"></div>
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-detail-tab="lab">检验记录</button>
+        <button class="detail-tab" data-detail-tab="treat">治疗记录</button>
+        <button class="detail-tab" data-detail-tab="follow">回访记录</button>
+      </div>
+      <div id="detailLabTab" class="detail-tab-page">
+        <div id="labRecordList" class="detail-list"></div>
+      </div>
+      <div id="detailTreatTab" class="detail-tab-page hidden">
+        <div id="treatList" class="detail-list"></div>
+        <div class="panel">
+          <h3>新增治疗记录</h3>
+          <input id="treatTime" type="datetime-local" placeholder="时间">
+          <textarea id="treatMethod" placeholder="治疗手段"></textarea>
+          <button id="addTreatBtn">保存治疗记录</button>
+          <p class="message" id="treatMsg"></p>
+        </div>
+      </div>
+      <div id="detailFollowTab" class="detail-tab-page hidden">
+        <div id="followList" class="detail-list"></div>
+        <div class="panel">
+          <h3>新增回访记录</h3>
+          <input id="followTime" type="datetime-local" placeholder="时间">
+          <textarea id="followResult" placeholder="随访结果"></textarea>
+          <button id="addFollowBtn">保存回访记录</button>
+          <p class="message" id="followMsg"></p>
+        </div>
+      </div>
+    </section>
+
     <section id="memberReviewPanel" class="panel hidden">
       <h2>会员审核</h2>
       <div class="table-wrap">
@@ -114,6 +153,10 @@
     <a class="nav-item active" data-nav="diseasePanel">
       <span class="nav-icon">&#9776;</span>
       <span>选择疾病</span>
+    </a>
+    <a class="nav-item" data-nav="caseListPanel">
+      <span class="nav-icon">&#128196;</span>
+      <span>病例列表</span>
     </a>
     <a class="nav-item hidden" id="memberReviewNav" data-nav="memberReviewPanel">
       <span class="nav-icon">&#10003;</span>

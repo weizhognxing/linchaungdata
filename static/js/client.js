@@ -2,6 +2,7 @@ let selectedDiseaseId = null;
 let uploadedPhotoPath = null;
 let selectedFile = null;
 let canReviewMembers = false;
+let currentPatientId = null;
 
 // 检测是否为移动设备
 function isMobile() {
@@ -37,12 +38,18 @@ function showPanel(id) {
     if (id === "recordPanel" || id === "photoPanel") {
       $(".nav-item[data-nav='diseasePanel']").addClass("active");
     }
+    if (id === "patientDetailPanel") {
+      $(".nav-item[data-nav='caseListPanel']").addClass("active");
+    }
   } else {
     $("#bottomNav").addClass("hidden");
   }
 
   if (id === "memberReviewPanel") {
     loadMemberReviews();
+  }
+  if (id === "caseListPanel") {
+    loadCaseList();
   }
 }
 
@@ -69,6 +76,79 @@ function loadDiseases() {
     }).join("");
     $("#diseaseList").html(html);
   });
+}
+
+function loadCaseList() {
+  $.getJSON("/api/cases")
+    .done(function (res) {
+      if (!res.success) {
+        setMsg("caseListMsg", "病例加载失败", true);
+        return;
+      }
+      if (!res.data.length) {
+        $("#caseList").html('<div class="detail-item">暂无病例</div>');
+        return;
+      }
+      const html = res.data.map(function (item) {
+        return '<div class="case-item">' +
+          '<div class="case-head"><strong>' + (item.name || '-') + '</strong><button class="btn-sm view-case-btn" data-id="' + item.id + '">查看</button></div>' +
+          '<div class="case-meta">' +
+          '性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 病历号：' + (item.id_number || '-') +
+          '</div>' +
+          '<div class="case-meta">已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
+          '</div>';
+      }).join('');
+      $("#caseList").html(html);
+    })
+    .fail(function (xhr) {
+      setMsg("caseListMsg", xhr.responseJSON?.message || "病例加载失败", true);
+    });
+}
+
+function loadPatientDetail(patientId) {
+  $.getJSON("/api/patients/" + patientId)
+    .done(function (res) {
+      if (!res.success) {
+        alert("加载病人详情失败");
+        return;
+      }
+      currentPatientId = patientId;
+      const patient = res.data.patient || {};
+      const patientFields = res.data.patient_fields || [];
+      const extra = patientFields.map(function (f) {
+        return '<div class="patient-extra">' + f.form_label + '：' + (f.value || '-') + '</div>';
+      }).join('');
+      $("#patientProfile").html(
+        '<div><strong>' + (patient.name || '-') + '</strong></div>' +
+        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 病历号：' + (patient.id_number || '-') + '</div>' +
+        '<div class="case-meta">电话：' + (patient.phone || '-') + '</div>' +
+        extra
+      );
+
+      const labHtml = (res.data.lab_records || []).map(function (r) {
+        return '<div class="detail-item">' + (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + ' ｜ 录入人：' + (r.operator_name || '-') + '</div>';
+      }).join('') || '<div class="detail-item">暂无检验记录</div>';
+      $("#labRecordList").html(labHtml);
+
+      const treatHtml = (res.data.treatments || []).map(function (r) {
+        return '<div class="detail-item">' + (r.treat_time || '-') + '<br>' + (r.treatment_method || '-') + '</div>';
+      }).join('') || '<div class="detail-item">暂无治疗记录</div>';
+      $("#treatList").html(treatHtml);
+
+      const followHtml = (res.data.followups || []).map(function (r) {
+        return '<div class="detail-item">' + (r.follow_time || '-') + '<br>' + (r.follow_result || '-') + '</div>';
+      }).join('') || '<div class="detail-item">暂无回访记录</div>';
+      $("#followList").html(followHtml);
+
+      $(".detail-tab").removeClass("active");
+      $(".detail-tab[data-detail-tab='lab']").addClass("active");
+      $(".detail-tab-page").addClass("hidden");
+      $("#detailLabTab").removeClass("hidden");
+      showPanel("patientDetailPanel");
+    })
+    .fail(function (xhr) {
+      alert(xhr.responseJSON?.message || "加载病人详情失败");
+    });
 }
 
 // 页面加载时检查登录状态
@@ -357,5 +437,46 @@ $("#saveRecordBtn").on("click", function () {
     data: JSON.stringify({ disease_id: selectedDiseaseId, patient, values, photo_path: uploadedPhotoPath })
   }).done(function (res) {
     setMsg("recordMsg", `${res.message}，记录ID：${res.data.record_id}`);
+    loadCaseList();
   }).fail(function (xhr) { setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true); });
+});
+
+$(document).on("click", ".view-case-btn", function () {
+  loadPatientDetail($(this).data("id"));
+});
+
+$(document).on("click", ".detail-tab", function () {
+  const tab = $(this).data("detail-tab");
+  $(".detail-tab").removeClass("active");
+  $(this).addClass("active");
+  $(".detail-tab-page").addClass("hidden");
+  if (tab === "lab") $("#detailLabTab").removeClass("hidden");
+  if (tab === "treat") $("#detailTreatTab").removeClass("hidden");
+  if (tab === "follow") $("#detailFollowTab").removeClass("hidden");
+});
+
+$("#addTreatBtn").on("click", function () {
+  if (!currentPatientId) return;
+  $.post("/api/patients/" + currentPatientId + "/treatments", {
+    treat_time: $("#treatTime").val(),
+    treatment_method: $("#treatMethod").val()
+  }).done(function (res) {
+    setMsg("treatMsg", res.message || "已保存");
+    loadPatientDetail(currentPatientId);
+  }).fail(function (xhr) {
+    setMsg("treatMsg", xhr.responseJSON?.message || "保存失败", true);
+  });
+});
+
+$("#addFollowBtn").on("click", function () {
+  if (!currentPatientId) return;
+  $.post("/api/patients/" + currentPatientId + "/followups", {
+    follow_time: $("#followTime").val(),
+    follow_result: $("#followResult").val()
+  }).done(function (res) {
+    setMsg("followMsg", res.message || "已保存");
+    loadPatientDetail(currentPatientId);
+  }).fail(function (xhr) {
+    setMsg("followMsg", xhr.responseJSON?.message || "保存失败", true);
+  });
 });

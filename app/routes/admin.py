@@ -8,6 +8,28 @@ from app.decorators import require_admin
 admin_bp = Blueprint("admin", __name__)
 
 
+def _list_fields(table_name, page, per_page, search):
+    offset = (page - 1) * per_page
+    where = ""
+    params = []
+    if search:
+        where = "WHERE form_label LIKE %s"
+        params.append(f"%{search}%")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) as total FROM {table_name} {where}", params)
+            total = cur.fetchone()["total"]
+            cur.execute(
+                f"SELECT * FROM {table_name} {where} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+                params + [per_page, offset],
+            )
+            return {"list": cur.fetchall(), "total": total, "page": page, "per_page": per_page}
+    finally:
+        conn.close()
+
+
 @admin_bp.get("/api/admin/users")
 @require_admin
 def admin_users():
@@ -52,21 +74,7 @@ def admin_fields():
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 8))
     search = request.args.get("search", "").strip()
-    offset = (page - 1) * per_page
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            where = ""
-            params = []
-            if search:
-                where = "WHERE form_label LIKE %s"
-                params.append(f"%{search}%")
-            cur.execute(f"SELECT COUNT(*) as total FROM field_settings {where}", params)
-            total = cur.fetchone()["total"]
-            cur.execute(f"SELECT * FROM field_settings {where} ORDER BY created_at DESC LIMIT %s OFFSET %s", params + [per_page, offset])
-            return ok({"list": cur.fetchall(), "total": total, "page": page, "per_page": per_page})
-    finally:
-        conn.close()
+    return ok(_list_fields("field_settings", page, per_page, search))
 
 
 @admin_bp.post("/api/admin/fields")
@@ -100,6 +108,48 @@ def admin_add_field():
             )
         conn.commit()
         return ok(message="字段已新增")
+    finally:
+        conn.close()
+
+
+@admin_bp.get("/api/admin/patient-fields")
+@require_admin
+def admin_patient_fields():
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 8))
+    search = request.args.get("search", "").strip()
+    return ok(_list_fields("patient_field_settings", page, per_page, search))
+
+
+@admin_bp.post("/api/admin/patient-fields")
+@require_admin
+def admin_add_patient_field():
+    data = payload()
+    field_name = (data.get("field_name") or "").strip()
+    data_type = (data.get("data_type") or "").strip()
+    form_label = (data.get("form_label") or "").strip()
+
+    if not FIELD_NAME_RE.match(field_name):
+        return fail("字段名必须以小写字母开头，只能包含小写字母、数字、下划线，长度 2-63")
+    if data_type not in ALLOWED_FIELD_TYPES:
+        return fail("数据类型不支持")
+    if not form_label:
+        return fail("请填写网页表单显示名称")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SHOW COLUMNS FROM patients LIKE %s", (field_name,))
+            if cur.fetchone():
+                return fail("病患表中已存在该字段")
+            sql_type = ALLOWED_FIELD_TYPES[data_type]
+            cur.execute(f"ALTER TABLE patients ADD COLUMN `{field_name}` {sql_type}")
+            cur.execute(
+                "INSERT INTO patient_field_settings (field_name,data_type,form_label) VALUES (%s,%s,%s)",
+                (field_name, data_type, form_label),
+            )
+        conn.commit()
+        return ok(message="病患字段已新增")
     finally:
         conn.close()
 

@@ -13,6 +13,12 @@ from app.services.core import get_fields_for_disease, parse_ai_result, parse_pat
 records_bp = Blueprint("records", __name__)
 
 
+def _current_user_scope(cur):
+    user_id = session.get("user_id")
+    cur.execute("SELECT id, hospital_id FROM users WHERE id=%s", (user_id,))
+    return cur.fetchone()
+
+
 @records_bp.get("/api/diseases")
 @require_user
 def diseases():
@@ -230,5 +236,197 @@ def save_record():
                 "保存成功，部分字段未入库",
             )
         return ok({"record_id": record_id, "patient_id": patient_id}, "保存成功")
+    finally:
+        conn.close()
+
+
+@records_bp.get("/api/cases")
+@require_user
+def cases():
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+
+            cur.execute(
+                """
+                SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
+                       COUNT(r.id) AS record_count,
+                       MAX(r.created_at) AS latest_record_at
+                FROM patients p
+                JOIN lab_records r ON r.patient_id=p.id
+                JOIN users u ON u.id=r.user_id
+                WHERE u.hospital_id=%s
+                GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number
+                ORDER BY latest_record_at DESC, p.id DESC
+                """,
+                (current_user["hospital_id"],),
+            )
+            return ok(cur.fetchall())
+    finally:
+        conn.close()
+
+
+@records_bp.get("/api/patients/<int:patient_id>")
+@require_user
+def patient_detail(patient_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+
+            cur.execute(
+                """
+                SELECT p.*
+                FROM patients p
+                JOIN lab_records r ON r.patient_id=p.id
+                JOIN users u ON u.id=r.user_id
+                WHERE p.id=%s AND u.hospital_id=%s
+                LIMIT 1
+                """,
+                (patient_id, current_user["hospital_id"]),
+            )
+            patient = cur.fetchone()
+            if not patient:
+                return fail("病人不存在", 404)
+
+            cur.execute(
+                """
+                SELECT r.id, r.created_at, d.name AS disease_name, u.name AS operator_name
+                FROM lab_records r
+                LEFT JOIN diseases d ON d.id=r.disease_id
+                LEFT JOIN users u ON u.id=r.user_id
+                WHERE r.patient_id=%s
+                ORDER BY r.created_at DESC, r.id DESC
+                """,
+                (patient_id,),
+            )
+            lab_records = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT id, treat_time, treatment_method, created_at
+                FROM treatments
+                WHERE patient_id=%s
+                ORDER BY treat_time DESC, id DESC
+                """,
+                (patient_id,),
+            )
+            treatments = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT id, follow_time, follow_result, created_at
+                FROM followups
+                WHERE patient_id=%s
+                ORDER BY follow_time DESC, id DESC
+                """,
+                (patient_id,),
+            )
+            followups = cur.fetchall()
+
+            cur.execute("SHOW COLUMNS FROM patients")
+            patient_columns = {row["Field"] for row in cur.fetchall()}
+            base_fields = {"id", "name", "gender", "age", "phone", "id_number", "created_at", "updated_at"}
+            cur.execute("SELECT field_name, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
+            patient_meta = []
+            for field in cur.fetchall():
+                field_name = field["field_name"]
+                if field_name in patient_columns and field_name not in base_fields:
+                    patient_meta.append({
+                        "field_name": field_name,
+                        "form_label": field["form_label"],
+                        "value": patient.get(field_name),
+                    })
+
+            return ok({
+                "patient": patient,
+                "lab_records": lab_records,
+                "treatments": treatments,
+                "followups": followups,
+                "patient_fields": patient_meta,
+            })
+    finally:
+        conn.close()
+
+
+@records_bp.post("/api/patients/<int:patient_id>/treatments")
+@require_user
+def add_treatment(patient_id):
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    treat_time = (payload.get("treat_time") or "").strip()
+    treatment_method = (payload.get("treatment_method") or "").strip()
+    if not treat_time or not treatment_method:
+        return fail("请填写治疗时间和治疗手段")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            cur.execute(
+                """
+                SELECT p.id
+                FROM patients p
+                JOIN lab_records r ON r.patient_id=p.id
+                JOIN users u ON u.id=r.user_id
+                WHERE p.id=%s AND u.hospital_id=%s
+                LIMIT 1
+                """,
+                (patient_id, current_user["hospital_id"]),
+            )
+            if not cur.fetchone():
+                return fail("病人不存在", 404)
+
+            cur.execute(
+                "INSERT INTO treatments (patient_id, user_id, treat_time, treatment_method) VALUES (%s,%s,%s,%s)",
+                (patient_id, session.get("user_id"), treat_time, treatment_method),
+            )
+        conn.commit()
+        return ok(message="治疗记录已添加")
+    finally:
+        conn.close()
+
+
+@records_bp.post("/api/patients/<int:patient_id>/followups")
+@require_user
+def add_followup(patient_id):
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    follow_time = (payload.get("follow_time") or "").strip()
+    follow_result = (payload.get("follow_result") or "").strip()
+    if not follow_time or not follow_result:
+        return fail("请填写随访时间和随访结果")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            cur.execute(
+                """
+                SELECT p.id
+                FROM patients p
+                JOIN lab_records r ON r.patient_id=p.id
+                JOIN users u ON u.id=r.user_id
+                WHERE p.id=%s AND u.hospital_id=%s
+                LIMIT 1
+                """,
+                (patient_id, current_user["hospital_id"]),
+            )
+            if not cur.fetchone():
+                return fail("病人不存在", 404)
+
+            cur.execute(
+                "INSERT INTO followups (patient_id, user_id, follow_time, follow_result) VALUES (%s,%s,%s,%s)",
+                (patient_id, session.get("user_id"), follow_time, follow_result),
+            )
+        conn.commit()
+        return ok(message="随访记录已添加")
     finally:
         conn.close()

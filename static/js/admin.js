@@ -41,29 +41,49 @@ function loadUsers() {
 
 var fieldPage = 1;
 var fieldSearch = "";
+var patientFieldPage = 1;
+var patientFieldSearch = "";
 
 function loadFields() {
   $.getJSON("/api/admin/fields", { page: fieldPage, per_page: 8, search: fieldSearch }, function (res) {
     const rows = res.data.list.map(f => `<tr><td>${f.form_label}</td><td>${f.field_name}</td><td>${f.data_type}</td><td>${f.unit || ''}</td><td>${f.reference_range || ''}</td><td>${f.test_method || ''}</td></tr>`).join("");
     $("#fieldRows").html(rows);
-    renderPagination(res.data.total, res.data.page, res.data.per_page);
+    renderPagination("fieldPagination", res.data.total, res.data.page, res.data.per_page, goFieldPage);
   });
 }
 
-function renderPagination(total, page, per_page) {
+function loadPatientFields() {
+  $.getJSON("/api/admin/patient-fields", { page: patientFieldPage, per_page: 8, search: patientFieldSearch }, function (res) {
+    const rows = res.data.list.map(f => `<tr><td>${f.form_label}</td><td>${f.field_name}</td><td>${f.data_type}</td></tr>`).join("");
+    $("#patientFieldRows").html(rows);
+    renderPagination("patientFieldPagination", res.data.total, res.data.page, res.data.per_page, goPatientFieldPage);
+  });
+}
+
+function renderPagination(containerId, total, page, per_page, onPageChange) {
   var totalPages = Math.ceil(total / per_page);
   var html = '';
-  html += '<button ' + (page <= 1 ? 'disabled' : '') + ' onclick="goFieldPage(' + (page - 1) + ')">上一页</button>';
+  html += '<button ' + (page <= 1 ? 'disabled' : '') + ' data-page="' + (page - 1) + '">上一页</button>';
   for (var i = 1; i <= totalPages; i++) {
-    html += '<button class="' + (i === page ? 'active' : '') + '" onclick="goFieldPage(' + i + ')">' + i + '</button>';
+    html += '<button class="' + (i === page ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
   }
-  html += '<button ' + (page >= totalPages ? 'disabled' : '') + ' onclick="goFieldPage(' + (page + 1) + ')">下一页</button>';
-  $("#fieldPagination").html(html);
+  html += '<button ' + (page >= totalPages ? 'disabled' : '') + ' data-page="' + (page + 1) + '">下一页</button>';
+  $("#" + containerId).html(html);
+  $("#" + containerId + " button").on("click", function () {
+    var target = Number($(this).data("page"));
+    if (!target || target < 1 || target > totalPages || target === page) return;
+    onPageChange(target);
+  });
 }
 
 function goFieldPage(page) {
   fieldPage = page;
   loadFields();
+}
+
+function goPatientFieldPage(page) {
+  patientFieldPage = page;
+  loadPatientFields();
 }
 
 $("#fieldSearchBtn").on("click", function () {
@@ -77,6 +97,20 @@ $("#fieldSearch").on("keypress", function (e) {
     fieldSearch = $(this).val();
     fieldPage = 1;
     loadFields();
+  }
+});
+
+$("#patientFieldSearchBtn").on("click", function () {
+  patientFieldSearch = $("#patientFieldSearch").val();
+  patientFieldPage = 1;
+  loadPatientFields();
+});
+
+$("#patientFieldSearch").on("keypress", function (e) {
+  if (e.which === 13) {
+    patientFieldSearch = $(this).val();
+    patientFieldPage = 1;
+    loadPatientFields();
   }
 });
 
@@ -107,7 +141,7 @@ function loadFormSetting() {
   });
 }
 
-function loadAll() { loadUsers(); loadFields(); loadDiseases(); }
+function loadAll() { loadUsers(); loadFields(); loadPatientFields(); loadDiseases(); }
 
 $("#adminLoginBtn").on("click", function () {
   $.post("/api/admin/login", { username: $("#adminUser").val(), password: $("#adminPass").val() })
@@ -131,6 +165,12 @@ $(document).on("click", ".statusBtn", function () {
 $("#addFieldBtn").on("click", function () {
   $.post("/api/admin/fields", { field_name: $("#fieldName").val(), data_type: $("#fieldType").val(), form_label: $("#fieldLabel").val(), unit: $("#fieldUnit").val(), reference_range: $("#fieldRefRange").val(), test_method: $("#fieldTestMethod").val() })
     .done(function () { loadFields(); loadFormSetting(); alert("字段已新增"); })
+    .fail(function (xhr) { alert(xhr.responseJSON?.message || "新增失败"); });
+});
+
+$("#addPatientFieldBtn").on("click", function () {
+  $.post("/api/admin/patient-fields", { field_name: $("#patientFieldName").val(), data_type: $("#patientFieldType").val(), form_label: $("#patientFieldLabel").val() })
+    .done(function () { loadPatientFields(); alert("病患字段已新增"); })
     .fail(function (xhr) { alert(xhr.responseJSON?.message || "新增失败"); });
 });
 
