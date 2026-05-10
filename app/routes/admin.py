@@ -199,3 +199,42 @@ def admin_save_form_setting(disease_id):
         return ok(message="表单配置已保存")
     finally:
         conn.close()
+
+
+@admin_bp.get("/api/admin/settings")
+@require_admin
+def admin_settings():
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT doctor_download_multiplier FROM system_settings LIMIT 1")
+            settings = cur.fetchone() or {"doctor_download_multiplier": 1}
+            return ok(settings)
+    finally:
+        conn.close()
+
+
+@admin_bp.post("/api/admin/settings")
+@require_admin
+def admin_save_settings():
+    data = payload()
+    raw_multiplier = data.get("doctor_download_multiplier")
+    try:
+        multiplier = int(raw_multiplier)
+    except (TypeError, ValueError):
+        return fail("下载倍数必须是整数")
+    if multiplier < 0:
+        return fail("下载倍数不能小于 0")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM system_settings")
+            cur.execute(
+                "INSERT INTO system_settings (doctor_download_multiplier) VALUES (%s)",
+                (multiplier,),
+            )
+        conn.commit()
+        return ok({"doctor_download_multiplier": multiplier}, "系统设置已保存")
+    finally:
+        conn.close()

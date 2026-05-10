@@ -141,7 +141,16 @@ function loadFormSetting() {
   });
 }
 
-function loadAll() { loadUsers(); loadFields(); loadPatientFields(); loadDiseases(); }
+function loadSettings() {
+  $.getJSON("/api/admin/settings", function (res) {
+    const settings = res.data || {};
+    $("#doctorDownloadMultiplier").val(settings.doctor_download_multiplier ?? 1);
+  }).fail(function (xhr) {
+    adminMsg("settingsMsg", xhr.responseJSON?.message || "系统设置加载失败，请先导入 ensure_system_settings.sql", true);
+  });
+}
+
+function loadAll() { loadUsers(); loadFields(); loadPatientFields(); loadDiseases(); loadSettings(); }
 
 $("#adminLoginBtn").on("click", function () {
   $.post("/api/admin/login", { username: $("#adminUser").val(), password: $("#adminPass").val() })
@@ -205,4 +214,10 @@ $("#saveFormSettingBtn").on("click", function () {
   $.ajax({ url: "/api/admin/form-settings/" + $("#diseaseSelect").val(), method: "POST", contentType: "application/json", data: JSON.stringify({ field_ids: ids }) })
     .done(function (res) { adminMsg("formSettingMsg", res.message); })
     .fail(function (xhr) { adminMsg("formSettingMsg", xhr.responseJSON?.message || "保存失败", true); });
+});
+
+$("#saveSettingsBtn").on("click", function () {
+  $.post("/api/admin/settings", { doctor_download_multiplier: $("#doctorDownloadMultiplier").val() })
+    .done(function (res) { adminMsg("settingsMsg", res.message || "系统设置已保存"); })
+    .fail(function (xhr) { adminMsg("settingsMsg", xhr.responseJSON?.message || "保存失败", true); });
 });

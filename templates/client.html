@@ -8,7 +8,7 @@
 </head>
 <body class="client-shell">
   <main class="phone-card">
-    <section class="hero compact">
+    <section id="clientHero" class="hero compact">
       <p class="eyebrow">PICCO</p>
       <h1>临床检验数据录入</h1>
       <p>选择疾病、拍照识别、校对表单并保存检验记录。</p>
@@ -58,7 +58,25 @@
     </section>
 
     <section id="caseListPanel" class="panel hidden">
-      <h2>病例列表</h2>
+      <div class="case-title-row">
+        <h2>病例列表</h2>
+        <div class="case-actions">
+          <button id="showNewCaseBtn" class="btn-sm">新增病例</button>
+          <button id="exportCasesBtn" class="btn-sm secondary">导出数据</button>
+        </div>
+      </div>
+      <div id="newCasePanel" class="panel hidden compact-form">
+        <h3>新增病例</h3>
+        <div class="grid two">
+          <input id="newCaseName" placeholder="姓名 *" required>
+          <input id="newCaseGender" placeholder="性别 *" required>
+          <input id="newCaseAge" type="number" placeholder="年龄 *" required>
+          <input id="newCasePhone" placeholder="联系电话">
+          <input id="newCaseIdNumber" placeholder="病历号 *" required>
+        </div>
+        <button id="createCaseBtn">保存病例</button>
+        <p class="message" id="newCaseMsg"></p>
+      </div>
       <div id="caseList" class="case-list"></div>
       <p class="message" id="caseListMsg"></p>
     </section>
@@ -132,6 +150,16 @@
           <p class="message" id="followMsg"></p>
         </div>
       </div>
+    </section>
+
+    <section id="labReportPanel" class="panel hidden lab-report-panel">
+      <div class="report-topbar">
+        <button id="backToLabListBtn" class="btn-sm secondary">返回</button>
+        <h2>检验单详情</h2>
+      </div>
+      <div id="labReportMeta" class="patient-profile"></div>
+      <div id="labReportItems" class="report-list"></div>
+      <p class="message" id="labReportMsg"></p>
     </section>
 
     <section id="memberReviewPanel" class="panel hidden">

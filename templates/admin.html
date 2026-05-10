@@ -16,6 +16,7 @@
       <button class="tab" data-tab="fields">检验表字段管理</button>
       <button class="tab" data-tab="patientFields">病患表字段管理</button>
       <button class="tab" data-tab="forms">表单显示配置</button>
+      <button class="tab" data-tab="settings">系统设置</button>
     </aside>
 
     <section id="adminLogin" class="panel admin-login hidden">
@@ -88,6 +89,17 @@
         </div>
         <button id="saveFormSettingBtn">保存配置</button>
         <p class="message" id="formSettingMsg"></p>
+      </div>
+
+      <div id="settings" class="admin-tab-page hidden">
+        <h2>系统设置</h2>
+        <div class="panel settings-form">
+          <label for="doctorDownloadMultiplier">医生下载数据倍数</label>
+          <input id="doctorDownloadMultiplier" type="number" min="0" step="1" placeholder="如 3">
+          <p class="hint">表示上传过数据的医生，可下载多少倍于自己已上传数据量的数据。</p>
+          <button id="saveSettingsBtn">保存设置</button>
+          <p class="message" id="settingsMsg"></p>
+        </div>
       </div>
     </section>
   </main>

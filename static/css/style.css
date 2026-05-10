@@ -44,6 +44,11 @@ th { background: #eff6ee; }
 .disease-count { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .disease-total { margin-left: 8px; color: var(--muted); font-size: 14px; font-weight: 500; }
 .case-list { display: grid; gap: 10px; }
+.case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.case-title-row h2 { margin-bottom: 0; }
+.case-actions { display: flex; gap: 8px; }
+.case-actions .btn-sm { margin-right: 0; white-space: nowrap; }
+.compact-form { margin-bottom: 14px; }
 .case-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
 .case-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .case-meta { color: var(--muted); font-size: 13px; }
@@ -55,6 +60,14 @@ th { background: #eff6ee; }
 .detail-list-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .detail-list-actions .btn-sm { margin-right: 0; }
 .detail-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.lab-record-item { cursor: pointer; }
+.report-topbar { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; margin-bottom: 14px; }
+.report-topbar h2 { margin: 0; text-align: center; padding-right: 56px; }
+.report-list { display: grid; gap: 10px; }
+.report-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.report-item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-weight: 800; }
+.report-value { color: var(--brand-dark); font-size: 18px; white-space: nowrap; }
+.report-extra { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .patient-extra { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -4px 20px rgba(0,0,0,0.08); z-index: 100; }
@@ -83,6 +96,8 @@ th { background: #eff6ee; }
 .inline-form { display: grid; grid-template-columns: 1fr 1fr .7fr .5fr .8fr .8fr auto; gap: 8px; align-items: start; margin-bottom: 14px; }
 .patient-inline-form { grid-template-columns: 1fr 1fr .8fr auto; }
 .inline-form input, .inline-form select { margin: 0; }
+.settings-form { max-width: 520px; }
+.settings-form label { display: block; margin-bottom: 8px; font-weight: 800; }
 .check-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
 .check-list label { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
 .check-list input { width: auto; margin-right: 8px; }

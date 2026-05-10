@@ -30,6 +30,7 @@ function showPanel(id) {
   $(".panel").addClass("hidden");
   $("#" + id).removeClass("hidden");
   localStorage.setItem("clientPanel", id);
+  $("#clientHero").toggleClass("hidden", id === "labReportPanel");
   // 登录后的页面显示底部导航
   if (authPanels.indexOf(id) === -1) {
     $("#bottomNav").removeClass("hidden");
@@ -38,7 +39,7 @@ function showPanel(id) {
     if (id === "recordPanel" || id === "photoPanel") {
       $(".nav-item[data-nav='diseasePanel']").addClass("active");
     }
-    if (id === "patientDetailPanel") {
+    if (id === "patientDetailPanel" || id === "labReportPanel") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
   } else {
@@ -79,6 +80,7 @@ function loadDiseases() {
 }
 
 function loadCaseList() {
+  setMsg("caseListMsg", "", false);
   $.getJSON("/api/cases")
     .done(function (res) {
       if (!res.success) {
@@ -105,6 +107,13 @@ function loadCaseList() {
     });
 }
 
+function resetNewCaseForm() {
+  ["newCaseName", "newCaseGender", "newCaseAge", "newCasePhone", "newCaseIdNumber"].forEach(function (id) {
+    $("#" + id).val("");
+  });
+  setMsg("newCaseMsg", "", false);
+}
+
 function loadPatientDetail(patientId, activeTab) {
   activeTab = activeTab || "base";
   $.getJSON("/api/patients/" + patientId)
@@ -128,7 +137,10 @@ function loadPatientDetail(patientId, activeTab) {
       $("#baseInfoList").html(baseHtml);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
-        return '<div class="detail-item">' + (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + ' ｜ 录入人：' + (r.operator_name || '-') + '</div>';
+        return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
+          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + ' ｜ 录入人：' + (r.operator_name || '-') +
+          '<div class="case-meta">点击查看检验单详情</div>' +
+          '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
 
@@ -158,6 +170,44 @@ function loadPatientDetail(patientId, activeTab) {
     });
 }
 
+function loadLabRecordDetail(recordId) {
+  setMsg("labReportMsg", "", false);
+  $.getJSON("/api/records/" + recordId)
+    .done(function (res) {
+      if (!res.success) {
+        setMsg("labReportMsg", "检验单加载失败", true);
+        showPanel("labReportPanel");
+        return;
+      }
+      const record = res.data.record || {};
+      currentPatientId = record.patient_id || currentPatientId;
+      $("#labReportMeta").html(
+        '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
+        '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 病历号：' + (record.id_number || '-') + '</div>' +
+        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
+        '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
+      );
+      const items = res.data.items || [];
+      const html = items.map(function (item) {
+        const value = item.value === null || item.value === undefined || String(item.value).trim() === "" ? '-' : item.value;
+        const unit = item.unit ? ' ' + item.unit : '';
+        const extras = [];
+        if (item.reference_range) extras.push('参考区间：' + item.reference_range);
+        if (item.test_method) extras.push('实验方法：' + item.test_method);
+        return '<div class="report-item">' +
+          '<div class="report-item-head"><span>' + (item.form_label || item.field_name) + '</span><span class="report-value">' + value + unit + '</span></div>' +
+          (extras.length ? '<div class="report-extra">' + extras.join(' ｜ ') + '</div>' : '') +
+          '</div>';
+      }).join('') || '<div class="detail-item">暂无检验数据</div>';
+      $("#labReportItems").html(html);
+      showPanel("labReportPanel");
+    })
+    .fail(function (xhr) {
+      setMsg("labReportMsg", xhr.responseJSON?.message || "检验单加载失败", true);
+      showPanel("labReportPanel");
+    });
+}
+
 // 页面加载时检查登录状态
 $(function() {
   initPhotoButtons();
@@ -176,6 +226,8 @@ $(function() {
       if (saved && saved !== "loginPanel" && saved !== "registerPanel" && saved !== "resetPanel") {
         if (saved === "memberReviewPanel" && !canReviewMembers) {
           showPanel("diseasePanel");
+        } else if (saved === "labReportPanel") {
+          showPanel("caseListPanel");
         } else {
           showPanel(saved);
         }
@@ -450,6 +502,50 @@ $("#saveRecordBtn").on("click", function () {
 
 $(document).on("click", ".view-case-btn", function () {
   loadPatientDetail($(this).data("id"));
+});
+
+$(document).on("click", ".lab-record-item", function () {
+  loadLabRecordDetail(this.getAttribute("data-record-id"));
+});
+
+$(document).on("click", "#backToLabListBtn", function () {
+  if (currentPatientId) {
+    loadPatientDetail(currentPatientId, "lab");
+  } else {
+    showPanel("caseListPanel");
+  }
+});
+
+$(document).on("click", "#showNewCaseBtn", function () {
+  $("#newCasePanel").removeClass("hidden");
+  setMsg("newCaseMsg", "", false);
+});
+
+$(document).on("click", "#exportCasesBtn", function () {
+  window.location.href = "/api/cases/export";
+});
+
+$(document).on("click", "#createCaseBtn", function () {
+  if (!$("#newCaseName").val() || !$("#newCaseGender").val() || !$("#newCaseAge").val() || !$("#newCaseIdNumber").val()) {
+    setMsg("newCaseMsg", "请填写姓名、性别、年龄、病历号", true);
+    return;
+  }
+  $.post("/api/patients", {
+    name: $("#newCaseName").val(),
+    gender: $("#newCaseGender").val(),
+    age: $("#newCaseAge").val(),
+    phone: $("#newCasePhone").val(),
+    id_number: $("#newCaseIdNumber").val()
+  }).done(function (res) {
+    resetNewCaseForm();
+    $("#newCasePanel").addClass("hidden");
+    loadCaseList();
+    if (res.data && res.data.patient_id) {
+      loadPatientDetail(res.data.patient_id);
+    }
+  }).fail(function (xhr) {
+    setMsg("newCaseMsg", xhr.responseJSON?.message || "新增病例失败", true);
+  });
 });
 
 $(document).on("click", ".detail-tab", function () {
