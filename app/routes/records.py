@@ -361,7 +361,7 @@ def add_treatment(patient_id):
     treat_time = (payload.get("treat_time") or "").strip()
     treatment_method = (payload.get("treatment_method") or "").strip()
     if not treat_time or not treatment_method:
-        return fail("请填写治疗时间和治疗手段")
+        return fail("请填写诊疗时间和诊疗内容")
 
     conn = db()
     try:
@@ -388,7 +388,7 @@ def add_treatment(patient_id):
                 (patient_id, session.get("user_id"), treat_time, treatment_method),
             )
         conn.commit()
-        return ok(message="治疗记录已添加")
+        return ok(message="诊疗记录已添加")
     finally:
         conn.close()
 

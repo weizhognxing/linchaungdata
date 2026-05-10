@@ -105,7 +105,8 @@ function loadCaseList() {
     });
 }
 
-function loadPatientDetail(patientId) {
+function loadPatientDetail(patientId, activeTab) {
+  activeTab = activeTab || "base";
   $.getJSON("/api/patients/" + patientId)
     .done(function (res) {
       if (!res.success) {
@@ -115,15 +116,16 @@ function loadPatientDetail(patientId) {
       currentPatientId = patientId;
       const patient = res.data.patient || {};
       const patientFields = res.data.patient_fields || [];
-      const extra = patientFields.map(function (f) {
-        return '<div class="patient-extra">' + f.form_label + '：' + (f.value || '-') + '</div>';
-      }).join('');
       $("#patientProfile").html(
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 病历号：' + (patient.id_number || '-') + '</div>' +
-        '<div class="case-meta">电话：' + (patient.phone || '-') + '</div>' +
-        extra
+        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 病历号：' + (patient.id_number || '-') + '</div>'
       );
+
+      const baseFields = [{ form_label: '联系电话', value: patient.phone }].concat(patientFields);
+      const baseHtml = baseFields.map(function (f) {
+        return '<div class="detail-item"><strong>' + f.form_label + '</strong><br>' + (f.value || '-') + '</div>';
+      }).join('') || '<div class="detail-item">暂无基础信息</div>';
+      $("#baseInfoList").html(baseHtml);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
         return '<div class="detail-item">' + (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + ' ｜ 录入人：' + (r.operator_name || '-') + '</div>';
@@ -132,18 +134,23 @@ function loadPatientDetail(patientId) {
 
       const treatHtml = (res.data.treatments || []).map(function (r) {
         return '<div class="detail-item">' + (r.treat_time || '-') + '<br>' + (r.treatment_method || '-') + '</div>';
-      }).join('') || '<div class="detail-item">暂无治疗记录</div>';
+      }).join('') || '<div class="detail-item">暂无诊疗记录</div>';
       $("#treatList").html(treatHtml);
 
       const followHtml = (res.data.followups || []).map(function (r) {
         return '<div class="detail-item">' + (r.follow_time || '-') + '<br>' + (r.follow_result || '-') + '</div>';
-      }).join('') || '<div class="detail-item">暂无回访记录</div>';
+      }).join('') || '<div class="detail-item">暂无随访记录</div>';
       $("#followList").html(followHtml);
+      $("#treatFormPanel").addClass("hidden");
+      $("#followFormPanel").addClass("hidden");
 
       $(".detail-tab").removeClass("active");
-      $(".detail-tab[data-detail-tab='lab']").addClass("active");
+      $(".detail-tab[data-detail-tab='" + activeTab + "']").addClass("active");
       $(".detail-tab-page").addClass("hidden");
-      $("#detailLabTab").removeClass("hidden");
+      if (activeTab === "base") $("#detailBaseTab").removeClass("hidden");
+      if (activeTab === "lab") $("#detailLabTab").removeClass("hidden");
+      if (activeTab === "treat") $("#detailTreatTab").removeClass("hidden");
+      if (activeTab === "follow") $("#detailFollowTab").removeClass("hidden");
       showPanel("patientDetailPanel");
     })
     .fail(function (xhr) {
@@ -446,13 +453,22 @@ $(document).on("click", ".view-case-btn", function () {
 });
 
 $(document).on("click", ".detail-tab", function () {
-  const tab = $(this).data("detail-tab");
+  const tab = this.getAttribute("data-detail-tab");
   $(".detail-tab").removeClass("active");
   $(this).addClass("active");
   $(".detail-tab-page").addClass("hidden");
+  if (tab === "base") $("#detailBaseTab").removeClass("hidden");
   if (tab === "lab") $("#detailLabTab").removeClass("hidden");
   if (tab === "treat") $("#detailTreatTab").removeClass("hidden");
   if (tab === "follow") $("#detailFollowTab").removeClass("hidden");
+});
+
+$(document).on("click", "#showTreatFormBtn", function () {
+  $("#treatFormPanel").removeClass("hidden");
+});
+
+$(document).on("click", "#showFollowFormBtn", function () {
+  $("#followFormPanel").removeClass("hidden");
 });
 
 $("#addTreatBtn").on("click", function () {
@@ -462,7 +478,9 @@ $("#addTreatBtn").on("click", function () {
     treatment_method: $("#treatMethod").val()
   }).done(function (res) {
     setMsg("treatMsg", res.message || "已保存");
-    loadPatientDetail(currentPatientId);
+    $("#treatTime").val("");
+    $("#treatMethod").val("");
+    loadPatientDetail(currentPatientId, "treat");
   }).fail(function (xhr) {
     setMsg("treatMsg", xhr.responseJSON?.message || "保存失败", true);
   });
@@ -475,7 +493,9 @@ $("#addFollowBtn").on("click", function () {
     follow_result: $("#followResult").val()
   }).done(function (res) {
     setMsg("followMsg", res.message || "已保存");
-    loadPatientDetail(currentPatientId);
+    $("#followTime").val("");
+    $("#followResult").val("");
+    loadPatientDetail(currentPatientId, "follow");
   }).fail(function (xhr) {
     setMsg("followMsg", xhr.responseJSON?.message || "保存失败", true);
   });

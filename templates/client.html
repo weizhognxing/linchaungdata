@@ -99,30 +99,36 @@
       <h2>病人详情</h2>
       <div id="patientProfile" class="patient-profile"></div>
       <div class="detail-tabs">
-        <button class="detail-tab active" data-detail-tab="lab">检验记录</button>
-        <button class="detail-tab" data-detail-tab="treat">治疗记录</button>
-        <button class="detail-tab" data-detail-tab="follow">回访记录</button>
+        <button class="detail-tab active" data-detail-tab="base">基础信息</button>
+        <button class="detail-tab" data-detail-tab="lab">检验记录</button>
+        <button class="detail-tab" data-detail-tab="treat">诊疗记录</button>
+        <button class="detail-tab" data-detail-tab="follow">随访记录</button>
       </div>
-      <div id="detailLabTab" class="detail-tab-page">
+      <div id="detailBaseTab" class="detail-tab-page">
+        <div id="baseInfoList" class="detail-list"></div>
+      </div>
+      <div id="detailLabTab" class="detail-tab-page hidden">
         <div id="labRecordList" class="detail-list"></div>
       </div>
       <div id="detailTreatTab" class="detail-tab-page hidden">
+        <div class="detail-list-actions"><button id="showTreatFormBtn" class="btn-sm">添加诊疗记录</button></div>
         <div id="treatList" class="detail-list"></div>
-        <div class="panel">
-          <h3>新增治疗记录</h3>
+        <div id="treatFormPanel" class="panel hidden">
+          <h3>新增诊疗记录</h3>
           <input id="treatTime" type="datetime-local" placeholder="时间">
-          <textarea id="treatMethod" placeholder="治疗手段"></textarea>
-          <button id="addTreatBtn">保存治疗记录</button>
+          <textarea id="treatMethod" placeholder="诊疗内容"></textarea>
+          <button id="addTreatBtn">保存诊疗记录</button>
           <p class="message" id="treatMsg"></p>
         </div>
       </div>
       <div id="detailFollowTab" class="detail-tab-page hidden">
+        <div class="detail-list-actions"><button id="showFollowFormBtn" class="btn-sm">添加随访记录</button></div>
         <div id="followList" class="detail-list"></div>
-        <div class="panel">
-          <h3>新增回访记录</h3>
+        <div id="followFormPanel" class="panel hidden">
+          <h3>新增随访记录</h3>
           <input id="followTime" type="datetime-local" placeholder="时间">
           <textarea id="followResult" placeholder="随访结果"></textarea>
-          <button id="addFollowBtn">保存回访记录</button>
+          <button id="addFollowBtn">保存随访记录</button>
           <p class="message" id="followMsg"></p>
         </div>
       </div>
@@ -152,7 +158,7 @@
   <nav id="bottomNav" class="bottom-nav hidden">
     <a class="nav-item active" data-nav="diseasePanel">
       <span class="nav-icon">&#9776;</span>
-      <span>选择疾病</span>
+      <span>上传检验</span>
     </a>
     <a class="nav-item" data-nav="caseListPanel">
       <span class="nav-icon">&#128196;</span>
