@@ -16,6 +16,9 @@ from app.services.core import get_fields_for_disease, parse_ai_result, parse_pat
 
 records_bp = Blueprint("records", __name__)
 
+DIAGNOSIS_DISEASE_OPTIONS = {"脓毒症部位", "心源性休克/心脏骤停", "中毒", "脑损伤", "多发伤", "胸部创伤"}
+MEDICAL_HISTORY_OPTIONS = {"无", "糖尿病", "乙肝/肝硬化", "肾衰", "肝衰", "冠心病", "COPD", "高血压"}
+
 
 def _current_user_scope(cur):
     user_id = session.get("user_id")
@@ -64,6 +67,50 @@ def _fetch_rows_for_patients(cur, table_name, patient_ids, patient_column="patie
         patient_ids,
     )
     return cur.fetchall(), headers
+
+
+def _normalize_medical_history(raw_value):
+    if isinstance(raw_value, list):
+        items = raw_value
+    else:
+        items = str(raw_value or "无").split(",")
+    selected = []
+    for item in items:
+        value = str(item).strip()
+        if value in MEDICAL_HISTORY_OPTIONS and value not in selected:
+            selected.append(value)
+    if not selected or "无" in selected:
+        return "无"
+    return ",".join(selected)
+
+
+def _patient_is_accessible(cur, patient_id, current_user, patient_columns=None):
+    patient_columns = patient_columns or _patient_columns(cur)
+    if "hospital_id" in patient_columns:
+        cur.execute(
+            """
+            SELECT p.id
+            FROM patients p
+            LEFT JOIN lab_records r ON r.patient_id=p.id
+            LEFT JOIN users u ON u.id=r.user_id
+            WHERE p.id=%s AND (p.hospital_id=%s OR u.hospital_id=%s)
+            LIMIT 1
+            """,
+            (patient_id, current_user["hospital_id"], current_user["hospital_id"]),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT p.id
+            FROM patients p
+            JOIN lab_records r ON r.patient_id=p.id
+            JOIN users u ON u.id=r.user_id
+            WHERE p.id=%s AND u.hospital_id=%s
+            LIMIT 1
+            """,
+            (patient_id, current_user["hospital_id"]),
+        )
+    return cur.fetchone() is not None
 
 
 @records_bp.get("/api/diseases")
@@ -680,6 +727,65 @@ def patient_detail(patient_id):
                 "followups": followups,
                 "patient_fields": patient_meta,
             })
+    finally:
+        conn.close()
+
+
+@records_bp.post("/api/patients/<int:patient_id>")
+@require_user
+def update_patient(patient_id):
+    data = request.get_json(silent=True) or request.form.to_dict()
+    required_fields = ["name", "gender", "age", "id_number"]
+    if required(data, required_fields):
+        return fail("请填写姓名、性别、年龄、病历号")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+
+            patient_columns = _patient_columns(cur)
+            if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
+                return fail("病人不存在", 404)
+
+            allowed_fields = {"name", "gender", "age", "phone", "id_number"}
+            cur.execute("SELECT field_name FROM patient_field_settings WHERE enabled=1")
+            allowed_fields.update(
+                row["field_name"] for row in cur.fetchall() if row["field_name"] in patient_columns
+            )
+            allowed_fields = [field for field in allowed_fields if field in patient_columns]
+
+            if "diagnosis_disease" in data:
+                diagnosis_disease = (data.get("diagnosis_disease") or "").strip()
+                if diagnosis_disease and diagnosis_disease not in DIAGNOSIS_DISEASE_OPTIONS:
+                    return fail("疾病选项不合法")
+                data["diagnosis_disease"] = diagnosis_disease
+            if "medical_history" in data:
+                data["medical_history"] = _normalize_medical_history(data.get("medical_history"))
+            if "preliminary_diagnosis" in data:
+                data["preliminary_diagnosis"] = (data.get("preliminary_diagnosis") or "").strip()
+
+            updates = []
+            params = []
+            for field in allowed_fields:
+                if field not in data:
+                    continue
+                value = data.get(field)
+                if field == "age":
+                    value = value or None
+                updates.append(f"`{field.replace('`', '``')}`=%s")
+                params.append(value)
+
+            if not updates:
+                return fail("没有可保存的基础信息")
+            if "updated_at" in patient_columns:
+                updates.append("updated_at=NOW()")
+            params.append(patient_id)
+            cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
+        conn.commit()
+        return ok({"patient_id": patient_id}, "基础信息已保存")
     finally:
         conn.close()
 

@@ -114,6 +114,45 @@ function resetNewCaseForm() {
   setMsg("newCaseMsg", "", false);
 }
 
+function attrValue(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+const diagnosisFieldNames = ["diagnosis_disease", "medical_history", "preliminary_diagnosis"];
+
+function fillDiagnosisForm(patient) {
+  const diagnosisDisease = patient.diagnosis_disease || "";
+  document.querySelectorAll("[name=diagnosisDisease]").forEach(function (input) {
+    input.checked = input.value === diagnosisDisease;
+  });
+
+  const history = String(patient.medical_history || "无").split(",").map(function (item) { return item.trim(); }).filter(Boolean);
+  const selectedHistory = history.length ? history : ["无"];
+  document.querySelectorAll(".medical-history-checkbox").forEach(function (input) {
+    input.checked = selectedHistory.indexOf(input.value) > -1;
+  });
+  normalizeMedicalHistorySelection();
+  $("#preliminaryDiagnosis").val(patient.preliminary_diagnosis || "");
+  setMsg("diagnosisMsg", "", false);
+}
+
+function normalizeMedicalHistorySelection(changedValue) {
+  const boxes = Array.from(document.querySelectorAll(".medical-history-checkbox"));
+  const noneBox = boxes.find(function (box) { return box.value === "无"; });
+  if (!noneBox) return;
+  const selectedOthers = boxes.filter(function (box) { return box.value !== "无" && box.checked; });
+  if (changedValue === "无" && noneBox.checked) {
+    boxes.forEach(function (box) { box.checked = box.value === "无"; });
+    return;
+  }
+  if (selectedOthers.length > 0) {
+    noneBox.checked = false;
+  } else {
+    noneBox.checked = true;
+  }
+}
+
 function loadPatientDetail(patientId, activeTab) {
   activeTab = activeTab || "base";
   $.getJSON("/api/patients/" + patientId)
@@ -125,16 +164,25 @@ function loadPatientDetail(patientId, activeTab) {
       currentPatientId = patientId;
       const patient = res.data.patient || {};
       const patientFields = res.data.patient_fields || [];
+      fillDiagnosisForm(patient);
       $("#patientProfile").html(
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 病历号：' + (patient.id_number || '-') + '</div>'
       );
 
-      const baseFields = [{ form_label: '联系电话', value: patient.phone }].concat(patientFields);
+      const baseFields = [
+        { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
+        { field_name: 'gender', form_label: '性别', value: patient.gender, required: true },
+        { field_name: 'age', form_label: '年龄', value: patient.age, required: true, type: 'number' },
+        { field_name: 'id_number', form_label: '病历号', value: patient.id_number, required: true },
+        { field_name: 'phone', form_label: '联系电话', value: patient.phone }
+      ].concat(patientFields.filter(function (f) { return diagnosisFieldNames.indexOf(f.field_name) === -1; }));
       const baseHtml = baseFields.map(function (f) {
-        return '<div class="detail-item"><strong>' + f.form_label + '</strong><br>' + (f.value || '-') + '</div>';
+        return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
+          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + (f.type || 'text') + '" value="' + attrValue(f.value) + '" placeholder="' + f.form_label + '"></div>';
       }).join('') || '<div class="detail-item">暂无基础信息</div>';
       $("#baseInfoList").html(baseHtml);
+      setMsg("baseInfoMsg", "", false);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
         return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
@@ -160,9 +208,11 @@ function loadPatientDetail(patientId, activeTab) {
       $(".detail-tab[data-detail-tab='" + activeTab + "']").addClass("active");
       $(".detail-tab-page").addClass("hidden");
       if (activeTab === "base") $("#detailBaseTab").removeClass("hidden");
+      if (activeTab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
       if (activeTab === "lab") $("#detailLabTab").removeClass("hidden");
       if (activeTab === "treat") $("#detailTreatTab").removeClass("hidden");
       if (activeTab === "follow") $("#detailFollowTab").removeClass("hidden");
+      if (activeTab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
       showPanel("patientDetailPanel");
     })
     .fail(function (xhr) {
@@ -525,6 +575,48 @@ $(document).on("click", "#exportCasesBtn", function () {
   window.location.href = "/api/cases/export";
 });
 
+$(document).on("click", "#saveBaseInfoBtn", function () {
+  if (!currentPatientId) return;
+  const payload = {};
+  $("#baseInfoList .base-info-input").each(function () {
+    payload[this.getAttribute("data-field")] = $(this).val();
+  });
+  if (!payload.name || !payload.gender || !payload.age || !payload.id_number) {
+    setMsg("baseInfoMsg", "请填写姓名、性别、年龄、病历号", true);
+    return;
+  }
+  $.post("/api/patients/" + currentPatientId, payload)
+    .done(function (res) {
+      setMsg("baseInfoMsg", res.message || "基础信息已保存");
+      loadPatientDetail(currentPatientId, "base");
+    })
+    .fail(function (xhr) {
+      setMsg("baseInfoMsg", xhr.responseJSON?.message || "基础信息保存失败", true);
+    });
+});
+
+$(document).on("change", ".medical-history-checkbox", function () {
+  normalizeMedicalHistorySelection(this.value);
+});
+
+$(document).on("click", "#saveDiagnosisBtn", function () {
+  if (!currentPatientId) return;
+  const history = Array.from(document.querySelectorAll(".medical-history-checkbox"))
+    .filter(function (input) { return input.checked; })
+    .map(function (input) { return input.value; });
+  const selectedDisease = document.querySelector("[name=diagnosisDisease]:checked");
+  $.post("/api/patients/" + currentPatientId, {
+    diagnosis_disease: selectedDisease ? selectedDisease.value : "",
+    medical_history: history.length ? history.join(",") : "无",
+    preliminary_diagnosis: $("#preliminaryDiagnosis").val()
+  }).done(function (res) {
+    setMsg("diagnosisMsg", res.message || "诊断信息已保存");
+    loadPatientDetail(currentPatientId, "diagnosis");
+  }).fail(function (xhr) {
+    setMsg("diagnosisMsg", xhr.responseJSON?.message || "诊断信息保存失败", true);
+  });
+});
+
 $(document).on("click", "#createCaseBtn", function () {
   if (!$("#newCaseName").val() || !$("#newCaseGender").val() || !$("#newCaseAge").val() || !$("#newCaseIdNumber").val()) {
     setMsg("newCaseMsg", "请填写姓名、性别、年龄、病历号", true);
@@ -554,9 +646,11 @@ $(document).on("click", ".detail-tab", function () {
   $(this).addClass("active");
   $(".detail-tab-page").addClass("hidden");
   if (tab === "base") $("#detailBaseTab").removeClass("hidden");
+  if (tab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
   if (tab === "lab") $("#detailLabTab").removeClass("hidden");
   if (tab === "treat") $("#detailTreatTab").removeClass("hidden");
   if (tab === "follow") $("#detailFollowTab").removeClass("hidden");
+  if (tab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
 });
 
 $(document).on("click", "#showTreatFormBtn", function () {

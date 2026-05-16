@@ -53,13 +53,18 @@ th { background: #eff6ee; }
 .case-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .case-meta { color: var(--muted); font-size: 13px; }
 .patient-profile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
-.detail-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.detail-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
 .detail-tab { box-shadow: none; background: #e8efe8; color: var(--ink); font-size: 13px; padding: 10px 6px; white-space: nowrap; }
 .detail-tab.active { background: var(--brand); color: #fff; }
 .detail-list { display: grid; gap: 8px; margin-bottom: 12px; }
 .detail-list-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .detail-list-actions .btn-sm { margin-right: 0; }
 .detail-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.base-info-form { display: grid; gap: 10px; margin-bottom: 12px; }
+.diagnosis-form { display: grid; gap: 10px; }
+.radio-grid { display: grid; gap: 10px; }
+.radio-grid label { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-weight: 700; }
+.radio-grid input { width: auto; margin: 0; }
 .lab-record-item { cursor: pointer; }
 .report-topbar { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; margin-bottom: 14px; }
 .report-topbar h2 { margin: 0; text-align: center; padding-right: 56px; }

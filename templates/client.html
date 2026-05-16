@@ -118,12 +118,44 @@
       <div id="patientProfile" class="patient-profile"></div>
       <div class="detail-tabs">
         <button class="detail-tab active" data-detail-tab="base">基础信息</button>
+        <button class="detail-tab" data-detail-tab="diagnosis">诊断</button>
         <button class="detail-tab" data-detail-tab="lab">检验记录</button>
         <button class="detail-tab" data-detail-tab="treat">诊疗记录</button>
         <button class="detail-tab" data-detail-tab="follow">随访记录</button>
+        <button class="detail-tab" data-detail-tab="assessment">评估</button>
       </div>
       <div id="detailBaseTab" class="detail-tab-page">
-        <div id="baseInfoList" class="detail-list"></div>
+        <div id="baseInfoList" class="base-info-form"></div>
+        <button id="saveBaseInfoBtn">保存基础信息</button>
+        <p class="message" id="baseInfoMsg"></p>
+      </div>
+      <div id="detailDiagnosisTab" class="detail-tab-page hidden">
+        <div class="diagnosis-form">
+          <div class="subhead">疾病选项</div>
+          <div class="radio-grid" id="diagnosisDiseaseOptions">
+            <label><input type="radio" name="diagnosisDisease" value="脓毒症部位">脓毒症部位</label>
+            <label><input type="radio" name="diagnosisDisease" value="心源性休克/心脏骤停">心源性休克/心脏骤停</label>
+            <label><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
+            <label><input type="radio" name="diagnosisDisease" value="脑损伤">脑损伤</label>
+            <label><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
+            <label><input type="radio" name="diagnosisDisease" value="胸部创伤">胸部创伤</label>
+          </div>
+          <div class="subhead">既往史</div>
+          <div class="radio-grid" id="medicalHistoryOptions">
+            <label><input type="checkbox" class="medical-history-checkbox" value="无">无</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="糖尿病">糖尿病</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="乙肝/肝硬化">乙肝/肝硬化</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="肾衰">肾衰</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="肝衰">肝衰</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="冠心病">冠心病</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="COPD">COPD</label>
+            <label><input type="checkbox" class="medical-history-checkbox" value="高血压">高血压</label>
+          </div>
+          <div class="subhead">初步诊断</div>
+          <textarea id="preliminaryDiagnosis" placeholder="请输入初步诊断"></textarea>
+          <button id="saveDiagnosisBtn">保存诊断信息</button>
+          <p class="message" id="diagnosisMsg"></p>
+        </div>
       </div>
       <div id="detailLabTab" class="detail-tab-page hidden">
         <div id="labRecordList" class="detail-list"></div>
@@ -149,6 +181,9 @@
           <button id="addFollowBtn">保存随访记录</button>
           <p class="message" id="followMsg"></p>
         </div>
+      </div>
+      <div id="detailAssessmentTab" class="detail-tab-page hidden">
+        <div class="detail-list"><div class="detail-item">暂无评估记录</div></div>
       </div>
     </section>
 
