@@ -429,6 +429,7 @@ function showTreatSubTab(tab) {
   });
   $("#treatListPanel").toggleClass("hidden", tab !== "list");
   $("#treatAddPanel").toggleClass("hidden", tab !== "add");
+  $("#treatFormPanel").toggleClass("hidden", tab !== "add");
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordTreat]:checked");
     if (selectedDiagnosis) renderTreatmentFields(getDiagnosisOptionDisease(selectedDiagnosis));
@@ -442,6 +443,7 @@ function showFollowSubTab(tab) {
   });
   $("#followListPanel").toggleClass("hidden", tab !== "list");
   $("#followAddPanel").toggleClass("hidden", tab !== "add");
+  $("#followFormPanel").toggleClass("hidden", tab !== "add");
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordFollow]:checked");
     if (selectedDiagnosis) renderFollowupFields(selectedDiagnosis.getAttribute("data-disease") || "");
@@ -455,6 +457,7 @@ function showAssessmentSubTab(tab) {
   });
   $("#assessmentListPanel").toggleClass("hidden", tab !== "list");
   $("#assessmentAddPanel").toggleClass("hidden", tab !== "add");
+  $("#assessmentFormPanel").toggleClass("hidden", tab !== "add");
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordAssessment]:checked");
     if (selectedDiagnosis) renderAssessmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
