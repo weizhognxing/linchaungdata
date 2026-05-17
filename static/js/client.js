@@ -143,7 +143,7 @@ function attrValue(value) {
   return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-const diagnosisFieldNames = ["diagnosis_disease", "medical_history", "preliminary_diagnosis"];
+const diagnosisFieldNames = ["diagnosis", "diagnosis_disease", "medical_history", "preliminary_diagnosis"];
 const diagnosisSubcategoryOptions = {
   "脓毒症部位": ["肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"],
   "重症胰腺炎": [],
