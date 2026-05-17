@@ -442,11 +442,7 @@ function showAssessmentSubTab(tab) {
 }
 
 function fillDiagnosisForm(patient) {
-  const diagnosisDisease = patient.diagnosis_disease || "";
-  document.querySelectorAll("[name=diagnosisDisease]").forEach(function (input) {
-    input.checked = input.value === diagnosisDisease;
-  });
-  applyDiagnosisDiseaseSelection(diagnosisDisease, patient.preliminary_diagnosis || "");
+  resetDiagnosisDiseaseSelection();
 
   const history = String(patient.medical_history || "无").split(",").map(function (item) { return item.trim(); }).filter(Boolean);
   const selectedHistory = history.length ? history : ["无"];
@@ -1044,6 +1040,10 @@ $(document).on("click", "#saveDiagnosisBtn", function () {
   const selectedSubcategories = Array.from(document.querySelectorAll(".diagnosis-subcategory-input"))
     .filter(function (input) { return input.checked; })
     .map(function (input) { return input.value; });
+  if (!selectedDisease) {
+    setMsg("diagnosisMsg", "请选择本次诊断疾病", true);
+    return;
+  }
   if (selectedDisease && (diagnosisSubcategoryOptions[selectedDisease.value] || []).length && !selectedSubcategories.length) {
     setMsg("diagnosisMsg", "请选择初步诊断子分类", true);
     return;

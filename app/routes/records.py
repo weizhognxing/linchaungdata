@@ -848,6 +848,8 @@ def update_patient(patient_id):
 
             if "diagnosis_disease" in data:
                 diagnosis_disease = (data.get("diagnosis_disease") or "").strip()
+                if is_diagnosis_update and not diagnosis_disease:
+                    return fail("请选择本次诊断疾病")
                 if diagnosis_disease and diagnosis_disease not in DIAGNOSIS_DISEASE_OPTIONS:
                     return fail("疾病选项不合法")
                 data["diagnosis_disease"] = diagnosis_disease
@@ -894,7 +896,7 @@ def update_patient(patient_id):
                     ),
                 )
         conn.commit()
-        return ok({"patient_id": patient_id}, "基础信息已保存")
+        return ok({"patient_id": patient_id}, "诊断信息已保存" if is_diagnosis_update else "基础信息已保存")
     finally:
         conn.close()
 
