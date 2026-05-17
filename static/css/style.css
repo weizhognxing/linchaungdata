@@ -60,8 +60,12 @@ th { background: #eff6ee; }
 .detail-list-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .detail-list-actions .btn-sm { margin-right: 0; }
 .detail-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.diagnosis-record-option { display: flex; align-items: flex-start; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; font-weight: 700; }
+.diagnosis-record-option input { width: auto; margin: 3px 0 0; }
 .base-info-form { display: grid; gap: 10px; margin-bottom: 12px; }
 .diagnosis-form { display: grid; gap: 10px; }
+.diagnosis-selected-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.diagnosis-selected-row .btn-sm { margin-right: 0; }
 .radio-grid { display: grid; gap: 10px; }
 .radio-grid label { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-weight: 700; }
 .radio-grid input { width: auto; margin: 0; }

@@ -16,8 +16,17 @@ from app.services.core import get_fields_for_disease, parse_ai_result, parse_pat
 
 records_bp = Blueprint("records", __name__)
 
-DIAGNOSIS_DISEASE_OPTIONS = {"脓毒症部位", "心源性休克/心脏骤停", "中毒", "脑损伤", "多发伤", "胸部创伤"}
+DIAGNOSIS_DISEASE_OPTIONS = {"脓毒症部位", "重症胰腺炎", "心源性休克/心脏骤停", "中毒", "脑损伤", "多发伤", "胸部创伤"}
 MEDICAL_HISTORY_OPTIONS = {"无", "糖尿病", "乙肝/肝硬化", "肾衰", "肝衰", "冠心病", "COPD", "高血压"}
+DIAGNOSIS_SUBCATEGORY_OPTIONS = {
+    "脓毒症部位": {"肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"},
+    "重症胰腺炎": set(),
+    "心源性休克/心脏骤停": {"1心肌梗塞", "2心衰", "3.心肌炎", "4.急性瓣膜病变", "5电传导病变"},
+    "中毒": {"有机磷中毒", "CO中毒", "蘑菇中毒", "杀虫剂/除草剂中毒", "药物中毒"},
+    "脑损伤": {"大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑梗塞", "脑干出血", "热射病"},
+    "多发伤": {"颅脑损伤", "胸部创伤", "腹部创伤", "四肢损伤", "脊柱损伤"},
+    "胸部创伤": {"连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"},
+}
 
 
 def _current_user_scope(cur):
@@ -82,6 +91,32 @@ def _normalize_medical_history(raw_value):
     if not selected or "无" in selected:
         return "无"
     return ",".join(selected)
+
+
+def _normalize_preliminary_diagnosis(disease, raw_value):
+    if not disease:
+        return ""
+    allowed = DIAGNOSIS_SUBCATEGORY_OPTIONS.get(disease, set())
+    selected = []
+    for item in str(raw_value or "").split(","):
+        value = item.strip()
+        if value in allowed and value not in selected:
+            selected.append(value)
+    if disease == "多发伤":
+        selected = selected[:3]
+    elif len(selected) > 1:
+        selected = selected[:1]
+    return ",".join(selected)
+
+
+def _optional_number(value):
+    value = str(value or "").strip()
+    return value if value != "" else None
+
+
+def _optional_decimal(value):
+    value = str(value or "").strip()
+    return value if value != "" else None
 
 
 def _patient_is_accessible(cur, patient_id, current_user, patient_columns=None):
@@ -686,27 +721,71 @@ def patient_detail(patient_id):
             )
             lab_records = cur.fetchall()
 
-            cur.execute(
-                """
-                SELECT id, treat_time, treatment_method, created_at
-                FROM treatments
-                WHERE patient_id=%s
-                ORDER BY treat_time DESC, id DESC
-                """,
-                (patient_id,),
-            )
+            cur.execute("SHOW COLUMNS FROM treatments")
+            treatment_columns = {row["Field"] for row in cur.fetchall()}
+            if "diagnosis_record_id" in treatment_columns and _table_exists(cur, "diagnosis_records"):
+                cur.execute(
+                    """
+                    SELECT t.*, dr.diagnosis_disease, dr.preliminary_diagnosis
+                    FROM treatments t
+                    LEFT JOIN diagnosis_records dr ON dr.id=t.diagnosis_record_id
+                    WHERE t.patient_id=%s
+                    ORDER BY t.treat_time DESC, t.id DESC
+                    """,
+                    (patient_id,),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM treatments
+                    WHERE patient_id=%s
+                    ORDER BY treat_time DESC, id DESC
+                    """,
+                    (patient_id,),
+                )
             treatments = cur.fetchall()
 
             cur.execute(
                 """
-                SELECT id, follow_time, follow_result, created_at
-                FROM followups
-                WHERE patient_id=%s
-                ORDER BY follow_time DESC, id DESC
+                SELECT f.*, dr.diagnosis_disease, dr.preliminary_diagnosis
+                FROM followups f
+                LEFT JOIN diagnosis_records dr ON dr.id=f.diagnosis_record_id
+                WHERE f.patient_id=%s
+                ORDER BY f.follow_time DESC, f.id DESC
                 """,
                 (patient_id,),
             )
             followups = cur.fetchall()
+
+            assessments = []
+            if _table_exists(cur, "assessments"):
+                cur.execute(
+                    """
+                    SELECT a.*, dr.diagnosis_disease, dr.preliminary_diagnosis
+                    FROM assessments a
+                    LEFT JOIN diagnosis_records dr ON dr.id=a.diagnosis_record_id
+                    WHERE a.patient_id=%s
+                    ORDER BY a.assessment_time DESC, a.id DESC
+                    """,
+                    (patient_id,),
+                )
+                assessments = cur.fetchall()
+
+            diagnosis_records = []
+            if _table_exists(cur, "diagnosis_records"):
+                cur.execute(
+                    """
+                    SELECT dr.id, dr.diagnosis_time, dr.diagnosis_disease,
+                           dr.preliminary_diagnosis, dr.medical_history, u.name AS operator_name
+                    FROM diagnosis_records dr
+                    LEFT JOIN users u ON u.id=dr.user_id
+                    WHERE dr.patient_id=%s
+                    ORDER BY dr.diagnosis_time DESC, dr.id DESC
+                    """,
+                    (patient_id,),
+                )
+                diagnosis_records = cur.fetchall()
 
             base_fields = {"id", "hospital_id", "user_id", "name", "gender", "age", "phone", "id_number", "created_at", "updated_at"}
             cur.execute("SELECT field_name, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
@@ -725,6 +804,8 @@ def patient_detail(patient_id):
                 "lab_records": lab_records,
                 "treatments": treatments,
                 "followups": followups,
+                "assessments": assessments,
+                "diagnosis_records": diagnosis_records,
                 "patient_fields": patient_meta,
             })
     finally:
@@ -750,6 +831,10 @@ def update_patient(patient_id):
             if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
                 return fail("病人不存在", 404)
 
+            is_diagnosis_update = any(
+                field in data for field in {"diagnosis_disease", "medical_history", "preliminary_diagnosis"}
+            )
+
             allowed_fields = {"name", "gender", "age", "phone", "id_number"}
             cur.execute("SELECT field_name FROM patient_field_settings WHERE enabled=1")
             allowed_fields.update(
@@ -765,7 +850,10 @@ def update_patient(patient_id):
             if "medical_history" in data:
                 data["medical_history"] = _normalize_medical_history(data.get("medical_history"))
             if "preliminary_diagnosis" in data:
-                data["preliminary_diagnosis"] = (data.get("preliminary_diagnosis") or "").strip()
+                data["preliminary_diagnosis"] = _normalize_preliminary_diagnosis(
+                    data.get("diagnosis_disease", ""),
+                    data.get("preliminary_diagnosis"),
+                )
 
             updates = []
             params = []
@@ -784,6 +872,23 @@ def update_patient(patient_id):
                 updates.append("updated_at=NOW()")
             params.append(patient_id)
             cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
+
+            diagnosis_disease = (data.get("diagnosis_disease") or "").strip()
+            if is_diagnosis_update and diagnosis_disease and _table_exists(cur, "diagnosis_records"):
+                cur.execute(
+                    """
+                    INSERT INTO diagnosis_records
+                      (patient_id, user_id, diagnosis_time, diagnosis_disease, preliminary_diagnosis, medical_history)
+                    VALUES (%s,%s,NOW(),%s,%s,%s)
+                    """,
+                    (
+                        patient_id,
+                        current_user["id"],
+                        diagnosis_disease,
+                        data.get("preliminary_diagnosis") or None,
+                        data.get("medical_history") or "无",
+                    ),
+                )
         conn.commit()
         return ok({"patient_id": patient_id}, "基础信息已保存")
     finally:
@@ -795,9 +900,9 @@ def update_patient(patient_id):
 def add_treatment(patient_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
     treat_time = (payload.get("treat_time") or "").strip()
-    treatment_method = (payload.get("treatment_method") or "").strip()
-    if not treat_time or not treatment_method:
-        return fail("请填写诊疗时间和诊疗内容")
+    diagnosis_record_id = payload.get("diagnosis_record_id")
+    if not treat_time or not diagnosis_record_id:
+        return fail("请选择诊断记录并填写诊疗时间")
 
     conn = db()
     try:
@@ -805,23 +910,84 @@ def add_treatment(patient_id):
             current_user = _current_user_scope(cur)
             if not current_user:
                 return fail("用户不存在", 404)
-            cur.execute(
-                """
-                SELECT p.id
-                FROM patients p
-                JOIN lab_records r ON r.patient_id=p.id
-                JOIN users u ON u.id=r.user_id
-                WHERE p.id=%s AND u.hospital_id=%s
-                LIMIT 1
-                """,
-                (patient_id, current_user["hospital_id"]),
-            )
-            if not cur.fetchone():
+            if not _patient_is_accessible(cur, patient_id, current_user):
                 return fail("病人不存在", 404)
+            if not _table_exists(cur, "diagnosis_records"):
+                return fail("诊断记录表不存在，请先执行 ensure_diagnosis_records.sql")
 
             cur.execute(
-                "INSERT INTO treatments (patient_id, user_id, treat_time, treatment_method) VALUES (%s,%s,%s,%s)",
-                (patient_id, session.get("user_id"), treat_time, treatment_method),
+                "SELECT diagnosis_disease FROM diagnosis_records WHERE id=%s AND patient_id=%s LIMIT 1",
+                (diagnosis_record_id, patient_id),
+            )
+            diagnosis = cur.fetchone()
+            if not diagnosis:
+                return fail("请选择有效的诊断记录")
+
+            cur.execute("SHOW COLUMNS FROM treatments")
+            treatment_columns = {row["Field"] for row in cur.fetchall()}
+            values = {
+                "patient_id": patient_id,
+                "user_id": session.get("user_id"),
+                "diagnosis_record_id": diagnosis_record_id,
+                "treat_time": treat_time,
+                "treatment_method": "结构化治疗记录",
+                "antibiotics": (payload.get("antibiotics") or "").strip() or None,
+                "antibiotics_start_time": _optional_decimal(payload.get("antibiotics_start_time")),
+                "vasoactive_drugs": (payload.get("vasoactive_drugs") or "").strip() or None,
+                "vasoactive_start_time": _optional_decimal(payload.get("vasoactive_start_time")),
+                "vasoactive_concentration": (payload.get("vasoactive_concentration") or "").strip() or None,
+                "volume_management": (payload.get("volume_management") or "").strip() or None,
+                "volume_total_ml": _optional_decimal(payload.get("volume_total_ml")),
+                "respiratory_support": (payload.get("respiratory_support") or "").strip() or None,
+                "respiratory_start_time": _optional_decimal(payload.get("respiratory_start_time")),
+                "immunomodulators": (payload.get("immunomodulators") or "").strip() or None,
+                "immunomodulator_start_time": _optional_decimal(payload.get("immunomodulator_start_time")),
+                "blood_purification": (payload.get("blood_purification") or "").strip() or None,
+                "blood_purification_start_time": _optional_decimal(payload.get("blood_purification_start_time")),
+                "traditional_chinese_medicine": (payload.get("traditional_chinese_medicine") or "").strip() or None,
+                "traditional_chinese_medicine_start_time": _optional_decimal(payload.get("traditional_chinese_medicine_start_time")),
+                "digestive_secretion_drugs": (payload.get("digestive_secretion_drugs") or "").strip() or None,
+                "cardiac_treatment_methods": (payload.get("cardiac_treatment_methods") or "").strip() or None,
+                "cardiac_treatment_start_time": _optional_decimal(payload.get("cardiac_treatment_start_time")),
+                "sodium_channel_blockers": (payload.get("sodium_channel_blockers") or "").strip() or None,
+                "sodium_channel_blocker_start_time": _optional_decimal(payload.get("sodium_channel_blocker_start_time")),
+                "beta_blockers": (payload.get("beta_blockers") or "").strip() or None,
+                "beta_blocker_start_time": _optional_decimal(payload.get("beta_blocker_start_time")),
+                "potassium_channel_blockers": (payload.get("potassium_channel_blockers") or "").strip() or None,
+                "potassium_channel_blocker_start_time": _optional_decimal(payload.get("potassium_channel_blocker_start_time")),
+                "calcium_channel_blockers": (payload.get("calcium_channel_blockers") or "").strip() or None,
+                "calcium_channel_blocker_start_time": _optional_decimal(payload.get("calcium_channel_blocker_start_time")),
+                "other_cardiac_drugs": (payload.get("other_cardiac_drugs") or "").strip() or None,
+                "poisoning_other_drugs": (payload.get("poisoning_other_drugs") or "").strip() or None,
+                "intracranial_pressure_reduction": (payload.get("intracranial_pressure_reduction") or "").strip() or None,
+                "intracranial_pressure_start_time": _optional_decimal(payload.get("intracranial_pressure_start_time")),
+                "surgical_treatment": (payload.get("surgical_treatment") or "").strip() or None,
+                "surgical_treatment_start_time": _optional_decimal(payload.get("surgical_treatment_start_time")),
+                "mild_hypothermia": (payload.get("mild_hypothermia") or "").strip() or None,
+                "mild_hypothermia_start_time": _optional_decimal(payload.get("mild_hypothermia_start_time")),
+                "brain_protection_drugs": (payload.get("brain_protection_drugs") or "").strip() or None,
+                "brain_protection_start_time": _optional_decimal(payload.get("brain_protection_start_time")),
+                "antiepileptic_drugs": (payload.get("antiepileptic_drugs") or "").strip() or None,
+                "antiepileptic_start_time": _optional_decimal(payload.get("antiepileptic_start_time")),
+                "surgery_methods": (payload.get("surgery_methods") or "").strip() or None,
+                "surgery_start_time": _optional_decimal(payload.get("surgery_start_time")),
+                "chest_fixation": (payload.get("chest_fixation") or "").strip() or None,
+                "chest_fixation_start_time": _optional_decimal(payload.get("chest_fixation_start_time")),
+                "airway_control": (payload.get("airway_control") or "").strip() or None,
+                "airway_control_start_time": _optional_decimal(payload.get("airway_control_start_time")),
+                "oxygen_support": (payload.get("oxygen_support") or "").strip() or None,
+                "oxygen_support_start_time": _optional_decimal(payload.get("oxygen_support_start_time")),
+                "blood_transfusion": (payload.get("blood_transfusion") or "").strip() or None,
+                "blood_transfusion_start_time": _optional_decimal(payload.get("blood_transfusion_start_time")),
+                "blood_transfusion_total": (payload.get("blood_transfusion_total") or "").strip() or None,
+                "temperature_management": (payload.get("temperature_management") or "").strip() or None,
+            }
+            columns = [column for column in values.keys() if column in treatment_columns]
+            placeholders = ",".join(["%s"] * len(columns))
+
+            cur.execute(
+                f"INSERT INTO treatments ({','.join(columns)}) VALUES ({placeholders})",
+                [values[column] for column in columns],
             )
         conn.commit()
         return ok(message="诊疗记录已添加")
@@ -834,9 +1000,9 @@ def add_treatment(patient_id):
 def add_followup(patient_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
     follow_time = (payload.get("follow_time") or "").strip()
-    follow_result = (payload.get("follow_result") or "").strip()
-    if not follow_time or not follow_result:
-        return fail("请填写随访时间和随访结果")
+    diagnosis_record_id = payload.get("diagnosis_record_id")
+    if not follow_time or not diagnosis_record_id:
+        return fail("请选择诊断记录并填写随访时间")
 
     conn = db()
     try:
@@ -844,25 +1010,114 @@ def add_followup(patient_id):
             current_user = _current_user_scope(cur)
             if not current_user:
                 return fail("用户不存在", 404)
-            cur.execute(
-                """
-                SELECT p.id
-                FROM patients p
-                JOIN lab_records r ON r.patient_id=p.id
-                JOIN users u ON u.id=r.user_id
-                WHERE p.id=%s AND u.hospital_id=%s
-                LIMIT 1
-                """,
-                (patient_id, current_user["hospital_id"]),
-            )
-            if not cur.fetchone():
+            if not _patient_is_accessible(cur, patient_id, current_user):
                 return fail("病人不存在", 404)
 
+            if _table_exists(cur, "diagnosis_records"):
+                cur.execute(
+                    "SELECT diagnosis_disease FROM diagnosis_records WHERE id=%s AND patient_id=%s LIMIT 1",
+                    (diagnosis_record_id, patient_id),
+                )
+                diagnosis = cur.fetchone()
+                if not diagnosis:
+                    return fail("请选择有效的诊断记录")
+
+            cur.execute("SHOW COLUMNS FROM followups")
+            followup_columns = {row["Field"] for row in cur.fetchall()}
+            values = {
+                "patient_id": patient_id,
+                "user_id": session.get("user_id"),
+                "diagnosis_record_id": diagnosis_record_id,
+                "follow_time": follow_time,
+                "follow_result": "结构化随访记录",
+                "prognosis": _optional_number(payload.get("prognosis")),
+                "death_days": _optional_number(payload.get("death_days")),
+                "barthel_28d": _optional_number(payload.get("barthel_28d")),
+                "ventilator_days": _optional_number(payload.get("ventilator_days")),
+                "tracheotomy": _optional_number(payload.get("tracheotomy")),
+                "blood_purification": _optional_number(payload.get("blood_purification")),
+                "total_cost": _optional_number(payload.get("total_cost")),
+                "mods": _optional_number(payload.get("mods")),
+                "sepsis": _optional_number(payload.get("sepsis")),
+                "pulmonary_infection": _optional_number(payload.get("pulmonary_infection")),
+                "icu_days": _optional_number(payload.get("icu_days")),
+            }
+            columns = [column for column in values.keys() if column in followup_columns]
+            placeholders = ",".join(["%s"] * len(columns))
+
             cur.execute(
-                "INSERT INTO followups (patient_id, user_id, follow_time, follow_result) VALUES (%s,%s,%s,%s)",
-                (patient_id, session.get("user_id"), follow_time, follow_result),
+                f"INSERT INTO followups ({','.join(columns)}) VALUES ({placeholders})",
+                [values[column] for column in columns],
             )
         conn.commit()
         return ok(message="随访记录已添加")
+    finally:
+        conn.close()
+
+
+@records_bp.post("/api/patients/<int:patient_id>/assessments")
+@require_user
+def add_assessment(patient_id):
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    assessment_time = (payload.get("assessment_time") or "").strip()
+    diagnosis_record_id = payload.get("diagnosis_record_id")
+    if not assessment_time or not diagnosis_record_id:
+        return fail("请选择诊断记录并填写评估时间")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            if not _patient_is_accessible(cur, patient_id, current_user):
+                return fail("病人不存在", 404)
+            if not _table_exists(cur, "assessments"):
+                return fail("评估记录表不存在，请先执行 ensure_assessment_fields.sql")
+
+            cur.execute(
+                "SELECT diagnosis_disease FROM diagnosis_records WHERE id=%s AND patient_id=%s LIMIT 1",
+                (diagnosis_record_id, patient_id),
+            )
+            if not cur.fetchone():
+                return fail("请选择有效的诊断记录")
+
+            cur.execute("SHOW COLUMNS FROM assessments")
+            assessment_columns = {row["Field"] for row in cur.fetchall()}
+            values = {
+                "patient_id": patient_id,
+                "user_id": session.get("user_id"),
+                "diagnosis_record_id": diagnosis_record_id,
+                "assessment_time": assessment_time,
+                "temperature": _optional_decimal(payload.get("temperature")),
+                "respiration": _optional_decimal(payload.get("respiration")),
+                "systolic_bp": _optional_decimal(payload.get("systolic_bp")),
+                "diastolic_bp": _optional_decimal(payload.get("diastolic_bp")),
+                "heart_rate": _optional_decimal(payload.get("heart_rate")),
+                "shock_index": _optional_decimal(payload.get("shock_index")),
+                "oxygen_partial_pressure": _optional_decimal(payload.get("oxygen_partial_pressure")),
+                "oxygen_concentration": _optional_decimal(payload.get("oxygen_concentration")),
+                "sofa_score": _optional_decimal(payload.get("sofa_score")),
+                "apache_ii_score": _optional_decimal(payload.get("apache_ii_score")),
+                "barthel_score": _optional_decimal(payload.get("barthel_score")),
+                "mods_score": _optional_decimal(payload.get("mods_score")),
+                "gcs_score": _optional_decimal(payload.get("gcs_score")),
+                "nihss_score": _optional_decimal(payload.get("nihss_score")),
+                "cerebral_hernia": _optional_number(payload.get("cerebral_hernia")),
+                "oxygen_saturation": _optional_decimal(payload.get("oxygen_saturation")),
+                "ais_score": _optional_decimal(payload.get("ais_score")),
+                "pain_score": _optional_decimal(payload.get("pain_score")),
+                "iss_score": _optional_decimal(payload.get("iss_score")),
+                "created_at": datetime.now(),
+            }
+            columns = [column for column in values.keys() if column in assessment_columns]
+            placeholders = ",".join(["%s"] * len(columns))
+
+            cur.execute(
+                f"INSERT INTO assessments ({','.join(columns)}) VALUES ({placeholders})",
+                [values[column] for column in columns],
+            )
+        conn.commit()
+        return ok(message="评估记录已添加")
     finally:
         conn.close()

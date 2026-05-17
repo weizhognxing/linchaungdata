@@ -119,9 +119,9 @@
       <div class="detail-tabs">
         <button class="detail-tab active" data-detail-tab="base">基础信息</button>
         <button class="detail-tab" data-detail-tab="diagnosis">诊断</button>
-        <button class="detail-tab" data-detail-tab="lab">检验记录</button>
-        <button class="detail-tab" data-detail-tab="treat">诊疗记录</button>
-        <button class="detail-tab" data-detail-tab="follow">随访记录</button>
+        <button class="detail-tab" data-detail-tab="lab">检验</button>
+        <button class="detail-tab" data-detail-tab="treat">治疗</button>
+        <button class="detail-tab" data-detail-tab="follow">随访</button>
         <button class="detail-tab" data-detail-tab="assessment">评估</button>
       </div>
       <div id="detailBaseTab" class="detail-tab-page">
@@ -130,16 +130,9 @@
         <p class="message" id="baseInfoMsg"></p>
       </div>
       <div id="detailDiagnosisTab" class="detail-tab-page hidden">
+        <div class="subhead">诊断记录</div>
+        <div id="diagnosisRecordListDiagnosis" class="detail-list"></div>
         <div class="diagnosis-form">
-          <div class="subhead">疾病选项</div>
-          <div class="radio-grid" id="diagnosisDiseaseOptions">
-            <label><input type="radio" name="diagnosisDisease" value="脓毒症部位">脓毒症部位</label>
-            <label><input type="radio" name="diagnosisDisease" value="心源性休克/心脏骤停">心源性休克/心脏骤停</label>
-            <label><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
-            <label><input type="radio" name="diagnosisDisease" value="脑损伤">脑损伤</label>
-            <label><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
-            <label><input type="radio" name="diagnosisDisease" value="胸部创伤">胸部创伤</label>
-          </div>
           <div class="subhead">既往史</div>
           <div class="radio-grid" id="medicalHistoryOptions">
             <label><input type="checkbox" class="medical-history-checkbox" value="无">无</label>
@@ -152,7 +145,24 @@
             <label><input type="checkbox" class="medical-history-checkbox" value="高血压">高血压</label>
           </div>
           <div class="subhead">初步诊断</div>
-          <textarea id="preliminaryDiagnosis" placeholder="请输入初步诊断"></textarea>
+          <div class="radio-grid" id="diagnosisDiseaseOptions">
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症部位">脓毒症部位</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症胰腺炎">重症胰腺炎</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心脏骤停">心源性休克/心脏骤停</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑损伤">脑损伤</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部创伤">胸部创伤</label>
+          </div>
+          <div id="diagnosisSubcategoryPanel" class="hidden">
+            <div class="diagnosis-selected-row">
+              <div><strong id="selectedDiagnosisDisease">-</strong></div>
+              <button id="resetDiagnosisDiseaseBtn" type="button" class="btn-sm secondary">重新选择</button>
+            </div>
+            <div class="subhead">子分类</div>
+            <div class="radio-grid" id="diagnosisSubcategoryOptions"></div>
+            <p class="hint" id="diagnosisSubcategoryHint"></p>
+          </div>
           <button id="saveDiagnosisBtn">保存诊断信息</button>
           <p class="message" id="diagnosisMsg"></p>
         </div>
@@ -161,29 +171,43 @@
         <div id="labRecordList" class="detail-list"></div>
       </div>
       <div id="detailTreatTab" class="detail-tab-page hidden">
+        <div class="subhead">诊断记录</div>
+        <div id="diagnosisRecordListTreat" class="detail-list"></div>
         <div class="detail-list-actions"><button id="showTreatFormBtn" class="btn-sm">添加诊疗记录</button></div>
         <div id="treatList" class="detail-list"></div>
         <div id="treatFormPanel" class="panel hidden">
           <h3>新增诊疗记录</h3>
           <input id="treatTime" type="datetime-local" placeholder="时间">
-          <textarea id="treatMethod" placeholder="诊疗内容"></textarea>
+          <div id="treatDynamicFields"></div>
           <button id="addTreatBtn">保存诊疗记录</button>
           <p class="message" id="treatMsg"></p>
         </div>
       </div>
       <div id="detailFollowTab" class="detail-tab-page hidden">
+        <div class="subhead">诊断记录</div>
+        <div id="diagnosisRecordListFollow" class="detail-list"></div>
         <div class="detail-list-actions"><button id="showFollowFormBtn" class="btn-sm">添加随访记录</button></div>
         <div id="followList" class="detail-list"></div>
         <div id="followFormPanel" class="panel hidden">
           <h3>新增随访记录</h3>
           <input id="followTime" type="datetime-local" placeholder="时间">
-          <textarea id="followResult" placeholder="随访结果"></textarea>
+          <div id="followDynamicFields" class="grid two"></div>
           <button id="addFollowBtn">保存随访记录</button>
           <p class="message" id="followMsg"></p>
         </div>
       </div>
       <div id="detailAssessmentTab" class="detail-tab-page hidden">
-        <div class="detail-list"><div class="detail-item">暂无评估记录</div></div>
+        <div class="subhead">诊断记录</div>
+        <div id="diagnosisRecordListAssessment" class="detail-list"></div>
+        <div class="detail-list-actions"><button id="showAssessmentFormBtn" class="btn-sm">添加评估记录</button></div>
+        <div id="assessmentList" class="detail-list"></div>
+        <div id="assessmentFormPanel" class="panel hidden">
+          <h3>新增评估记录</h3>
+          <input id="assessmentTime" type="datetime-local" placeholder="时间">
+          <div id="assessmentDynamicFields" class="grid two"></div>
+          <button id="addAssessmentBtn">保存评估记录</button>
+          <p class="message" id="assessmentMsg"></p>
+        </div>
       </div>
     </section>
 
