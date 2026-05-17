@@ -160,10 +160,15 @@ function showTreatSubTab(tab) {
   });
   $("#treatListPanel").toggleClass("hidden", tab !== "list");
   $("#treatAddPanel").toggleClass("hidden", tab !== "add");
-  $("#treatFormPanel").toggleClass("hidden", tab !== "add");
+  if (tab !== "add") {
+    $("#treatFormPanel").addClass("hidden");
+  }
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordTreat]:checked");
-    if (selectedDiagnosis) renderTreatmentFields(getDiagnosisOptionDisease(selectedDiagnosis));
+    if (selectedDiagnosis) {
+      $("#treatFormPanel").removeClass("hidden");
+      renderTreatmentFields(getDiagnosisOptionDisease(selectedDiagnosis));
+    }
   }
 }
 
@@ -174,10 +179,15 @@ function showFollowSubTab(tab) {
   });
   $("#followListPanel").toggleClass("hidden", tab !== "list");
   $("#followAddPanel").toggleClass("hidden", tab !== "add");
-  $("#followFormPanel").toggleClass("hidden", tab !== "add");
+  if (tab !== "add") {
+    $("#followFormPanel").addClass("hidden");
+  }
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordFollow]:checked");
-    if (selectedDiagnosis) renderFollowupFields(selectedDiagnosis.getAttribute("data-disease") || "");
+    if (selectedDiagnosis) {
+      $("#followFormPanel").removeClass("hidden");
+      renderFollowupFields(selectedDiagnosis.getAttribute("data-disease") || "");
+    }
   }
 }
 
@@ -188,10 +198,15 @@ function showAssessmentSubTab(tab) {
   });
   $("#assessmentListPanel").toggleClass("hidden", tab !== "list");
   $("#assessmentAddPanel").toggleClass("hidden", tab !== "add");
-  $("#assessmentFormPanel").toggleClass("hidden", tab !== "add");
+  if (tab !== "add") {
+    $("#assessmentFormPanel").addClass("hidden");
+  }
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordAssessment]:checked");
-    if (selectedDiagnosis) renderAssessmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+    if (selectedDiagnosis) {
+      $("#assessmentFormPanel").removeClass("hidden");
+      renderAssessmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+    }
   }
 }
 
@@ -766,15 +781,18 @@ $(document).on("change", ".diagnosis-subcategory-input", function () {
 });
 
 $(document).on("change", "[name=selectedDiagnosisRecordFollow]", function () {
+  $("#followFormPanel").removeClass("hidden");
   renderFollowupFields(this.getAttribute("data-disease") || "");
 });
 
 $(document).on("change", "[name=selectedDiagnosisRecordTreat]", function () {
+  $("#treatFormPanel").removeClass("hidden");
   renderTreatmentFields(getDiagnosisOptionDisease(this));
 });
 
 document.addEventListener("change", function (event) {
   if (event.target && event.target.name === "selectedDiagnosisRecordTreat") {
+    $("#treatFormPanel").removeClass("hidden");
     renderTreatmentFields(getDiagnosisOptionDisease(event.target));
   }
 });
@@ -785,11 +803,46 @@ document.addEventListener("click", function (event) {
     const option = event.target.closest(".diagnosis-record-option");
     input = option ? option.querySelector("input[name=selectedDiagnosisRecordTreat]") : null;
   }
-  if (input) renderTreatmentFields(getDiagnosisOptionDisease(input));
+  if (input) {
+    $("#treatFormPanel").removeClass("hidden");
+    renderTreatmentFields(getDiagnosisOptionDisease(input));
+  }
+
+  let followInput = event.target && event.target.closest ? event.target.closest("input[name=selectedDiagnosisRecordFollow]") : null;
+  if (!followInput && event.target && event.target.closest) {
+    const followOption = event.target.closest(".diagnosis-record-option");
+    followInput = followOption ? followOption.querySelector("input[name=selectedDiagnosisRecordFollow]") : null;
+  }
+  if (followInput) {
+    $("#followFormPanel").removeClass("hidden");
+    renderFollowupFields(followInput.getAttribute("data-disease") || "");
+  }
+
+  let assessmentInput = event.target && event.target.closest ? event.target.closest("input[name=selectedDiagnosisRecordAssessment]") : null;
+  if (!assessmentInput && event.target && event.target.closest) {
+    const assessmentOption = event.target.closest(".diagnosis-record-option");
+    assessmentInput = assessmentOption ? assessmentOption.querySelector("input[name=selectedDiagnosisRecordAssessment]") : null;
+  }
+  if (assessmentInput) {
+    $("#assessmentFormPanel").removeClass("hidden");
+    renderAssessmentFields(assessmentInput.getAttribute("data-disease") || "");
+  }
 });
 
 $(document).on("change", "[name=selectedDiagnosisRecordAssessment]", function () {
+  $("#assessmentFormPanel").removeClass("hidden");
   renderAssessmentFields(this.getAttribute("data-disease") || "");
+});
+
+document.addEventListener("change", function (event) {
+  if (event.target && event.target.name === "selectedDiagnosisRecordFollow") {
+    $("#followFormPanel").removeClass("hidden");
+    renderFollowupFields(event.target.getAttribute("data-disease") || "");
+  }
+  if (event.target && event.target.name === "selectedDiagnosisRecordAssessment") {
+    $("#assessmentFormPanel").removeClass("hidden");
+    renderAssessmentFields(event.target.getAttribute("data-disease") || "");
+  }
 });
 
 $(document).on("input", "#assessmentDynamicFields .assessment-input[data-field=systolic_bp], #assessmentDynamicFields .assessment-input[data-field=heart_rate]", function () {

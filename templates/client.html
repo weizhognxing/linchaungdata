@@ -179,11 +179,11 @@
           <div id="treatList" class="detail-list"></div>
         </div>
         <div id="treatAddPanel" class="inner-tab-page hidden">
-          <div class="subhead">诊断记录</div>
+          <div class="subhead">选择治疗的疾病</div>
           <div id="diagnosisRecordListTreat" class="detail-list"></div>
-          <div id="treatFormPanel" class="panel">
+          <div id="treatFormPanel" class="panel hidden">
             <h3>新增治疗记录</h3>
-            <input id="treatTime" type="datetime-local" placeholder="时间">
+            <div class="form-field"><label>治疗时间</label><input id="treatTime" type="datetime-local" placeholder="治疗时间"></div>
             <div id="treatDynamicFields"></div>
             <button id="addTreatBtn">保存治疗记录</button>
             <p class="message" id="treatMsg"></p>
@@ -201,7 +201,7 @@
         <div id="followAddPanel" class="inner-tab-page hidden">
           <div class="subhead">诊断记录</div>
           <div id="diagnosisRecordListFollow" class="detail-list"></div>
-          <div id="followFormPanel" class="panel">
+          <div id="followFormPanel" class="panel hidden">
             <h3>新增随访记录</h3>
             <input id="followTime" type="datetime-local" placeholder="时间">
             <div id="followDynamicFields" class="grid two"></div>
@@ -221,7 +221,7 @@
         <div id="assessmentAddPanel" class="inner-tab-page hidden">
           <div class="subhead">诊断记录</div>
           <div id="diagnosisRecordListAssessment" class="detail-list"></div>
-          <div id="assessmentFormPanel" class="panel">
+          <div id="assessmentFormPanel" class="panel hidden">
             <h3>新增评估记录</h3>
             <input id="assessmentTime" type="datetime-local" placeholder="时间">
             <div id="assessmentDynamicFields" class="grid two"></div>
