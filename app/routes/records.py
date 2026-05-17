@@ -787,7 +787,11 @@ def patient_detail(patient_id):
                 )
                 diagnosis_records = cur.fetchall()
 
-            base_fields = {"id", "hospital_id", "user_id", "name", "gender", "age", "phone", "id_number", "created_at", "updated_at"}
+            base_fields = {
+                "id", "hospital_id", "user_id", "name", "gender", "age", "phone", "id_number",
+                "diagnosis_disease", "medical_history", "preliminary_diagnosis",
+                "created_at", "updated_at",
+            }
             cur.execute("SELECT field_name, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
             patient_meta = []
             for field in cur.fetchall():
