@@ -299,6 +299,10 @@ const treatmentConfigs = {
     ["temperature_management", "体温管理", "temperature_management", true]
   ]
 };
+const treatmentDiseaseAliases = {
+  "脓毒症": "脓毒症部位",
+  "脓毒症字段": "脓毒症部位"
+};
 const followupFieldsInternal = [
   ["prognosis", "预后（死亡1/生存0）", "number"],
   ["death_days", "死亡天数", "number"],
@@ -351,8 +355,15 @@ function renderTreatmentTextInput(field, label, type) {
   return '<div class="form-field"><label>' + label + '</label><input class="treatment-input" data-field="' + field + '" type="' + (type || 'text') + '" placeholder="' + label + '"></div>';
 }
 
+function normalizeTreatmentDisease(disease) {
+  disease = String(disease || "").trim();
+  if (disease.indexOf("脓毒症") > -1) return "脓毒症部位";
+  return treatmentDiseaseAliases[disease] || disease;
+}
+
 function renderTreatmentFields(disease) {
-  const config = treatmentConfigs[disease] || [];
+  const normalizedDisease = normalizeTreatmentDisease(disease);
+  const config = treatmentConfigs[normalizedDisease] || [];
   if (!config.length) {
     $("#treatDynamicFields").html('<div class="detail-item">该疾病暂无治疗表单配置</div>');
     setMsg("treatMsg", "该疾病暂无治疗表单配置", true);
@@ -367,7 +378,7 @@ function renderTreatmentFields(disease) {
     return '<div class="grid two">' + renderTreatmentTextInput(field, label, kind) + '</div>';
   }).join("");
   $("#treatDynamicFields").html(html);
-  setMsg("treatMsg", "当前选择为" + disease + "治疗表单");
+  setMsg("treatMsg", "当前选择为" + normalizedDisease + "治疗表单");
 }
 
 function normalizeTreatmentChoice(changedInput) {
