@@ -171,16 +171,23 @@
         <div id="labRecordList" class="detail-list"></div>
       </div>
       <div id="detailTreatTab" class="detail-tab-page hidden">
-        <div class="subhead">诊断记录</div>
-        <div id="diagnosisRecordListTreat" class="detail-list"></div>
-        <div class="detail-list-actions"><button id="showTreatFormBtn" class="btn-sm">添加诊疗记录</button></div>
-        <div id="treatList" class="detail-list"></div>
-        <div id="treatFormPanel" class="panel hidden">
-          <h3>新增诊疗记录</h3>
-          <input id="treatTime" type="datetime-local" placeholder="时间">
-          <div id="treatDynamicFields"></div>
-          <button id="addTreatBtn">保存诊疗记录</button>
-          <p class="message" id="treatMsg"></p>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-treat-tab="list">治疗记录</button>
+          <button class="inner-tab" data-treat-tab="add">添加治疗</button>
+        </div>
+        <div id="treatListPanel" class="inner-tab-page">
+          <div id="treatList" class="detail-list"></div>
+        </div>
+        <div id="treatAddPanel" class="inner-tab-page hidden">
+          <div class="subhead">诊断记录</div>
+          <div id="diagnosisRecordListTreat" class="detail-list"></div>
+          <div id="treatFormPanel" class="panel">
+            <h3>新增治疗记录</h3>
+            <input id="treatTime" type="datetime-local" placeholder="时间">
+            <div id="treatDynamicFields"></div>
+            <button id="addTreatBtn">保存治疗记录</button>
+            <p class="message" id="treatMsg"></p>
+          </div>
         </div>
       </div>
       <div id="detailFollowTab" class="detail-tab-page hidden">

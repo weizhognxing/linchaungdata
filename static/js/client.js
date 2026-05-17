@@ -402,6 +402,19 @@ function updateAssessmentShockIndex() {
   shockInput.value = shockIndex;
 }
 
+function showTreatSubTab(tab) {
+  tab = tab || "list";
+  document.querySelectorAll("#detailTreatTab .inner-tab").forEach(function (button) {
+    button.classList.toggle("active", button.getAttribute("data-treat-tab") === tab);
+  });
+  $("#treatListPanel").toggleClass("hidden", tab !== "list");
+  $("#treatAddPanel").toggleClass("hidden", tab !== "add");
+  if (tab === "add") {
+    const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordTreat]:checked");
+    if (selectedDiagnosis) renderTreatmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+  }
+}
+
 function fillDiagnosisForm(patient) {
   const diagnosisDisease = patient.diagnosis_disease || "";
   document.querySelectorAll("[name=diagnosisDisease]").forEach(function (input) {
@@ -551,7 +564,7 @@ function loadPatientDetail(patientId, activeTab) {
         if (r.blood_transfusion) details.push('输血：' + r.blood_transfusion);
         return '<div class="detail-item">' + (r.treat_time || '-') + '<br>' + (r.treatment_method || '-') +
           (details.length ? '<div class="case-meta">' + details.join(' ｜ ') + '</div>' : '') + '</div>';
-      }).join('') || '<div class="detail-item">暂无诊疗记录</div>';
+      }).join('') || '<div class="detail-item">暂无治疗记录</div>';
       $("#treatList").html(treatHtml);
 
       const followHtml = (res.data.followups || []).map(function (r) {
@@ -562,8 +575,8 @@ function loadPatientDetail(patientId, activeTab) {
         return '<div class="detail-item">' + (r.assessment_time || '-') + '<br>' + (r.diagnosis_disease || '-') + ' ｜ 休克指数：' + (r.shock_index || '-') + '</div>';
       }).join('') || '<div class="detail-item">暂无评估记录</div>';
       $("#assessmentList").html(assessmentHtml);
-      $("#treatFormPanel").addClass("hidden");
       $("#treatDynamicFields").html("");
+      showTreatSubTab("list");
       $("#followFormPanel").addClass("hidden");
       $("#assessmentFormPanel").addClass("hidden");
 
@@ -1050,15 +1063,16 @@ $(document).on("click", ".detail-tab", function () {
   if (tab === "base") $("#detailBaseTab").removeClass("hidden");
   if (tab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
   if (tab === "lab") $("#detailLabTab").removeClass("hidden");
-  if (tab === "treat") $("#detailTreatTab").removeClass("hidden");
+  if (tab === "treat") {
+    $("#detailTreatTab").removeClass("hidden");
+    showTreatSubTab("list");
+  }
   if (tab === "follow") $("#detailFollowTab").removeClass("hidden");
   if (tab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
 });
 
-$(document).on("click", "#showTreatFormBtn", function () {
-  $("#treatFormPanel").removeClass("hidden");
-  const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordTreat]:checked");
-  if (selectedDiagnosis) renderTreatmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+$(document).on("click", "#detailTreatTab .inner-tab", function () {
+  showTreatSubTab(this.getAttribute("data-treat-tab"));
 });
 
 $(document).on("click", "#showFollowFormBtn", function () {

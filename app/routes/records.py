@@ -540,7 +540,7 @@ def export_cases():
             workbook.remove(workbook.active)
             _write_sheet(workbook, "病患信息", patient_rows, patient_headers)
             _write_sheet(workbook, "检验记录", lab_rows, lab_headers)
-            _write_sheet(workbook, "诊疗记录", treatment_rows, treatment_headers)
+            _write_sheet(workbook, "治疗记录", treatment_rows, treatment_headers)
             _write_sheet(workbook, "随访记录", followup_rows, followup_headers)
 
             output = BytesIO()
@@ -906,7 +906,7 @@ def add_treatment(patient_id):
     treat_time = (payload.get("treat_time") or "").strip()
     diagnosis_record_id = payload.get("diagnosis_record_id")
     if not treat_time or not diagnosis_record_id:
-        return fail("请选择诊断记录并填写诊疗时间")
+        return fail("请选择诊断记录并填写治疗时间")
 
     conn = db()
     try:
@@ -994,7 +994,7 @@ def add_treatment(patient_id):
                 [values[column] for column in columns],
             )
         conn.commit()
-        return ok(message="诊疗记录已添加")
+        return ok(message="治疗记录已添加")
     finally:
         conn.close()
 
