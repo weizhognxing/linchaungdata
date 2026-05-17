@@ -361,6 +361,15 @@ function normalizeTreatmentDisease(disease) {
   return treatmentDiseaseAliases[disease] || disease;
 }
 
+function getDiagnosisOptionDisease(input) {
+  if (!input) return "";
+  const dataDisease = input.getAttribute("data-disease") || "";
+  if (dataDisease) return dataDisease;
+  const label = input.closest ? input.closest(".diagnosis-record-option") : null;
+  const strong = label ? label.querySelector("strong") : null;
+  return strong ? strong.textContent.trim() : "";
+}
+
 function renderTreatmentFields(disease) {
   const normalizedDisease = normalizeTreatmentDisease(disease);
   const config = treatmentConfigs[normalizedDisease] || [];
@@ -422,7 +431,7 @@ function showTreatSubTab(tab) {
   $("#treatAddPanel").toggleClass("hidden", tab !== "add");
   if (tab === "add") {
     const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordTreat]:checked");
-    if (selectedDiagnosis) renderTreatmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+    if (selectedDiagnosis) renderTreatmentFields(getDiagnosisOptionDisease(selectedDiagnosis));
   }
 }
 
@@ -1027,7 +1036,22 @@ $(document).on("change", "[name=selectedDiagnosisRecordFollow]", function () {
 });
 
 $(document).on("change", "[name=selectedDiagnosisRecordTreat]", function () {
-  renderTreatmentFields(this.getAttribute("data-disease") || "");
+  renderTreatmentFields(getDiagnosisOptionDisease(this));
+});
+
+document.addEventListener("change", function (event) {
+  if (event.target && event.target.name === "selectedDiagnosisRecordTreat") {
+    renderTreatmentFields(getDiagnosisOptionDisease(event.target));
+  }
+});
+
+document.addEventListener("click", function (event) {
+  let input = event.target && event.target.closest ? event.target.closest("input[name=selectedDiagnosisRecordTreat]") : null;
+  if (!input && event.target && event.target.closest) {
+    const option = event.target.closest(".diagnosis-record-option");
+    input = option ? option.querySelector("input[name=selectedDiagnosisRecordTreat]") : null;
+  }
+  if (input) renderTreatmentFields(getDiagnosisOptionDisease(input));
 });
 
 $(document).on("change", "[name=selectedDiagnosisRecordAssessment]", function () {
