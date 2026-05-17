@@ -191,29 +191,43 @@
         </div>
       </div>
       <div id="detailFollowTab" class="detail-tab-page hidden">
-        <div class="subhead">诊断记录</div>
-        <div id="diagnosisRecordListFollow" class="detail-list"></div>
-        <div class="detail-list-actions"><button id="showFollowFormBtn" class="btn-sm">添加随访记录</button></div>
-        <div id="followList" class="detail-list"></div>
-        <div id="followFormPanel" class="panel hidden">
-          <h3>新增随访记录</h3>
-          <input id="followTime" type="datetime-local" placeholder="时间">
-          <div id="followDynamicFields" class="grid two"></div>
-          <button id="addFollowBtn">保存随访记录</button>
-          <p class="message" id="followMsg"></p>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-follow-tab="list">随访记录</button>
+          <button class="inner-tab" data-follow-tab="add">添加随访</button>
+        </div>
+        <div id="followListPanel" class="inner-tab-page">
+          <div id="followList" class="detail-list"></div>
+        </div>
+        <div id="followAddPanel" class="inner-tab-page hidden">
+          <div class="subhead">诊断记录</div>
+          <div id="diagnosisRecordListFollow" class="detail-list"></div>
+          <div id="followFormPanel" class="panel">
+            <h3>新增随访记录</h3>
+            <input id="followTime" type="datetime-local" placeholder="时间">
+            <div id="followDynamicFields" class="grid two"></div>
+            <button id="addFollowBtn">保存随访记录</button>
+            <p class="message" id="followMsg"></p>
+          </div>
         </div>
       </div>
       <div id="detailAssessmentTab" class="detail-tab-page hidden">
-        <div class="subhead">诊断记录</div>
-        <div id="diagnosisRecordListAssessment" class="detail-list"></div>
-        <div class="detail-list-actions"><button id="showAssessmentFormBtn" class="btn-sm">添加评估记录</button></div>
-        <div id="assessmentList" class="detail-list"></div>
-        <div id="assessmentFormPanel" class="panel hidden">
-          <h3>新增评估记录</h3>
-          <input id="assessmentTime" type="datetime-local" placeholder="时间">
-          <div id="assessmentDynamicFields" class="grid two"></div>
-          <button id="addAssessmentBtn">保存评估记录</button>
-          <p class="message" id="assessmentMsg"></p>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-assessment-tab="list">评估记录</button>
+          <button class="inner-tab" data-assessment-tab="add">添加评估</button>
+        </div>
+        <div id="assessmentListPanel" class="inner-tab-page">
+          <div id="assessmentList" class="detail-list"></div>
+        </div>
+        <div id="assessmentAddPanel" class="inner-tab-page hidden">
+          <div class="subhead">诊断记录</div>
+          <div id="diagnosisRecordListAssessment" class="detail-list"></div>
+          <div id="assessmentFormPanel" class="panel">
+            <h3>新增评估记录</h3>
+            <input id="assessmentTime" type="datetime-local" placeholder="时间">
+            <div id="assessmentDynamicFields" class="grid two"></div>
+            <button id="addAssessmentBtn">保存评估记录</button>
+            <p class="message" id="assessmentMsg"></p>
+          </div>
         </div>
       </div>
     </section>

@@ -415,6 +415,32 @@ function showTreatSubTab(tab) {
   }
 }
 
+function showFollowSubTab(tab) {
+  tab = tab || "list";
+  document.querySelectorAll("#detailFollowTab .inner-tab").forEach(function (button) {
+    button.classList.toggle("active", button.getAttribute("data-follow-tab") === tab);
+  });
+  $("#followListPanel").toggleClass("hidden", tab !== "list");
+  $("#followAddPanel").toggleClass("hidden", tab !== "add");
+  if (tab === "add") {
+    const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordFollow]:checked");
+    if (selectedDiagnosis) renderFollowupFields(selectedDiagnosis.getAttribute("data-disease") || "");
+  }
+}
+
+function showAssessmentSubTab(tab) {
+  tab = tab || "list";
+  document.querySelectorAll("#detailAssessmentTab .inner-tab").forEach(function (button) {
+    button.classList.toggle("active", button.getAttribute("data-assessment-tab") === tab);
+  });
+  $("#assessmentListPanel").toggleClass("hidden", tab !== "list");
+  $("#assessmentAddPanel").toggleClass("hidden", tab !== "add");
+  if (tab === "add") {
+    const selectedDiagnosis = document.querySelector("[name=selectedDiagnosisRecordAssessment]:checked");
+    if (selectedDiagnosis) renderAssessmentFields(selectedDiagnosis.getAttribute("data-disease") || "");
+  }
+}
+
 function fillDiagnosisForm(patient) {
   const diagnosisDisease = patient.diagnosis_disease || "";
   document.querySelectorAll("[name=diagnosisDisease]").forEach(function (input) {
@@ -577,8 +603,10 @@ function loadPatientDetail(patientId, activeTab) {
       $("#assessmentList").html(assessmentHtml);
       $("#treatDynamicFields").html("");
       showTreatSubTab("list");
-      $("#followFormPanel").addClass("hidden");
-      $("#assessmentFormPanel").addClass("hidden");
+      $("#followDynamicFields").html("");
+      $("#assessmentDynamicFields").html("");
+      showFollowSubTab("list");
+      showAssessmentSubTab("list");
 
       $(".detail-tab").removeClass("active");
       $(".detail-tab[data-detail-tab='" + activeTab + "']").addClass("active");
@@ -1067,20 +1095,26 @@ $(document).on("click", ".detail-tab", function () {
     $("#detailTreatTab").removeClass("hidden");
     showTreatSubTab("list");
   }
-  if (tab === "follow") $("#detailFollowTab").removeClass("hidden");
-  if (tab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
+  if (tab === "follow") {
+    $("#detailFollowTab").removeClass("hidden");
+    showFollowSubTab("list");
+  }
+  if (tab === "assessment") {
+    $("#detailAssessmentTab").removeClass("hidden");
+    showAssessmentSubTab("list");
+  }
 });
 
 $(document).on("click", "#detailTreatTab .inner-tab", function () {
   showTreatSubTab(this.getAttribute("data-treat-tab"));
 });
 
-$(document).on("click", "#showFollowFormBtn", function () {
-  $("#followFormPanel").removeClass("hidden");
+$(document).on("click", "#detailFollowTab .inner-tab", function () {
+  showFollowSubTab(this.getAttribute("data-follow-tab"));
 });
 
-$(document).on("click", "#showAssessmentFormBtn", function () {
-  $("#assessmentFormPanel").removeClass("hidden");
+$(document).on("click", "#detailAssessmentTab .inner-tab", function () {
+  showAssessmentSubTab(this.getAttribute("data-assessment-tab"));
 });
 
 $("#addTreatBtn").on("click", function () {

@@ -56,6 +56,9 @@ th { background: #eff6ee; }
 .detail-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
 .detail-tab { box-shadow: none; background: #e8efe8; color: var(--ink); font-size: 13px; padding: 10px 6px; white-space: nowrap; }
 .detail-tab.active { background: var(--brand); color: #fff; }
+.detail-tab-page { background: #f8faf7; border: 1px solid #8f9c93; padding: 14px; margin-bottom: 12px; box-shadow: inset 1px 1px 0 #fff; }
+.detail-tab-page .detail-item, .detail-tab-page .diagnosis-record-option, .detail-tab-page .radio-grid label { border-radius: 4px; border-color: #c8d1c9; box-shadow: none; }
+.detail-tab-page > .panel { border-radius: 0; border-color: #bac6bb; box-shadow: none; background: #fff; }
 .inner-tabs { display: flex; align-items: flex-end; gap: 0; margin: 12px 0 0; border-bottom: 1px solid #8f9c93; }
 .inner-tab { width: auto; min-width: 112px; margin: 0 -1px -1px 0; border: 1px solid #8f9c93; border-bottom-color: #8f9c93; border-radius: 6px 6px 0 0; box-shadow: none; background: linear-gradient(#eef2ee, #d8dfd8); color: #223028; font-size: 14px; padding: 8px 18px; }
 .inner-tab.active { position: relative; z-index: 1; background: #f8faf7; color: #111; border-bottom-color: #f8faf7; box-shadow: inset 1px 1px 0 rgba(255,255,255,.9); }
