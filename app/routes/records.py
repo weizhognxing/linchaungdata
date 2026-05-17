@@ -820,9 +820,13 @@ def patient_detail(patient_id):
 @require_user
 def update_patient(patient_id):
     data = request.get_json(silent=True) or request.form.to_dict()
-    required_fields = ["name", "gender", "age", "id_number"]
-    if required(data, required_fields):
-        return fail("请填写姓名、性别、年龄、病历号")
+    is_diagnosis_update = any(
+        field in data for field in {"diagnosis_disease", "medical_history", "preliminary_diagnosis"}
+    )
+    if not is_diagnosis_update:
+        required_fields = ["name", "gender", "age", "id_number"]
+        if required(data, required_fields):
+            return fail("请填写姓名、性别、年龄、病历号")
 
     conn = db()
     try:
@@ -834,10 +838,6 @@ def update_patient(patient_id):
             patient_columns = _patient_columns(cur)
             if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
                 return fail("病人不存在", 404)
-
-            is_diagnosis_update = any(
-                field in data for field in {"diagnosis_disease", "medical_history", "preliminary_diagnosis"}
-            )
 
             allowed_fields = {"name", "gender", "age", "phone", "id_number"}
             cur.execute("SELECT field_name FROM patient_field_settings WHERE enabled=1")
