@@ -543,6 +543,12 @@ function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
   showPanel("photoPanel");
 }
 
+function triggerPhotoChooser() {
+  const targetInput = isMobile() ? document.getElementById("photoInputCamera") : document.getElementById("photoInputFile");
+  if (!targetInput) return;
+  targetInput.click();
+}
+
 function renderLabCategoryActions(patient) {
   const html = labCategories.map(function (category) {
     return '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="' + category.key + '" data-label="' + category.label + '">' + category.label + '</button>';
@@ -698,6 +704,7 @@ $(document).on("click", ".disease-item", function () {
   selectedDiseaseId = $(this).data("id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   openPhotoPanelForIntake();
+  triggerPhotoChooser();
 });
 
 // 拍照/上传：点击按钮触发隐藏的 file input
@@ -858,6 +865,7 @@ $(document).on("click", ".lab-category-upload-btn", function () {
   const category = $(this).data("category");
   const label = $(this).data("label");
   startLabCategoryUpload(patientId, category, label);
+  triggerPhotoChooser();
 });
 
 $(document).on("click", ".lab-record-item", function () {
