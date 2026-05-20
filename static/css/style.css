@@ -47,7 +47,10 @@ th { background: #eff6ee; }
 .case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .case-title-row h2 { margin-bottom: 0; }
 .case-actions { display: flex; gap: 8px; }
+.wrap-actions { flex-wrap: wrap; }
 .case-actions .btn-sm { margin-right: 0; white-space: nowrap; }
+.case-group { display: grid; gap: 10px; }
+.case-group-title { font-weight: 900; margin-top: 8px; }
 .compact-form { margin-bottom: 14px; }
 .case-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
 .case-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
@@ -68,6 +71,9 @@ th { background: #eff6ee; }
 .detail-list { display: grid; gap: 8px; margin-bottom: 12px; }
 .detail-list-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .detail-list-actions .btn-sm { margin-right: 0; }
+.treatment-section { margin-bottom: 12px; }
+.treatment-section-toggle { display: flex; align-items: center; justify-content: space-between; background: #eaf3ea; color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
+.treatment-toggle-indicator { color: var(--muted); font-size: 13px; }
 .detail-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .diagnosis-record-option { display: flex; align-items: flex-start; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; font-weight: 700; }
 .diagnosis-record-option input { width: auto; margin: 3px 0 0; }

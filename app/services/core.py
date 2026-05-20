@@ -78,6 +78,69 @@ def migrate_hospital_data_once():
     finally:
         conn.close()
 
+
+def ensure_runtime_schema_once():
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            _ensure_column(
+                cur,
+                "patients",
+                "case_status",
+                "ALTER TABLE patients ADD COLUMN `case_status` varchar(20) NOT NULL DEFAULT 'draft' AFTER `id_number`",
+            )
+            _ensure_column(
+                cur,
+                "patients",
+                "last_disease_id",
+                "ALTER TABLE patients ADD COLUMN `last_disease_id` int(11) DEFAULT NULL AFTER `case_status`",
+            )
+            _ensure_column(
+                cur,
+                "lab_records",
+                "record_category",
+                "ALTER TABLE lab_records ADD COLUMN `record_category` varchar(50) DEFAULT NULL AFTER `disease_id`",
+            )
+            _ensure_column(
+                cur,
+                "treatments",
+                "detail_json",
+                "ALTER TABLE treatments ADD COLUMN `detail_json` longtext DEFAULT NULL AFTER `treatment_method`",
+            )
+            _ensure_column(
+                cur,
+                "treatments",
+                "digestive_secretion_drugs_start_time",
+                "ALTER TABLE treatments ADD COLUMN `digestive_secretion_drugs_start_time` datetime DEFAULT NULL AFTER `digestive_secretion_drugs`",
+            )
+            _ensure_column(
+                cur,
+                "treatments",
+                "other_cardiac_drugs_start_time",
+                "ALTER TABLE treatments ADD COLUMN `other_cardiac_drugs_start_time` datetime DEFAULT NULL AFTER `other_cardiac_drugs`",
+            )
+            _ensure_column(
+                cur,
+                "treatments",
+                "poisoning_other_drugs_start_time",
+                "ALTER TABLE treatments ADD COLUMN `poisoning_other_drugs_start_time` datetime DEFAULT NULL AFTER `poisoning_other_drugs`",
+            )
+            _ensure_column(
+                cur,
+                "treatments",
+                "temperature_management_start_time",
+                "ALTER TABLE treatments ADD COLUMN `temperature_management_start_time` datetime DEFAULT NULL AFTER `temperature_management`",
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _ensure_column(cur, table_name, column_name, sql):
+    cur.execute(f"SHOW COLUMNS FROM `{table_name}` LIKE %s", (column_name,))
+    if not cur.fetchone():
+        cur.execute(sql)
+
     conn = db()
     try:
         with conn.cursor() as cur:
@@ -139,7 +202,7 @@ def get_fields_for_disease(disease_id):
         conn.close()
 
 
-def recognize_image(image_path):
+def recognize_image(image_path, prompt_text=None):
     with open(image_path, "rb") as f:
         image_data = base64.b64encode(f.read()).decode("utf-8")
 
@@ -148,7 +211,7 @@ def recognize_image(image_path):
         "Authorization": f"Bearer {ai_config.AI_API_KEY}",
     }
 
-    prompt = """请识别这张检验报告图片，提取患者信息和所有检验项目结果。
+    prompt = prompt_text or """请识别这张检验报告图片，提取患者信息和所有检验项目结果。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {
   "patient": {

@@ -3,6 +3,20 @@ let uploadedPhotoPath = null;
 let selectedFile = null;
 let canReviewMembers = false;
 let currentPatientId = null;
+let currentUploadMode = "intake";
+let currentUploadPatientId = null;
+let currentRecordCategory = null;
+let currentCategoryLabel = "";
+
+const labCategories = [
+  { key: "blood_routine", label: "血常规" },
+  { key: "biochemistry", label: "生化电解质" },
+  { key: "blood_gas", label: "血气分析" },
+  { key: "dic7", label: "DIC7项" },
+  { key: "bnp", label: "BNP" },
+  { key: "lactate", label: "乳酸" },
+  { key: "pct", label: "PCT" }
+];
 
 // 检测是否为移动设备
 function isMobile() {
@@ -87,20 +101,24 @@ function loadCaseList() {
         setMsg("caseListMsg", "病例加载失败", true);
         return;
       }
-      if (!res.data.length) {
-        $("#caseList").html('<div class="detail-item">暂无病例</div>');
-        return;
-      }
-      const html = res.data.map(function (item) {
-        return '<div class="case-item">' +
-          '<div class="case-head"><strong>' + (item.name || '-') + '</strong><button class="btn-sm view-case-btn" data-id="' + item.id + '">查看</button></div>' +
-          '<div class="case-meta">' +
-          '性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 病历号：' + (item.id_number || '-') +
-          '</div>' +
-          '<div class="case-meta">已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
-          '</div>';
-      }).join('');
-      $("#caseList").html(html);
+      const groups = res.data || {};
+      const renderGroup = function (title, items, emptyText) {
+        const cards = (items || []).map(function (item) {
+          const disease = item.disease_name ? ' ｜ 疾病：' + item.disease_name : '';
+          const status = item.case_status === 'submitted' ? '已提交' : '暂存中';
+          const actionText = item.case_status === 'submitted' ? '查看' : '继续完善';
+          return '<div class="case-item">' +
+            '<div class="case-head"><strong>' + (item.name || '-') + '</strong><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button></div>' +
+            '<div class="case-meta">性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 登记号：' + (item.id_number || '-') + disease + '</div>' +
+            '<div class="case-meta">状态：' + status + ' ｜ 已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
+            '</div>';
+        }).join('') || '<div class="detail-item">' + emptyText + '</div>';
+        return '<section class="case-group"><div class="case-group-title">' + title + '</div><div class="case-list">' + cards + '</div></section>';
+      };
+      $("#caseList").html(
+        renderGroup("暂存记录", groups.draft, "暂无暂存病例") +
+        renderGroup("提交记录", groups.submitted, "暂无已提交病例")
+      );
     })
     .fail(function (xhr) {
       setMsg("caseListMsg", xhr.responseJSON?.message || "病例加载失败", true);
@@ -302,21 +320,28 @@ function loadPatientDetail(patientId, activeTab) {
         alert("加载病人详情失败");
         return;
       }
-      currentPatientId = patientId;
       const patient = res.data.patient || {};
+      currentPatientId = patientId;
+      if (patient.last_disease_id) {
+        selectedDiseaseId = patient.last_disease_id;
+        localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
+      }
       const patientFields = res.data.patient_fields || [];
       renderDiagnosisRecordLists(res.data.diagnosis_records || []);
       fillDiagnosisForm(patient);
       $("#patientProfile").html(
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 病历号：' + (patient.id_number || '-') + '</div>'
+        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 状态：' + (patient.case_status === 'submitted' ? '已提交' : '暂存中') + '</div>'
       );
+      $("#submitCaseBtn").toggleClass("hidden", patient.case_status === 'submitted');
+      $("#labCategoryActions").toggleClass("hidden", patient.case_status === 'submitted');
+      setMsg("patientDetailMsg", patient.case_status === 'submitted' ? '当前病例已提交。' : '当前病例处于暂存状态，可继续补录检验、评估和治疗。', false);
 
       const baseFields = [
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
         { field_name: 'gender', form_label: '性别', value: patient.gender, required: true },
         { field_name: 'age', form_label: '年龄', value: patient.age, required: true, type: 'number' },
-        { field_name: 'id_number', form_label: '病历号', value: patient.id_number, required: true },
+        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: true },
         { field_name: 'phone', form_label: '联系电话', value: patient.phone }
       ].concat(patientFields.filter(function (f) { return diagnosisFieldNames.indexOf(f.field_name) === -1; }));
       const baseHtml = baseFields.map(function (f) {
@@ -327,12 +352,14 @@ function loadPatientDetail(patientId, activeTab) {
       setMsg("baseInfoMsg", "", false);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
+        const categoryText = r.record_category ? ' ｜ 类别：' + getLabCategoryLabel(r.record_category) : '';
         return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
-          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + ' ｜ 录入人：' + (r.operator_name || '-') +
+          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + categoryText + ' ｜ 录入人：' + (r.operator_name || '-') +
           '<div class="case-meta">点击查看检验单详情</div>' +
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
+      renderLabCategoryActions(patient);
 
       const treatHtml = (res.data.treatments || []).map(function (r) {
         const details = [];
@@ -379,9 +406,9 @@ function loadPatientDetail(patientId, activeTab) {
       if (activeTab === "base") $("#detailBaseTab").removeClass("hidden");
       if (activeTab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
       if (activeTab === "lab") $("#detailLabTab").removeClass("hidden");
+      if (activeTab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
       if (activeTab === "treat") $("#detailTreatTab").removeClass("hidden");
       if (activeTab === "follow") $("#detailFollowTab").removeClass("hidden");
-      if (activeTab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
       showPanel("patientDetailPanel");
     })
     .fail(function (xhr) {
@@ -402,7 +429,7 @@ function loadLabRecordDetail(recordId) {
       currentPatientId = record.patient_id || currentPatientId;
       $("#labReportMeta").html(
         '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 病历号：' + (record.id_number || '-') + '</div>' +
+        '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 登记号：' + (record.id_number || '-') + '</div>' +
         '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
         '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
       );
@@ -467,6 +494,7 @@ function initPhotoPanel() {
   $("#previewContainer").addClass("hidden");
   $("#photoActions").removeClass("hidden");
   $("#recognizeProgress").addClass("hidden");
+  $("#confirmUploadBtn").addClass("hidden");
   $("#retryBtn").addClass("hidden");
   $("#photoMsg").text("");
   $("#previewImage").attr("src", "");
@@ -482,6 +510,49 @@ function showPreview(file) {
     $("#previewContainer").removeClass("hidden");
   };
   reader.readAsDataURL(file);
+}
+
+function resetRecordForm() {
+  $("[name=patient_name], [name=patient_gender], [name=patient_age], [name=patient_phone], [name=patient_id_number]").val("");
+  $("#dynamicFields").html("");
+  $("#recordPanelHint").text("");
+  setMsg("recordMsg", "", false);
+}
+
+function openPhotoPanelForIntake() {
+  currentUploadMode = "intake";
+  currentUploadPatientId = null;
+  currentRecordCategory = null;
+  currentCategoryLabel = "";
+  initPhotoPanel();
+  initPhotoButtons();
+  $("#photoPanelTitle").text("拍照上传");
+  setMsg("photoMsg", "先拍照提取患者基础信息，病例会先进入暂存记录。", false);
+  showPanel("photoPanel");
+}
+
+function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
+  currentUploadMode = "lab";
+  currentUploadPatientId = patientId;
+  currentRecordCategory = categoryKey;
+  currentCategoryLabel = categoryLabel || "检验";
+  initPhotoPanel();
+  initPhotoButtons();
+  $("#photoPanelTitle").text("上传" + currentCategoryLabel);
+  setMsg("photoMsg", "选择图片后点击确定，系统会只识别" + currentCategoryLabel + "。", false);
+  showPanel("photoPanel");
+}
+
+function renderLabCategoryActions(patient) {
+  const html = labCategories.map(function (category) {
+    return '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="' + category.key + '" data-label="' + category.label + '">' + category.label + '</button>';
+  }).join('');
+  $("#labCategoryActions").html(html);
+}
+
+function getLabCategoryLabel(categoryKey) {
+  const found = labCategories.find(function (item) { return item.key === categoryKey; });
+  return found ? found.label : categoryKey;
 }
 
 function fillPatientForm(patient) {
@@ -527,6 +598,7 @@ function autoRecognize() {
   // 显示识别中状态
   showRecognizeProgress(1, 3, "正在上传图片...");
   $("#photoActions").addClass("hidden");
+  $("#confirmUploadBtn").addClass("hidden");
   $("#previewContainer").addClass("hidden");
   $("#retryBtn").addClass("hidden");
   $("#photoMsg").text("");
@@ -534,6 +606,9 @@ function autoRecognize() {
   var data = new FormData();
   data.append("disease_id", selectedDiseaseId);
   data.append("photo", selectedFile);
+  data.append("mode", currentUploadMode);
+  if (currentRecordCategory) data.append("record_category", currentRecordCategory);
+  if (currentUploadPatientId) data.append("patient_id", currentUploadPatientId);
 
   showRecognizeProgress(2, 3, "正在调用AI识别...");
 
@@ -541,16 +616,27 @@ function autoRecognize() {
     .done(function (res) {
       showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
       uploadedPhotoPath = res.data.photo_path;
+      resetRecordForm();
       fillPatientForm(res.data.patient);
 
-      // 用识别结果填充表单
-      var html = res.data.fields.map(function(f) {
-        var value = res.data.values[f.field_name] || '';
+      var html = (res.data.fields || []).map(function(f) {
+        var value = (res.data.values || {})[f.field_name] || '';
         return '<div class="form-field"><label>' + f.form_label + '</label><input name="' + f.field_name + '" value="' + value + '" placeholder="' + f.form_label + '"></div>';
       }).join("");
       $("#dynamicFields").html(html);
 
-      // 延迟跳转到表单页面
+      if (currentUploadMode === "intake") {
+        $("#recordPanelTitle").text("确认基础信息");
+        $("#recordPanelHint").text("当前步骤仅提取患者基础信息，确认后会创建暂存病例。后续请在病例中继续上传各项检验内容。");
+        $("#labFieldsSection").addClass("hidden");
+        $("#saveRecordBtn").text("创建暂存病例");
+      } else {
+        $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验数据"));
+        $("#recordPanelHint").text("确认无误后保存当前类别，保存成功会返回病例详情。")
+        $("#labFieldsSection").removeClass("hidden");
+        $("#saveRecordBtn").text("保存" + (currentCategoryLabel || "检验"));
+      }
+
       setTimeout(function() {
         showPanel("recordPanel");
       }, 500);
@@ -611,9 +697,7 @@ $("#resetBtn").on("click", function () {
 $(document).on("click", ".disease-item", function () {
   selectedDiseaseId = $(this).data("id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  showPanel("photoPanel");
-  initPhotoPanel();
-  initPhotoButtons();
+  openPhotoPanelForIntake();
 });
 
 // 拍照/上传：点击按钮触发隐藏的 file input
@@ -632,7 +716,8 @@ function handleFileSelect(e) {
   if (e.target.files && e.target.files[0]) {
     selectedFile = e.target.files[0];
     showPreview(selectedFile);
-    autoRecognize();
+    setMsg("photoMsg", "图片已选择，请点击确定开始上传识别。", false);
+    $("#confirmUploadBtn").removeClass("hidden");
   }
 }
 
@@ -641,6 +726,10 @@ $(document).on("click", "#retryBtn", function () {
   if (selectedFile) {
     autoRecognize();
   }
+});
+
+$(document).on("click", "#confirmUploadBtn", function () {
+  autoRecognize();
 });
 
 function formatStatus(status) {
@@ -706,21 +795,69 @@ $("#saveRecordBtn").on("click", function () {
     phone: $("[name=patient_phone]").val(),
     id_number: $("[name=patient_id_number]").val()
   };
+  if (!patient.name || !patient.gender || !patient.id_number) {
+    setMsg("recordMsg", "请先确认姓名、性别、登记号", true);
+    return;
+  }
+  if (currentUploadMode === "intake") {
+    $.ajax({
+      url: "/api/patients",
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        name: patient.name,
+        gender: patient.gender,
+        age: patient.age,
+        phone: patient.phone,
+        id_number: patient.id_number,
+        case_status: "draft",
+        last_disease_id: selectedDiseaseId,
+        require_age: patient.age ? 1 : 0
+      })
+    }).done(function (res) {
+      setMsg("recordMsg", "暂存病例已创建");
+      loadCaseList();
+      if (res.data && res.data.patient_id) {
+        currentUploadPatientId = res.data.patient_id;
+        loadPatientDetail(res.data.patient_id, "lab");
+      }
+    }).fail(function (xhr) {
+      setMsg("recordMsg", xhr.responseJSON?.message || "创建暂存病例失败", true);
+    });
+    return;
+  }
   const values = {};
   $("#dynamicFields input").each(function () { values[this.name] = $(this).val(); });
   $.ajax({
     url: "/api/records",
     method: "POST",
     contentType: "application/json",
-    data: JSON.stringify({ disease_id: selectedDiseaseId, patient, values, photo_path: uploadedPhotoPath })
+    data: JSON.stringify({
+      patient_id: currentUploadPatientId,
+      disease_id: selectedDiseaseId,
+      patient,
+      values,
+      photo_path: uploadedPhotoPath,
+      record_category: currentRecordCategory
+    })
   }).done(function (res) {
-    setMsg("recordMsg", `${res.message}，记录ID：${res.data.record_id}`);
+    setMsg("recordMsg", (currentCategoryLabel || "检验") + "上传成功");
     loadCaseList();
+    if (currentUploadPatientId) {
+      loadPatientDetail(currentUploadPatientId, "lab");
+    }
   }).fail(function (xhr) { setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true); });
 });
 
 $(document).on("click", ".view-case-btn", function () {
   loadPatientDetail($(this).data("id"));
+});
+
+$(document).on("click", ".lab-category-upload-btn", function () {
+  const patientId = $(this).data("patient-id");
+  const category = $(this).data("category");
+  const label = $(this).data("label");
+  startLabCategoryUpload(patientId, category, label);
 });
 
 $(document).on("click", ".lab-record-item", function () {
@@ -740,6 +877,19 @@ $(document).on("click", "#showNewCaseBtn", function () {
   setMsg("newCaseMsg", "", false);
 });
 
+$(document).on("click", "#submitCaseBtn", function () {
+  if (!currentPatientId) return;
+  $.post("/api/patients/" + currentPatientId + "/submit")
+    .done(function (res) {
+      setMsg("patientDetailMsg", res.message || "病例已提交");
+      loadCaseList();
+      loadPatientDetail(currentPatientId, "base");
+    })
+    .fail(function (xhr) {
+      setMsg("patientDetailMsg", xhr.responseJSON?.message || "提交失败", true);
+    });
+});
+
 $(document).on("click", "#exportCasesBtn", function () {
   window.location.href = "/api/cases/export";
 });
@@ -751,7 +901,7 @@ $(document).on("click", "#saveBaseInfoBtn", function () {
     payload[this.getAttribute("data-field")] = $(this).val();
   });
   if (!payload.name || !payload.gender || !payload.age || !payload.id_number) {
-    setMsg("baseInfoMsg", "请填写姓名、性别、年龄、病历号", true);
+    setMsg("baseInfoMsg", "请填写姓名、性别、年龄、登记号", true);
     return;
   }
   $.post("/api/patients/" + currentPatientId, payload)
@@ -853,6 +1003,14 @@ $(document).on("change", ".treatment-choice", function () {
   normalizeTreatmentChoice(this);
 });
 
+$(document).on("click", "[data-toggle-treatment-section]", function () {
+  const body = this.parentNode.querySelector("[data-treatment-section-body]");
+  if (!body) return;
+  body.classList.toggle("hidden");
+  const indicator = this.querySelector(".treatment-toggle-indicator");
+  if (indicator) indicator.textContent = body.classList.contains("hidden") ? "展开" : "收起";
+});
+
 $(document).on("click", "#saveDiagnosisBtn", function () {
   if (!currentPatientId) return;
   const history = Array.from(document.querySelectorAll(".medical-history-checkbox"))
@@ -884,7 +1042,7 @@ $(document).on("click", "#saveDiagnosisBtn", function () {
 
 $(document).on("click", "#createCaseBtn", function () {
   if (!$("#newCaseName").val() || !$("#newCaseGender").val() || !$("#newCaseAge").val() || !$("#newCaseIdNumber").val()) {
-    setMsg("newCaseMsg", "请填写姓名、性别、年龄、病历号", true);
+    setMsg("newCaseMsg", "请填写姓名、性别、年龄、登记号", true);
     return;
   }
   $.post("/api/patients", {
@@ -892,7 +1050,9 @@ $(document).on("click", "#createCaseBtn", function () {
     gender: $("#newCaseGender").val(),
     age: $("#newCaseAge").val(),
     phone: $("#newCasePhone").val(),
-    id_number: $("#newCaseIdNumber").val()
+    id_number: $("#newCaseIdNumber").val(),
+    case_status: "draft",
+    last_disease_id: selectedDiseaseId || ""
   }).done(function (res) {
     resetNewCaseForm();
     $("#newCasePanel").addClass("hidden");
@@ -913,6 +1073,10 @@ $(document).on("click", ".detail-tab", function () {
   if (tab === "base") $("#detailBaseTab").removeClass("hidden");
   if (tab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
   if (tab === "lab") $("#detailLabTab").removeClass("hidden");
+  if (tab === "assessment") {
+    $("#detailAssessmentTab").removeClass("hidden");
+    showAssessmentSubTab("list");
+  }
   if (tab === "treat") {
     $("#detailTreatTab").removeClass("hidden");
     showTreatSubTab("list");
@@ -920,10 +1084,6 @@ $(document).on("click", ".detail-tab", function () {
   if (tab === "follow") {
     $("#detailFollowTab").removeClass("hidden");
     showFollowSubTab("list");
-  }
-  if (tab === "assessment") {
-    $("#detailAssessmentTab").removeClass("hidden");
-    showAssessmentSubTab("list");
   }
 });
 
@@ -947,8 +1107,7 @@ $("#addTreatBtn").on("click", function () {
     return;
   }
   const payload = {
-    diagnosis_record_id: selectedDiagnosis.value,
-    treat_time: $("#treatTime").val()
+    diagnosis_record_id: selectedDiagnosis.value
   };
   $("#treatDynamicFields .treatment-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
@@ -966,7 +1125,6 @@ $("#addTreatBtn").on("click", function () {
   });
   $.post("/api/patients/" + currentPatientId + "/treatments", payload).done(function (res) {
     setMsg("treatMsg", res.message || "已保存");
-    $("#treatTime").val("");
     $("#treatDynamicFields").html("");
     loadPatientDetail(currentPatientId, "treat");
   }).fail(function (xhr) {

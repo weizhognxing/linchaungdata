@@ -101,7 +101,7 @@ const treatmentConfigs = {
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support", true], ["respiratory_start_time", "具体开始使用时间", "time"],
     ["traditional_chinese_medicine", "中医中药", "traditional_chinese_medicine", true], ["traditional_chinese_medicine_start_time", "具体开始使用时间", "time"],
     ["blood_purification", "血液净化（可以多选）", "blood_purification", true], ["blood_purification_start_time", "具体开始使用时间", "time"],
-    ["digestive_secretion_drugs", "消化液分泌（可以多选）", "digestive_secretion_drugs", true]
+    ["digestive_secretion_drugs", "消化液分泌（可以多选）", "digestive_secretion_drugs", true], ["digestive_secretion_drugs_start_time", "具体开始使用时间", "time"]
   ],
   "心源性休克/心脏骤停": [
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support_without_lavage", true], ["respiratory_start_time", "具体开始使用时间", "time"],
@@ -111,13 +111,13 @@ const treatmentConfigs = {
     ["beta_blockers", "β受体阻滞药", "beta_blockers", true], ["beta_blocker_start_time", "具体开始使用时间", "time"],
     ["potassium_channel_blockers", "钾通道阻滞药", "potassium_channel_blockers", true], ["potassium_channel_blocker_start_time", "具体开始使用时间", "time"],
     ["calcium_channel_blockers", "钙通道阻滞药物", "calcium_channel_blockers", true], ["calcium_channel_blocker_start_time", "具体开始使用时间", "time"],
-    ["other_cardiac_drugs", "其他药物", "other_cardiac_drugs", true]
+    ["other_cardiac_drugs", "其他药物", "other_cardiac_drugs", true], ["other_cardiac_drugs_start_time", "具体开始使用时间", "time"]
   ],
   "中毒": [
     ["vasoactive_drugs", "血管活性物", "vasoactive_drugs", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support", true], ["respiratory_start_time", "具体开始使用时间", "time"],
     ["blood_purification", "血液净化（可以多选）", "blood_purification", true], ["blood_purification_start_time", "具体开始使用时间", "time"],
-    ["poisoning_other_drugs", "其他药物（可多选）", "poisoning_other_drugs", false]
+    ["poisoning_other_drugs", "其他药物（可多选）", "poisoning_other_drugs", false], ["poisoning_other_drugs_start_time", "具体开始使用时间", "time"]
   ],
   "脑损伤": [
     ["intracranial_pressure_reduction", "降颅压", "intracranial_pressure_reduction", false], ["intracranial_pressure_start_time", "开始使用时间", "time"],
@@ -144,7 +144,7 @@ const treatmentConfigs = {
     ["airway_control", "气道控制", "airway_control", true], ["airway_control_start_time", "具体开始使用时间", "time"],
     ["oxygen_support", "吸氧支持", "oxygen_support", false], ["oxygen_support_start_time", "具体开始使用时间", "time"],
     ["blood_transfusion", "输血", "blood_transfusion", true], ["blood_transfusion_start_time", "具体开始使用时间", "time"], ["blood_transfusion_total", "总量", "text"],
-    ["temperature_management", "体温管理", "temperature_management", true]
+    ["temperature_management", "体温管理", "temperature_management", true], ["temperature_management_start_time", "具体开始使用时间", "time"]
   ]
 };
 
@@ -194,7 +194,7 @@ function renderTreatmentChoiceGroup(field, title, options, defaultNone, inputTyp
     const checked = defaultNone && option === "无" ? " checked" : "";
     return '<label><input type="' + inputType + '" class="treatment-choice" name="treatment_' + field + '" data-field="' + field + '" value="' + attrValue(option) + '"' + checked + '>' + option + '</label>';
   }).join("");
-  return '<div class="treatment-section"><div class="subhead">' + title + '</div><div class="radio-grid">' + html + '</div></div>';
+  return '<div class="treatment-section"><button type="button" class="treatment-section-toggle" data-toggle-treatment-section><span>' + title + '</span><span class="treatment-toggle-indicator">展开</span></button><div class="radio-grid hidden" data-treatment-section-body>' + html + '</div></div>';
 }
 
 function renderTreatmentTimeInput(field, label) {
@@ -237,6 +237,13 @@ function renderTreatmentFields(disease) {
     return '<div class="grid two">' + renderTreatmentTextInput(field, label, kind) + '</div>';
   }).join("");
   $("#treatDynamicFields").html(html);
+  const firstSection = document.querySelector("#treatDynamicFields [data-treatment-section-body]");
+  const firstToggle = document.querySelector("#treatDynamicFields [data-toggle-treatment-section]");
+  if (firstSection && firstToggle) {
+    firstSection.classList.remove("hidden");
+    const indicator = firstToggle.querySelector(".treatment-toggle-indicator");
+    if (indicator) indicator.textContent = "收起";
+  }
   setMsg("treatMsg", "当前选择为" + normalizedDisease + "治疗表单");
 }
 

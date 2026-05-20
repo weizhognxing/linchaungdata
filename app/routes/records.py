@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from datetime import date, datetime
@@ -27,6 +28,56 @@ DIAGNOSIS_SUBCATEGORY_OPTIONS = {
     "多发伤": {"颅脑损伤", "胸部创伤", "腹部创伤", "四肢损伤", "脊柱损伤"},
     "胸部创伤": {"连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"},
 }
+
+LAB_CATEGORY_DEFINITIONS = {
+    "blood_routine": {
+        "label": "血常规",
+        "fields": [
+            "wbc", "neu", "lym", "mono", "eos", "baso", "neu_r", "lym_r", "mono_r", "eos_r", "baso_r",
+            "rbc", "hgb", "hct", "mcv", "mch", "mchc", "rdw_sd", "rdw_cv", "plt", "mpv", "pdw", "p_lcr", "hscrp",
+        ],
+    },
+    "biochemistry": {
+        "label": "生化电解质",
+        "fields": [
+            "alt", "ast", "ast_alt", "tp", "alb", "glo", "a_g", "tbil", "dbil", "ibil", "tba", "ggt", "alp", "pa",
+            "urea", "ua", "crea", "k", "na", "cl", "ca", "co2", "p", "mg", "fe", "gfr", "ag", "hemo", "icte", "lipe",
+        ],
+    },
+    "blood_gas": {
+        "label": "血气分析",
+        "fields": ["ph", "pco2", "po2", "k", "na", "cl", "ca__", "glu", "lac_la", "thb", "so2", "o2hb"],
+    },
+    "dic7": {
+        "label": "DIC7项",
+        "fields": ["pt", "pt_inr", "pta", "pt_ratio", "aptt", "aptt_r", "tt", "fib", "d_di", "fdp", "at3"],
+    },
+    "bnp": {
+        "label": "BNP",
+        "fields": ["nt_probnp", "hs_ctnt_stat", "myo_stat", "ck_mb_stat"],
+    },
+    "lactate": {
+        "label": "乳酸",
+        "fields": ["lactate", "lac_la"],
+    },
+    "pct": {
+        "label": "PCT",
+        "fields": ["pct"],
+    },
+}
+
+INTAKE_PROMPT = """请识别这张检验单或病历图片中的患者基础信息，仅返回基础信息，不要提取检验项目。
+请严格按照以下 JSON 格式返回，只返回 JSON，不要其他内容：
+{
+  "patient": {
+    "name": "姓名",
+    "gender": "性别",
+    "age": "年龄",
+    "phone": "电话",
+    "id_number": "登记号"
+  },
+  "items": []
+}"""
 
 
 def _current_user_scope(cur):
@@ -117,6 +168,44 @@ def _optional_number(value):
 def _optional_decimal(value):
     value = str(value or "").strip()
     return value if value != "" else None
+
+
+def _optional_datetime(value):
+    value = str(value or "").strip()
+    return value if value != "" else None
+
+
+def _lab_category_config(category):
+    return LAB_CATEGORY_DEFINITIONS.get(str(category or "").strip())
+
+
+def _build_category_prompt(category_config):
+    fields = ", ".join(category_config["fields"])
+    return f"""请识别这张{category_config['label']}检验报告图片，提取患者信息和属于该类别的检验项目结果。
+如果图片中出现不属于该类别的项目，请忽略。
+请优先使用以下字段缩写作为 code：{fields}
+请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
+{{
+  "patient": {{
+    "name": "姓名",
+    "gender": "性别",
+    "age": "年龄",
+    "phone": "电话",
+    "id_number": "登记号"
+  }},
+  "items": [
+    {{"name": "中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}}
+  ]
+}}"""
+
+
+def _fields_for_category(fields, category):
+    category_config = _lab_category_config(category)
+    if not category_config:
+        return fields
+    field_names = set(category_config["fields"])
+    filtered = [field for field in fields if field.get("field_name") in field_names]
+    return filtered or fields
 
 
 def _patient_is_accessible(cur, patient_id, current_user, patient_columns=None):
@@ -243,6 +332,8 @@ def form_fields(disease_id):
 @require_user
 def recognize():
     raw_id = request.form.get("disease_id", "0")
+    recognize_mode = (request.form.get("mode") or "lab").strip()
+    record_category = (request.form.get("record_category") or "").strip()
     try:
         disease_id = int(raw_id)
     except (ValueError, TypeError):
@@ -269,22 +360,40 @@ def recognize():
 
     values = {}
     patient = {}
+    prompt_text = INTAKE_PROMPT if recognize_mode == "intake" else None
+    if recognize_mode == "lab" and record_category:
+        fields = _fields_for_category(fields, record_category)
+        category_config = _lab_category_config(record_category)
+        if category_config:
+            prompt_text = _build_category_prompt(category_config)
     if photo_path:
         try:
-            ai_text = recognize_image(photo_path)
-            values = parse_ai_result(ai_text, fields)
+            ai_text = recognize_image(photo_path, prompt_text=prompt_text)
+            values = {} if recognize_mode == "intake" else parse_ai_result(ai_text, fields)
             patient = parse_patient_info(ai_text)
             fields = reorder_fields_by_values(fields, values)
         except Exception as e:
             print(f"AI recognition error: {e}")
 
-    return ok({"photo_path": photo_path, "fields": fields, "values": values, "patient": patient}, "识别完成")
+    return ok(
+        {
+            "photo_path": photo_path,
+            "fields": fields,
+            "values": values,
+            "patient": patient,
+            "mode": recognize_mode,
+            "record_category": record_category or None,
+            "category_label": (_lab_category_config(record_category) or {}).get("label") if record_category else None,
+        },
+        "识别完成",
+    )
 
 
 @records_bp.post("/api/records")
 @require_user
 def save_record():
     data = request.get_json(silent=True) or {}
+    patient_id = data.get("patient_id")
     raw_patient = data.get("patient") or {}
     patient = {
         "name": (raw_patient.get("name") or "").strip(),
@@ -295,9 +404,11 @@ def save_record():
     }
     values = data.get("values") or {}
     disease_id = data.get("disease_id")
-    missing = required(patient, ["name"])
-    if missing or not disease_id:
-        return fail("请填写病患姓名并选择疾病")
+    record_category = (data.get("record_category") or "").strip() or None
+    if not disease_id:
+        return fail("请先选择疾病")
+    if not patient_id and required(patient, ["name"]):
+        return fail("请填写病患姓名")
 
     allowed_fields = {field["field_name"] for field in get_fields_for_disease(int(disease_id))}
 
@@ -324,59 +435,88 @@ def save_record():
                 if key in allowed_fields and key in existing_columns
             }
 
-            if "hospital_id" in patient_columns:
-                cur.execute(
-                    """
-                    SELECT id FROM patients
-                    WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
-                    LIMIT 1
-                    """,
-                    (current_user["hospital_id"], patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT id FROM patients
-                    WHERE name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
-                    LIMIT 1
-                    """,
-                    (patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
-                )
-            row = cur.fetchone()
-            if row:
-                patient_id = row["id"]
-                updates = ["gender=%s", "age=%s", "updated_at=NOW()"]
-                params = [patient.get("gender"), patient.get("age") or None]
-                if "hospital_id" in patient_columns:
-                    updates.append("hospital_id=%s")
-                    params.append(current_user["hospital_id"])
-                if "user_id" in patient_columns:
-                    updates.append("user_id=%s")
-                    params.append(current_user["id"])
+            if patient_id:
+                patient_id = int(patient_id)
+                if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
+                    return fail("病人不存在", 404)
+                updates = []
+                params = []
+                if patient.get("name"):
+                    updates.append("name=%s")
+                    params.append(patient.get("name"))
+                if patient.get("gender"):
+                    updates.append("gender=%s")
+                    params.append(patient.get("gender"))
+                if patient.get("age") not in (None, ""):
+                    updates.append("age=%s")
+                    params.append(patient.get("age") or None)
+                if patient.get("phone") is not None:
+                    updates.append("phone=%s")
+                    params.append(patient.get("phone"))
+                if patient.get("id_number"):
+                    updates.append("id_number=%s")
+                    params.append(patient.get("id_number"))
+                if "last_disease_id" in patient_columns:
+                    updates.append("last_disease_id=%s")
+                    params.append(disease_id)
+                if "case_status" in patient_columns:
+                    updates.append("case_status='draft'")
+                updates.append("updated_at=NOW()")
                 params.append(patient_id)
                 cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
             else:
-                patient_insert = {
-                    "name": patient.get("name"),
-                    "gender": patient.get("gender"),
-                    "age": patient.get("age") or None,
-                    "phone": patient.get("phone"),
-                    "id_number": patient.get("id_number"),
-                }
                 if "hospital_id" in patient_columns:
-                    patient_insert["hospital_id"] = current_user["hospital_id"]
-                if "user_id" in patient_columns:
-                    patient_insert["user_id"] = current_user["id"]
-                patient_cols = list(patient_insert.keys())
-                patient_placeholders = ",".join(["%s"] * len(patient_cols))
-                cur.execute(
-                    f"INSERT INTO patients ({','.join(patient_cols)}) VALUES ({patient_placeholders})",
-                    list(patient_insert.values()),
-                )
-                patient_id = cur.lastrowid
+                    cur.execute(
+                        """
+                        SELECT id FROM patients
+                        WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                        LIMIT 1
+                        """,
+                        (current_user["hospital_id"], patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT id FROM patients
+                        WHERE name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                        LIMIT 1
+                        """,
+                        (patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
+                    )
+                row = cur.fetchone()
+                if row:
+                    patient_id = row["id"]
+                else:
+                    patient_insert = {
+                        "name": patient.get("name"),
+                        "gender": patient.get("gender"),
+                        "age": patient.get("age") or None,
+                        "phone": patient.get("phone"),
+                        "id_number": patient.get("id_number"),
+                    }
+                    if "hospital_id" in patient_columns:
+                        patient_insert["hospital_id"] = current_user["hospital_id"]
+                    if "user_id" in patient_columns:
+                        patient_insert["user_id"] = current_user["id"]
+                    if "case_status" in patient_columns:
+                        patient_insert["case_status"] = "draft"
+                    if "last_disease_id" in patient_columns:
+                        patient_insert["last_disease_id"] = disease_id
+                    patient_cols = list(patient_insert.keys())
+                    patient_placeholders = ",".join(["%s"] * len(patient_cols))
+                    cur.execute(
+                        f"INSERT INTO patients ({','.join(patient_cols)}) VALUES ({patient_placeholders})",
+                        list(patient_insert.values()),
+                    )
+                    patient_id = cur.lastrowid
 
-            columns = ["patient_id", "user_id", "disease_id", "photo_path", "ai_raw"] + list(record_values.keys())
-            params = [patient_id, session["user_id"], disease_id, data.get("photo_path"), data.get("ai_raw")] + list(record_values.values())
+            columns = ["patient_id", "user_id", "disease_id", "photo_path", "ai_raw"]
+            params = [patient_id, session["user_id"], disease_id, data.get("photo_path"), data.get("ai_raw")]
+            if "record_category" in existing_columns:
+                columns.append("record_category")
+                params.append(record_category)
+            columns.extend(list(record_values.keys()))
+            params.extend(list(record_values.values()))
             placeholders = ",".join(["%s"] * len(columns))
             # PyMySQL uses Python '%' formatting internally; escape '%' in identifiers
             # to avoid '%`' formatting errors for legacy field names like 'xxx%'.
@@ -447,7 +587,7 @@ def record_detail(record_id):
                 ORDER BY id
                 """
             )
-            system_fields = {"id", "patient_id", "user_id", "disease_id", "photo_path", "ai_raw", "created_at"}
+            system_fields = {"id", "patient_id", "user_id", "disease_id", "record_category", "photo_path", "ai_raw", "created_at"}
             items = []
             for field in cur.fetchall():
                 field_name = field["field_name"]
@@ -568,38 +708,51 @@ def cases():
                 return fail("用户不存在", 404)
 
             patient_columns = _patient_columns(cur)
+            status_expr = "IFNULL(p.case_status, 'draft')" if "case_status" in patient_columns else "'draft'"
+            disease_join = "LEFT JOIN diseases d ON d.id=p.last_disease_id" if "last_disease_id" in patient_columns else ""
+            disease_select = ", d.name AS disease_name" if "last_disease_id" in patient_columns else ", NULL AS disease_name"
+
             if "hospital_id" in patient_columns:
                 cur.execute(
                     """
                     SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
                            COUNT(r.id) AS record_count,
-                           MAX(r.created_at) AS latest_record_at
+                           MAX(r.created_at) AS latest_record_at,
+                           {status_expr} AS case_status
+                           {disease_select}
                     FROM patients p
                     LEFT JOIN lab_records r ON r.patient_id=p.id
                     LEFT JOIN users u ON u.id=r.user_id
+                    {disease_join}
                     WHERE p.hospital_id=%s OR u.hospital_id=%s
-                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, p.created_at
+                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, p.created_at, case_status, disease_name
                     ORDER BY IFNULL(MAX(r.created_at), p.created_at) DESC, p.id DESC
-                    """,
+                    """.format(status_expr=status_expr, disease_select=disease_select, disease_join=disease_join),
                     (current_user["hospital_id"], current_user["hospital_id"]),
                 )
-                return ok(cur.fetchall())
-
-            cur.execute(
-                """
-                SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
-                       COUNT(r.id) AS record_count,
-                       MAX(r.created_at) AS latest_record_at
-                FROM patients p
-                JOIN lab_records r ON r.patient_id=p.id
-                JOIN users u ON u.id=r.user_id
-                WHERE u.hospital_id=%s
-                GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number
-                ORDER BY latest_record_at DESC, p.id DESC
-                """,
-                (current_user["hospital_id"],),
-            )
-            return ok(cur.fetchall())
+            else:
+                cur.execute(
+                    """
+                    SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
+                           COUNT(r.id) AS record_count,
+                           MAX(r.created_at) AS latest_record_at,
+                           {status_expr} AS case_status
+                           {disease_select}
+                    FROM patients p
+                    JOIN lab_records r ON r.patient_id=p.id
+                    JOIN users u ON u.id=r.user_id
+                    {disease_join}
+                    WHERE u.hospital_id=%s
+                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, case_status, disease_name
+                    ORDER BY latest_record_at DESC, p.id DESC
+                    """.format(status_expr=status_expr, disease_select=disease_select, disease_join=disease_join),
+                    (current_user["hospital_id"],),
+                )
+            rows = cur.fetchall()
+            return ok({
+                "draft": [row for row in rows if row.get("case_status") != "submitted"],
+                "submitted": [row for row in rows if row.get("case_status") == "submitted"],
+            })
     finally:
         conn.close()
 
@@ -608,6 +761,7 @@ def cases():
 @require_user
 def create_patient():
     data = request.get_json(silent=True) or request.form.to_dict()
+    require_age = str(data.get("require_age") or "1") != "0"
     patient = {
         "name": (data.get("name") or "").strip(),
         "gender": (data.get("gender") or "").strip(),
@@ -615,8 +769,11 @@ def create_patient():
         "phone": (data.get("phone") or "").strip(),
         "id_number": (data.get("id_number") or "").strip(),
     }
-    if required(patient, ["name", "gender", "age", "id_number"]):
-        return fail("请填写姓名、性别、年龄、病历号")
+    required_fields = ["name", "gender", "id_number"]
+    if require_age:
+        required_fields.append("age")
+    if required(patient, required_fields):
+        return fail("请填写姓名、性别、登记号" + ("、年龄" if require_age else ""))
 
     conn = db()
     try:
@@ -647,7 +804,20 @@ def create_patient():
                     (patient["name"], patient["phone"], patient["id_number"]),
                 )
             existing = cur.fetchone()
+            last_disease_id = data.get("last_disease_id") or None
+            case_status = (data.get("case_status") or "draft").strip() or "draft"
             if existing:
+                updates = []
+                params = []
+                if "last_disease_id" in patient_columns and last_disease_id:
+                    updates.append("last_disease_id=%s")
+                    params.append(last_disease_id)
+                if "case_status" in patient_columns:
+                    updates.append("case_status=%s")
+                    params.append(case_status)
+                updates.append("updated_at=NOW()")
+                params.append(existing["id"])
+                cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
                 return ok({"patient_id": existing["id"]}, "病例已存在")
 
             patient_insert = dict(patient)
@@ -655,6 +825,10 @@ def create_patient():
                 patient_insert["hospital_id"] = current_user["hospital_id"]
             if "user_id" in patient_columns:
                 patient_insert["user_id"] = current_user["id"]
+            if "case_status" in patient_columns:
+                patient_insert["case_status"] = case_status
+            if "last_disease_id" in patient_columns and last_disease_id:
+                patient_insert["last_disease_id"] = last_disease_id
 
             columns = list(patient_insert.keys())
             placeholders = ",".join(["%s"] * len(columns))
@@ -710,7 +884,7 @@ def patient_detail(patient_id):
 
             cur.execute(
                 """
-                SELECT r.id, r.created_at, d.name AS disease_name, u.name AS operator_name
+                SELECT r.id, r.created_at, r.record_category, d.name AS disease_name, u.name AS operator_name
                 FROM lab_records r
                 LEFT JOIN diseases d ON d.id=r.disease_id
                 LEFT JOIN users u ON u.id=r.user_id
@@ -811,6 +985,10 @@ def patient_detail(patient_id):
                 "assessments": assessments,
                 "diagnosis_records": diagnosis_records,
                 "patient_fields": patient_meta,
+                "lab_categories": [
+                    {"key": key, "label": value["label"]}
+                    for key, value in LAB_CATEGORY_DEFINITIONS.items()
+                ],
             })
     finally:
         conn.close()
@@ -901,14 +1079,39 @@ def update_patient(patient_id):
         conn.close()
 
 
+@records_bp.post("/api/patients/<int:patient_id>/submit")
+@require_user
+def submit_patient_case(patient_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+
+            patient_columns = _patient_columns(cur)
+            if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
+                return fail("病人不存在", 404)
+            if "case_status" not in patient_columns:
+                return fail("病例状态字段不存在")
+
+            cur.execute("UPDATE patients SET case_status='submitted', updated_at=NOW() WHERE id=%s", (patient_id,))
+        conn.commit()
+        return ok({"patient_id": patient_id}, "病例已提交")
+    finally:
+        conn.close()
+
+
 @records_bp.post("/api/patients/<int:patient_id>/treatments")
 @require_user
 def add_treatment(patient_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
     treat_time = (payload.get("treat_time") or "").strip()
     diagnosis_record_id = payload.get("diagnosis_record_id")
-    if not treat_time or not diagnosis_record_id:
-        return fail("请选择诊断记录并填写治疗时间")
+    if not diagnosis_record_id:
+        return fail("请选择诊断记录")
+    if not treat_time:
+        treat_time = datetime.now().strftime("%Y-%m-%dT%H:%M")
 
     conn = db()
     try:
@@ -937,56 +1140,61 @@ def add_treatment(patient_id):
                 "diagnosis_record_id": diagnosis_record_id,
                 "treat_time": treat_time,
                 "treatment_method": "结构化治疗记录",
+                "detail_json": json.dumps(payload, ensure_ascii=False),
                 "antibiotics": (payload.get("antibiotics") or "").strip() or None,
-                "antibiotics_start_time": _optional_decimal(payload.get("antibiotics_start_time")),
+                "antibiotics_start_time": _optional_datetime(payload.get("antibiotics_start_time")),
                 "vasoactive_drugs": (payload.get("vasoactive_drugs") or "").strip() or None,
-                "vasoactive_start_time": _optional_decimal(payload.get("vasoactive_start_time")),
+                "vasoactive_start_time": _optional_datetime(payload.get("vasoactive_start_time")),
                 "vasoactive_concentration": (payload.get("vasoactive_concentration") or "").strip() or None,
                 "volume_management": (payload.get("volume_management") or "").strip() or None,
                 "volume_total_ml": _optional_decimal(payload.get("volume_total_ml")),
                 "respiratory_support": (payload.get("respiratory_support") or "").strip() or None,
-                "respiratory_start_time": _optional_decimal(payload.get("respiratory_start_time")),
+                "respiratory_start_time": _optional_datetime(payload.get("respiratory_start_time")),
                 "immunomodulators": (payload.get("immunomodulators") or "").strip() or None,
-                "immunomodulator_start_time": _optional_decimal(payload.get("immunomodulator_start_time")),
+                "immunomodulator_start_time": _optional_datetime(payload.get("immunomodulator_start_time")),
                 "blood_purification": (payload.get("blood_purification") or "").strip() or None,
-                "blood_purification_start_time": _optional_decimal(payload.get("blood_purification_start_time")),
+                "blood_purification_start_time": _optional_datetime(payload.get("blood_purification_start_time")),
                 "traditional_chinese_medicine": (payload.get("traditional_chinese_medicine") or "").strip() or None,
-                "traditional_chinese_medicine_start_time": _optional_decimal(payload.get("traditional_chinese_medicine_start_time")),
+                "traditional_chinese_medicine_start_time": _optional_datetime(payload.get("traditional_chinese_medicine_start_time")),
                 "digestive_secretion_drugs": (payload.get("digestive_secretion_drugs") or "").strip() or None,
+                "digestive_secretion_drugs_start_time": _optional_datetime(payload.get("digestive_secretion_drugs_start_time")),
                 "cardiac_treatment_methods": (payload.get("cardiac_treatment_methods") or "").strip() or None,
-                "cardiac_treatment_start_time": _optional_decimal(payload.get("cardiac_treatment_start_time")),
+                "cardiac_treatment_start_time": _optional_datetime(payload.get("cardiac_treatment_start_time")),
                 "sodium_channel_blockers": (payload.get("sodium_channel_blockers") or "").strip() or None,
-                "sodium_channel_blocker_start_time": _optional_decimal(payload.get("sodium_channel_blocker_start_time")),
+                "sodium_channel_blocker_start_time": _optional_datetime(payload.get("sodium_channel_blocker_start_time")),
                 "beta_blockers": (payload.get("beta_blockers") or "").strip() or None,
-                "beta_blocker_start_time": _optional_decimal(payload.get("beta_blocker_start_time")),
+                "beta_blocker_start_time": _optional_datetime(payload.get("beta_blocker_start_time")),
                 "potassium_channel_blockers": (payload.get("potassium_channel_blockers") or "").strip() or None,
-                "potassium_channel_blocker_start_time": _optional_decimal(payload.get("potassium_channel_blocker_start_time")),
+                "potassium_channel_blocker_start_time": _optional_datetime(payload.get("potassium_channel_blocker_start_time")),
                 "calcium_channel_blockers": (payload.get("calcium_channel_blockers") or "").strip() or None,
-                "calcium_channel_blocker_start_time": _optional_decimal(payload.get("calcium_channel_blocker_start_time")),
+                "calcium_channel_blocker_start_time": _optional_datetime(payload.get("calcium_channel_blocker_start_time")),
                 "other_cardiac_drugs": (payload.get("other_cardiac_drugs") or "").strip() or None,
+                "other_cardiac_drugs_start_time": _optional_datetime(payload.get("other_cardiac_drugs_start_time")),
                 "poisoning_other_drugs": (payload.get("poisoning_other_drugs") or "").strip() or None,
+                "poisoning_other_drugs_start_time": _optional_datetime(payload.get("poisoning_other_drugs_start_time")),
                 "intracranial_pressure_reduction": (payload.get("intracranial_pressure_reduction") or "").strip() or None,
-                "intracranial_pressure_start_time": _optional_decimal(payload.get("intracranial_pressure_start_time")),
+                "intracranial_pressure_start_time": _optional_datetime(payload.get("intracranial_pressure_start_time")),
                 "surgical_treatment": (payload.get("surgical_treatment") or "").strip() or None,
-                "surgical_treatment_start_time": _optional_decimal(payload.get("surgical_treatment_start_time")),
+                "surgical_treatment_start_time": _optional_datetime(payload.get("surgical_treatment_start_time")),
                 "mild_hypothermia": (payload.get("mild_hypothermia") or "").strip() or None,
-                "mild_hypothermia_start_time": _optional_decimal(payload.get("mild_hypothermia_start_time")),
+                "mild_hypothermia_start_time": _optional_datetime(payload.get("mild_hypothermia_start_time")),
                 "brain_protection_drugs": (payload.get("brain_protection_drugs") or "").strip() or None,
-                "brain_protection_start_time": _optional_decimal(payload.get("brain_protection_start_time")),
+                "brain_protection_start_time": _optional_datetime(payload.get("brain_protection_start_time")),
                 "antiepileptic_drugs": (payload.get("antiepileptic_drugs") or "").strip() or None,
-                "antiepileptic_start_time": _optional_decimal(payload.get("antiepileptic_start_time")),
+                "antiepileptic_start_time": _optional_datetime(payload.get("antiepileptic_start_time")),
                 "surgery_methods": (payload.get("surgery_methods") or "").strip() or None,
-                "surgery_start_time": _optional_decimal(payload.get("surgery_start_time")),
+                "surgery_start_time": _optional_datetime(payload.get("surgery_start_time")),
                 "chest_fixation": (payload.get("chest_fixation") or "").strip() or None,
-                "chest_fixation_start_time": _optional_decimal(payload.get("chest_fixation_start_time")),
+                "chest_fixation_start_time": _optional_datetime(payload.get("chest_fixation_start_time")),
                 "airway_control": (payload.get("airway_control") or "").strip() or None,
-                "airway_control_start_time": _optional_decimal(payload.get("airway_control_start_time")),
+                "airway_control_start_time": _optional_datetime(payload.get("airway_control_start_time")),
                 "oxygen_support": (payload.get("oxygen_support") or "").strip() or None,
-                "oxygen_support_start_time": _optional_decimal(payload.get("oxygen_support_start_time")),
+                "oxygen_support_start_time": _optional_datetime(payload.get("oxygen_support_start_time")),
                 "blood_transfusion": (payload.get("blood_transfusion") or "").strip() or None,
-                "blood_transfusion_start_time": _optional_decimal(payload.get("blood_transfusion_start_time")),
+                "blood_transfusion_start_time": _optional_datetime(payload.get("blood_transfusion_start_time")),
                 "blood_transfusion_total": (payload.get("blood_transfusion_total") or "").strip() or None,
                 "temperature_management": (payload.get("temperature_management") or "").strip() or None,
+                "temperature_management_start_time": _optional_datetime(payload.get("temperature_management_start_time")),
             }
             columns = [column for column in values.keys() if column in treatment_columns]
             placeholders = ",".join(["%s"] * len(columns))

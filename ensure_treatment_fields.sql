@@ -69,6 +69,10 @@ SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_
 SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `digestive_secretion_drugs` text', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='digestive_secretion_drugs_start_time');
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `digestive_secretion_drugs_start_time` datetime DEFAULT NULL AFTER `digestive_secretion_drugs`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='cardiac_treatment_methods');
 SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `cardiac_treatment_methods` text', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -113,8 +117,16 @@ SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_
 SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `other_cardiac_drugs` text', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='other_cardiac_drugs_start_time');
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `other_cardiac_drugs_start_time` datetime DEFAULT NULL AFTER `other_cardiac_drugs`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='poisoning_other_drugs');
 SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `poisoning_other_drugs` text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='poisoning_other_drugs_start_time');
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `poisoning_other_drugs_start_time` datetime DEFAULT NULL AFTER `poisoning_other_drugs`', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='intracranial_pressure_reduction');
@@ -203,6 +215,10 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='temperature_management');
 SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `temperature_management` text', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND COLUMN_NAME='temperature_management_start_time');
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE treatments ADD COLUMN `temperature_management_start_time` datetime DEFAULT NULL AFTER `temperature_management`', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @idx_exists := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='treatments' AND INDEX_NAME='idx_treatment_diagnosis');
