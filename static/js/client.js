@@ -756,10 +756,9 @@ $("#resetBtn").on("click", function () {
 
 // 选择疾病后
 $(document).on("click", ".disease-item", function () {
-  selectedDiseaseId = $(this).data("id");
+  selectedDiseaseId = this.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   openPhotoPanelForIntake();
-  triggerPhotoChooser();
 });
 
 // 拍照/上传：点击按钮触发隐藏的 file input
