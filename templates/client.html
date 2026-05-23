@@ -61,12 +61,12 @@
       <div class="case-title-row">
         <h2>病例列表</h2>
         <div class="case-actions">
-          <button id="showNewCaseBtn" class="btn-sm">新增病例</button>
+          <button id="showNewCaseBtn" class="btn-sm">新建病例</button>
           <button id="exportCasesBtn" class="btn-sm secondary">导出数据</button>
         </div>
       </div>
       <div id="newCasePanel" class="panel hidden compact-form">
-        <h3>新增病例</h3>
+        <h3>新建病例</h3>
         <div class="grid two">
           <input id="newCaseName" placeholder="姓名 *" required>
           <input id="newCaseGender" placeholder="性别 *" required>
@@ -121,7 +121,7 @@
       <h2>病人详情</h2>
       <div id="patientProfile" class="patient-profile"></div>
       <div class="detail-list-actions">
-        <button id="submitCaseBtn" class="btn-sm secondary">提交病例</button>
+        <button id="submitCaseBtn" class="btn-sm secondary">标记完整记录</button>
       </div>
       <p class="message" id="patientDetailMsg"></p>
       <div class="detail-tabs">
@@ -274,6 +274,10 @@
   </main>
 
   <nav id="bottomNav" class="bottom-nav hidden">
+    <a class="nav-item" data-nav="newCase">
+      <span class="nav-icon">+</span>
+      <span>新建病例</span>
+    </a>
     <a class="nav-item active" data-nav="diseasePanel">
       <span class="nav-icon">&#9776;</span>
       <span>上传检验</span>

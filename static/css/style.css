@@ -53,7 +53,11 @@ th { background: #eff6ee; }
 .case-group-title { font-weight: 900; margin-top: 8px; }
 .compact-form { margin-bottom: 14px; }
 .case-item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
-.case-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.case-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.case-head strong { margin-right: auto; }
+.case-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.case-badge-draft { background: #fff3cd; color: #856404; }
+.case-badge-complete { background: #d4edda; color: #155724; }
 .case-meta { color: var(--muted); font-size: 13px; }
 .patient-profile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
 .detail-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
@@ -74,6 +78,10 @@ th { background: #eff6ee; }
 .treatment-section { margin-bottom: 12px; }
 .treatment-section-toggle { display: flex; align-items: center; justify-content: space-between; background: #eaf3ea; color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
 .treatment-toggle-indicator { color: var(--muted); font-size: 13px; }
+.treatment-option-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr); gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.treatment-option-row label { border: 0; padding: 0; background: transparent; }
+.treatment-option-extras { display: grid; gap: 6px; }
+.treatment-option-extras input { margin: 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; }
 .detail-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .diagnosis-record-option { display: flex; align-items: flex-start; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; font-weight: 700; }
 .diagnosis-record-option input { width: auto; margin: 3px 0 0; }
@@ -157,6 +165,7 @@ th { background: #eff6ee; }
 
 @media (max-width: 760px) {
   .grid.two, .admin-layout, .inline-form, .check-list { grid-template-columns: 1fr; }
+  .treatment-option-row { grid-template-columns: 1fr; }
   .admin-shell { padding: 14px; }
   .sidebar { position: static; min-height: auto; }
   .dual-listbox { flex-direction: column; }

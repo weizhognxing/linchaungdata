@@ -709,6 +709,7 @@ def cases():
 
             patient_columns = _patient_columns(cur)
             status_expr = "IFNULL(p.case_status, 'draft')" if "case_status" in patient_columns else "'draft'"
+            integrity_expr = "IFNULL(p.case_integrity, IFNULL(p.case_status, 'draft'))" if "case_integrity" in patient_columns and "case_status" in patient_columns else ("IFNULL(p.case_integrity, 'draft')" if "case_integrity" in patient_columns else status_expr)
             disease_join = "LEFT JOIN diseases d ON d.id=p.last_disease_id" if "last_disease_id" in patient_columns else ""
             disease_select = ", d.name AS disease_name" if "last_disease_id" in patient_columns else ", NULL AS disease_name"
 
@@ -718,16 +719,17 @@ def cases():
                     SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
                            COUNT(r.id) AS record_count,
                            MAX(r.created_at) AS latest_record_at,
-                           {status_expr} AS case_status
+                           {status_expr} AS case_status,
+                           {integrity_expr} AS case_integrity
                            {disease_select}
                     FROM patients p
                     LEFT JOIN lab_records r ON r.patient_id=p.id
                     LEFT JOIN users u ON u.id=r.user_id
                     {disease_join}
                     WHERE p.hospital_id=%s OR u.hospital_id=%s
-                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, p.created_at, case_status, disease_name
+                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, p.created_at, case_status, case_integrity, disease_name
                     ORDER BY IFNULL(MAX(r.created_at), p.created_at) DESC, p.id DESC
-                    """.format(status_expr=status_expr, disease_select=disease_select, disease_join=disease_join),
+                    """.format(status_expr=status_expr, integrity_expr=integrity_expr, disease_select=disease_select, disease_join=disease_join),
                     (current_user["hospital_id"], current_user["hospital_id"]),
                 )
             else:
@@ -736,22 +738,23 @@ def cases():
                     SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
                            COUNT(r.id) AS record_count,
                            MAX(r.created_at) AS latest_record_at,
-                           {status_expr} AS case_status
+                           {status_expr} AS case_status,
+                           {integrity_expr} AS case_integrity
                            {disease_select}
                     FROM patients p
                     JOIN lab_records r ON r.patient_id=p.id
                     JOIN users u ON u.id=r.user_id
                     {disease_join}
                     WHERE u.hospital_id=%s
-                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, case_status, disease_name
+                    GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number, case_status, case_integrity, disease_name
                     ORDER BY latest_record_at DESC, p.id DESC
-                    """.format(status_expr=status_expr, disease_select=disease_select, disease_join=disease_join),
+                    """.format(status_expr=status_expr, integrity_expr=integrity_expr, disease_select=disease_select, disease_join=disease_join),
                     (current_user["hospital_id"],),
                 )
             rows = cur.fetchall()
             return ok({
-                "draft": [row for row in rows if row.get("case_status") != "submitted"],
-                "submitted": [row for row in rows if row.get("case_status") == "submitted"],
+                "draft": [row for row in rows if row.get("case_integrity") not in {"complete", "submitted"}],
+                "complete": [row for row in rows if row.get("case_integrity") in {"complete", "submitted"}],
             })
     finally:
         conn.close()
@@ -806,6 +809,7 @@ def create_patient():
             existing = cur.fetchone()
             last_disease_id = data.get("last_disease_id") or None
             case_status = (data.get("case_status") or "draft").strip() or "draft"
+            case_integrity = (data.get("case_integrity") or "draft").strip() or "draft"
             if existing:
                 updates = []
                 params = []
@@ -815,6 +819,9 @@ def create_patient():
                 if "case_status" in patient_columns:
                     updates.append("case_status=%s")
                     params.append(case_status)
+                if "case_integrity" in patient_columns:
+                    updates.append("case_integrity=%s")
+                    params.append(case_integrity)
                 updates.append("updated_at=NOW()")
                 params.append(existing["id"])
                 cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
@@ -827,6 +834,8 @@ def create_patient():
                 patient_insert["user_id"] = current_user["id"]
             if "case_status" in patient_columns:
                 patient_insert["case_status"] = case_status
+            if "case_integrity" in patient_columns:
+                patient_insert["case_integrity"] = case_integrity
             if "last_disease_id" in patient_columns and last_disease_id:
                 patient_insert["last_disease_id"] = last_disease_id
 
@@ -964,7 +973,7 @@ def patient_detail(patient_id):
             base_fields = {
                 "id", "hospital_id", "user_id", "name", "gender", "age", "phone", "id_number",
                 "diagnosis", "diagnosis_disease", "medical_history", "preliminary_diagnosis",
-                "created_at", "updated_at",
+                "case_integrity", "created_at", "updated_at",
             }
             cur.execute("SELECT field_name, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
             patient_meta = []
@@ -1095,9 +1104,16 @@ def submit_patient_case(patient_id):
             if "case_status" not in patient_columns:
                 return fail("病例状态字段不存在")
 
-            cur.execute("UPDATE patients SET case_status='submitted', updated_at=NOW() WHERE id=%s", (patient_id,))
+            updates = []
+            if "case_status" in patient_columns:
+                updates.append("case_status='submitted'")
+            if "case_integrity" in patient_columns:
+                updates.append("case_integrity='complete'")
+            if "updated_at" in patient_columns:
+                updates.append("updated_at=NOW()")
+            cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", (patient_id,))
         conn.commit()
-        return ok({"patient_id": patient_id}, "病例已提交")
+        return ok({"patient_id": patient_id}, "已标记为完整记录")
     finally:
         conn.close()
 

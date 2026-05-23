@@ -105,24 +105,39 @@ function loadCaseList() {
       const renderGroup = function (title, items, emptyText) {
         const cards = (items || []).map(function (item) {
           const disease = item.disease_name ? ' ｜ 疾病：' + item.disease_name : '';
-          const status = item.case_status === 'submitted' ? '已提交' : '暂存中';
-          const actionText = item.case_status === 'submitted' ? '查看' : '继续完善';
+          const isComplete = getCaseIntegrity(item) === 'complete';
+          const status = isComplete ? '完整记录' : '暂存记录';
+          const actionText = isComplete ? '查看' : '继续完善';
+          const statusClass = isComplete ? 'case-badge-complete' : 'case-badge-draft';
           return '<div class="case-item">' +
-            '<div class="case-head"><strong>' + (item.name || '-') + '</strong><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button></div>' +
+            '<div class="case-head"><strong>' + (item.name || '-') + '</strong><span class="case-badge ' + statusClass + '">' + status + '</span><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button></div>' +
             '<div class="case-meta">性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 登记号：' + (item.id_number || '-') + disease + '</div>' +
-            '<div class="case-meta">状态：' + status + ' ｜ 已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
+            '<div class="case-meta">记录完整性：' + status + ' ｜ 已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
             '</div>';
         }).join('') || '<div class="detail-item">' + emptyText + '</div>';
         return '<section class="case-group"><div class="case-group-title">' + title + '</div><div class="case-list">' + cards + '</div></section>';
       };
       $("#caseList").html(
         renderGroup("暂存记录", groups.draft, "暂无暂存病例") +
-        renderGroup("提交记录", groups.submitted, "暂无已提交病例")
+        renderGroup("完整记录", groups.complete || groups.submitted, "暂无完整病例")
       );
     })
     .fail(function (xhr) {
       setMsg("caseListMsg", xhr.responseJSON?.message || "病例加载失败", true);
     });
+}
+
+function getCaseIntegrity(item) {
+  if (!item) return 'draft';
+  if (item.case_integrity === 'complete' || item.case_integrity === 'submitted') return 'complete';
+  if (item.case_integrity) return 'draft';
+  return item.case_status === 'submitted' ? 'complete' : 'draft';
+}
+
+function openNewCaseForm() {
+  showPanel("caseListPanel");
+  $("#newCasePanel").removeClass("hidden");
+  setMsg("newCaseMsg", "", false);
 }
 
 function resetNewCaseForm() {
@@ -159,6 +174,44 @@ function renderDiagnosisRecordLists(records) {
 function attrValue(value) {
   if (value === null || value === undefined) return "";
   return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function parseTreatmentDetailJson(row) {
+  if (!row || !row.detail_json) return {};
+  try {
+    return JSON.parse(row.detail_json) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function formatTreatmentDetail(row, field, fallback) {
+  const payload = parseTreatmentDetailJson(row);
+  let details = payload[field + "_details"] || [];
+  if (typeof details === "string") {
+    try { details = JSON.parse(details) || []; } catch (e) { details = []; }
+  }
+  if (!Array.isArray(details) || !details.length) return fallback;
+  return details.map(function (item) {
+    const extras = [];
+    Object.keys(item.details || {}).forEach(function (key) {
+      const value = item.details[key];
+      if (value) extras.push(value);
+    });
+    return item.option + (extras.length ? '（' + extras.join('，') + '）' : '');
+  }).join('，');
+}
+
+function collectTreatmentOptionDetails(field, selected) {
+  return selected.map(function (option) {
+    const details = {};
+    Array.from(document.querySelectorAll('.treatment-option-extra[data-field="' + field + '"]')).filter(function (input) {
+      return input.getAttribute("data-option") === option;
+    }).forEach(function (input) {
+      details[input.getAttribute("data-detail-field")] = input.value;
+    });
+    return { option: option, details: details };
+  });
 }
 
 const diagnosisFieldNames = ["diagnosis", "diagnosis_disease", "medical_history", "preliminary_diagnosis"];
@@ -331,11 +384,11 @@ function loadPatientDetail(patientId, activeTab) {
       fillDiagnosisForm(patient);
       $("#patientProfile").html(
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 状态：' + (patient.case_status === 'submitted' ? '已提交' : '暂存中') + '</div>'
+        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 记录完整性：' + (getCaseIntegrity(patient) === 'complete' ? '完整记录' : '暂存记录') + '</div>'
       );
-      $("#submitCaseBtn").toggleClass("hidden", patient.case_status === 'submitted');
-      $("#labCategoryActions").toggleClass("hidden", patient.case_status === 'submitted');
-      setMsg("patientDetailMsg", patient.case_status === 'submitted' ? '当前病例已提交。' : '当前病例处于暂存状态，可继续补录检验、评估和治疗。', false);
+      $("#submitCaseBtn").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
+      $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
+      setMsg("patientDetailMsg", getCaseIntegrity(patient) === 'complete' ? '当前病例为完整记录。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。', false);
 
       const baseFields = [
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
@@ -364,9 +417,9 @@ function loadPatientDetail(patientId, activeTab) {
       const treatHtml = (res.data.treatments || []).map(function (r) {
         const details = [];
         if (r.diagnosis_disease) details.push('疾病：' + r.diagnosis_disease);
-        if (r.antibiotics) details.push('抗生素：' + r.antibiotics);
-        if (r.vasoactive_drugs) details.push('血管活性物：' + r.vasoactive_drugs);
-        if (r.volume_management) details.push('血容量管理：' + r.volume_management);
+        if (r.antibiotics) details.push('抗生素：' + formatTreatmentDetail(r, 'antibiotics', r.antibiotics));
+        if (r.vasoactive_drugs) details.push('血管活性物：' + formatTreatmentDetail(r, 'vasoactive_drugs', r.vasoactive_drugs));
+        if (r.volume_management) details.push('血容量管理：' + formatTreatmentDetail(r, 'volume_management', r.volume_management));
         if (r.respiratory_support) details.push('辅助呼吸：' + r.respiratory_support);
         if (r.immunomodulators) details.push('免疫调节药物：' + r.immunomodulators);
         if (r.blood_purification) details.push('血液净化：' + r.blood_purification);
@@ -665,6 +718,8 @@ $(document).on("click", ".nav-item", function () {
       localStorage.removeItem("clientPanel");
       showPanel("loginPanel");
     });
+  } else if (nav === "newCase") {
+    openNewCaseForm();
   } else {
     showPanel(nav);
   }
@@ -881,15 +936,14 @@ $(document).on("click", "#backToLabListBtn", function () {
 });
 
 $(document).on("click", "#showNewCaseBtn", function () {
-  $("#newCasePanel").removeClass("hidden");
-  setMsg("newCaseMsg", "", false);
+  openNewCaseForm();
 });
 
 $(document).on("click", "#submitCaseBtn", function () {
   if (!currentPatientId) return;
   $.post("/api/patients/" + currentPatientId + "/submit")
     .done(function (res) {
-      setMsg("patientDetailMsg", res.message || "病例已提交");
+      setMsg("patientDetailMsg", res.message || "已标记为完整记录");
       loadCaseList();
       loadPatientDetail(currentPatientId, "base");
     })
@@ -1060,6 +1114,7 @@ $(document).on("click", "#createCaseBtn", function () {
     phone: $("#newCasePhone").val(),
     id_number: $("#newCaseIdNumber").val(),
     case_status: "draft",
+    case_integrity: "draft",
     last_disease_id: selectedDiseaseId || ""
   }).done(function (res) {
     resetNewCaseForm();
@@ -1069,7 +1124,7 @@ $(document).on("click", "#createCaseBtn", function () {
       loadPatientDetail(res.data.patient_id);
     }
   }).fail(function (xhr) {
-    setMsg("newCaseMsg", xhr.responseJSON?.message || "新增病例失败", true);
+    setMsg("newCaseMsg", xhr.responseJSON?.message || "新建病例失败", true);
   });
 });
 
@@ -1130,6 +1185,7 @@ $("#addTreatBtn").on("click", function () {
       .filter(function (input) { return input.checked; })
       .map(function (input) { return input.value; });
     payload[field] = selected.join(",");
+    payload[field + "_details"] = JSON.stringify(collectTreatmentOptionDetails(field, selected));
   });
   $.post("/api/patients/" + currentPatientId + "/treatments", payload).done(function (res) {
     setMsg("treatMsg", res.message || "已保存");

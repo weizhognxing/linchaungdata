@@ -188,11 +188,17 @@ function renderFollowupFields(disease) {
   setMsg("followMsg", isInternal ? "当前选择为内科疾病随访表单" : "当前选择为非内科疾病随访表单");
 }
 
-function renderTreatmentChoiceGroup(field, title, options, defaultNone, inputType) {
+function renderTreatmentChoiceGroup(field, title, options, defaultNone, inputType, detailFields) {
   inputType = inputType || "checkbox";
   const html = options.map(function (option) {
     const checked = defaultNone && option === "无" ? " checked" : "";
-    return '<label><input type="' + inputType + '" class="treatment-choice" name="treatment_' + field + '" data-field="' + field + '" value="' + attrValue(option) + '"' + checked + '>' + option + '</label>';
+    const extras = option === "无" ? "" : (detailFields || []).map(function (detail) {
+      const detailField = detail[0];
+      const detailLabel = detail[1].replace(/^具体/, "");
+      const detailType = detail[2] === "time" ? "datetime-local" : detail[2];
+      return '<input class="treatment-option-extra" data-field="' + field + '" data-option="' + attrValue(option) + '" data-detail-field="' + detailField + '" type="' + detailType + '" placeholder="' + detailLabel + '">';
+    }).join("");
+    return '<div class="treatment-option-row"><label><input type="' + inputType + '" class="treatment-choice" name="treatment_' + field + '" data-field="' + field + '" value="' + attrValue(option) + '"' + checked + '>' + option + '</label><div class="treatment-option-extras">' + extras + '</div></div>';
   }).join("");
   return '<div class="treatment-section"><button type="button" class="treatment-section-toggle" data-toggle-treatment-section><span>' + title + '</span><span class="treatment-toggle-indicator">展开</span></button><div class="radio-grid hidden" data-treatment-section-body>' + html + '</div></div>';
 }
@@ -228,14 +234,29 @@ function renderTreatmentFields(disease) {
     setMsg("treatMsg", "该疾病暂无治疗表单配置", true);
     return;
   }
-  const html = config.map(function (item) {
+  let index = 0;
+  const blocks = [];
+  while (index < config.length) {
+    const item = config[index];
     const field = item[0];
     const label = item[1];
     const kind = item[2];
-    if (treatmentOptionSets[kind]) return renderTreatmentChoiceGroup(field, label, treatmentOptionSets[kind], !!item[3], item[4]);
-    if (kind === "time") return '<div class="grid two">' + renderTreatmentTimeInput(field, label) + '</div>';
-    return '<div class="grid two">' + renderTreatmentTextInput(field, label, kind) + '</div>';
-  }).join("");
+    if (treatmentOptionSets[kind]) {
+      const detailFields = [];
+      let nextIndex = index + 1;
+      while (nextIndex < config.length && !treatmentOptionSets[config[nextIndex][2]]) {
+        detailFields.push(config[nextIndex]);
+        nextIndex += 1;
+      }
+      blocks.push(renderTreatmentChoiceGroup(field, label, treatmentOptionSets[kind], !!item[3], item[4], detailFields));
+      index = nextIndex;
+      continue;
+    }
+    if (kind === "time") blocks.push('<div class="grid two">' + renderTreatmentTimeInput(field, label) + '</div>');
+    else blocks.push('<div class="grid two">' + renderTreatmentTextInput(field, label, kind) + '</div>');
+    index += 1;
+  }
+  const html = blocks.join("");
   $("#treatDynamicFields").html(html);
   const firstSection = document.querySelector("#treatDynamicFields [data-treatment-section-body]");
   const firstToggle = document.querySelector("#treatDynamicFields [data-toggle-treatment-section]");
