@@ -39,14 +39,20 @@ function initPhotoButtons() {
 }
 
 var authPanels = ["loginPanel", "registerPanel", "resetPanel"];
+var topPanels = ["diseasePanel", "caseListPanel", "memberReviewPanel"];
+var currentPanelId = "";
 
 function showPanel(id) {
   $(".panel").addClass("hidden");
   $("#" + id).removeClass("hidden");
+  currentPanelId = id;
   localStorage.setItem("clientPanel", id);
-  $("#clientHero").toggleClass("hidden", id === "labReportPanel");
+  const isAuthPanel = authPanels.indexOf(id) > -1;
+  const isTopPanel = topPanels.indexOf(id) > -1;
+  $("#clientHero").toggleClass("hidden", !isAuthPanel && !isTopPanel);
+  $("#innerBackBtn").toggleClass("hidden", isAuthPanel || isTopPanel);
   // 登录后的页面显示底部导航
-  if (authPanels.indexOf(id) === -1) {
+  if (!isAuthPanel) {
     $("#bottomNav").removeClass("hidden");
     $(".nav-item").removeClass("active");
     $(".nav-item[data-nav='" + id + "']").addClass("active");
@@ -183,6 +189,28 @@ function parseTreatmentDetailJson(row) {
   } catch (e) {
     return {};
   }
+}
+
+function backFromInnerPage() {
+  if (currentPanelId === "labReportPanel") {
+    if (currentPatientId) loadPatientDetail(currentPatientId, "lab");
+    else showPanel("caseListPanel");
+    return;
+  }
+  if (currentPanelId === "patientDetailPanel") {
+    showPanel("caseListPanel");
+    return;
+  }
+  if (currentPanelId === "recordPanel") {
+    showPanel("photoPanel");
+    return;
+  }
+  if (currentPanelId === "photoPanel") {
+    if (currentUploadMode === "lab" && currentUploadPatientId) loadPatientDetail(currentUploadPatientId, "lab");
+    else showPanel("diseasePanel");
+    return;
+  }
+  showPanel("caseListPanel");
 }
 
 function formatTreatmentDetail(row, field, fallback) {
@@ -936,6 +964,10 @@ $(document).on("click", "#backToLabListBtn", function () {
 
 $(document).on("click", "#showNewCaseBtn", function () {
   openNewCaseForm();
+});
+
+$(document).on("click", "#innerBackBtn", function () {
+  backFromInnerPage();
 });
 
 $(document).on("click", "#submitCaseBtn", function () {
