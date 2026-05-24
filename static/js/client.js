@@ -93,7 +93,7 @@ function loadDiseases() {
     $("#diseaseTotalCount").text(`总共录入${total}人`);
     const html = diseases.map(function (d) {
       const count = Number(d.patient_count || 0);
-      return `<button class="disease-item" data-id="${d.id}"><span class="disease-name">${d.name}</span><span class="disease-count">已录入${count}人</span></button>`;
+      return `<button type="button" class="disease-item" data-id="${d.id}"><span class="disease-name">${d.name}</span><span class="disease-count">已录入${count}人</span></button>`;
     }).join("");
     $("#diseaseList").html(html);
   });
@@ -782,9 +782,11 @@ $("#resetBtn").on("click", function () {
     .fail(function (xhr) { setMsg("resetMsg", xhr.responseJSON?.message || "重置失败", true); });
 });
 
-// 选择疾病后
-$(document).on("click", ".disease-item", function () {
-  selectedDiseaseId = this.getAttribute("data-id");
+document.addEventListener("click", function (event) {
+  const diseaseButton = event.target && event.target.closest ? event.target.closest(".disease-item") : null;
+  if (!diseaseButton) return;
+  event.preventDefault();
+  selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   openPhotoPanelForIntake();
 });
