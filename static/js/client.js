@@ -602,14 +602,14 @@ function resetRecordForm() {
 }
 
 function openPhotoPanelForIntake() {
-  currentUploadMode = "intake";
+  currentUploadMode = "lab";
   currentUploadPatientId = null;
   currentRecordCategory = null;
-  currentCategoryLabel = "";
+  currentCategoryLabel = "检验";
   initPhotoPanel();
   initPhotoButtons();
-  $("#photoPanelTitle").text("拍照上传");
-  setMsg("photoMsg", "先拍照提取患者基础信息，病例会先进入暂存记录。", false);
+  $("#photoPanelTitle").text("拍照上传检验单");
+  setMsg("photoMsg", "选择图片后会同时识别患者基础信息和当前疾病需要填写的检验内容。", false);
   showPanel("photoPanel");
 }
 
@@ -935,10 +935,12 @@ $("#saveRecordBtn").on("click", function () {
       lab_test_name: $("#labTestName").val()
     })
   }).done(function (res) {
-    setMsg("recordMsg", (currentCategoryLabel || "检验") + "上传成功");
+    setMsg("recordMsg", ($("#labTestName").val() || currentCategoryLabel || "检验") + "上传成功");
     loadCaseList();
-    if (currentUploadPatientId) {
-      loadPatientDetail(currentUploadPatientId, "lab");
+    const savedPatientId = (res.data && res.data.patient_id) || currentUploadPatientId;
+    if (savedPatientId) {
+      currentUploadPatientId = savedPatientId;
+      loadPatientDetail(savedPatientId, "lab");
     }
   }).fail(function (xhr) { setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true); });
 });
