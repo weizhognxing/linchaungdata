@@ -1103,6 +1103,14 @@ $(document).on("change", ".treatment-choice", function () {
   normalizeTreatmentChoice(this);
 });
 
+$(document).on("input", ".treatment-option-extra", function () {
+  updateTreatmentExtraPlaceholder(this);
+});
+
+$(document).on("change", ".treatment-option-extra", function () {
+  updateTreatmentExtraPlaceholder(this);
+});
+
 $(document).on("click", "[data-toggle-treatment-section]", function () {
   const body = this.parentNode.querySelector("[data-treatment-section-body]");
   if (!body) return;
@@ -1165,6 +1173,11 @@ $(document).on("click", "#createCaseBtn", function () {
     setMsg("newCaseMsg", xhr.responseJSON?.message || "新建病例失败", true);
   });
 });
+
+function updateTreatmentExtraPlaceholder(input) {
+  const wrapper = input && input.parentNode;
+  if (wrapper) wrapper.classList.toggle("has-value", !!input.value);
+}
 
 $(document).on("click", ".detail-tab", function () {
   const tab = this.getAttribute("data-detail-tab");

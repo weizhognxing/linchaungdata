@@ -194,9 +194,9 @@ function renderTreatmentChoiceGroup(field, title, options, defaultNone, inputTyp
     const checked = defaultNone && option === "无" ? " checked" : "";
     const extras = option === "无" ? "" : (detailFields || []).map(function (detail) {
       const detailField = detail[0];
-      const detailLabel = detail[1].replace(/^具体/, "");
+      const detailLabel = detail[1];
       const detailType = detail[2] === "time" ? "datetime-local" : detail[2];
-      return '<input class="treatment-option-extra" data-field="' + field + '" data-option="' + attrValue(option) + '" data-detail-field="' + detailField + '" type="' + detailType + '" placeholder="' + detailLabel + '">';
+      return '<div class="treatment-extra-field"><input class="treatment-option-extra" data-field="' + field + '" data-option="' + attrValue(option) + '" data-detail-field="' + detailField + '" type="' + detailType + '" placeholder="' + detailLabel + '"><span class="treatment-extra-placeholder">' + detailLabel + '</span></div>';
     }).join("");
     return '<div class="treatment-option-row"><label><input type="' + inputType + '" class="treatment-choice" name="treatment_' + field + '" data-field="' + field + '" value="' + attrValue(option) + '"' + checked + '>' + option + '</label><div class="treatment-option-extras">' + extras + '</div></div>';
   }).join("");
