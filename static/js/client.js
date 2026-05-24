@@ -434,8 +434,9 @@ function loadPatientDetail(patientId, activeTab) {
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
         const categoryText = r.record_category ? ' ｜ 类别：' + getLabCategoryLabel(r.record_category) : '';
+        const testNameText = r.lab_test_name ? ' ｜ 检验项目：' + r.lab_test_name : '';
         return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
-          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + categoryText + ' ｜ 录入人：' + (r.operator_name || '-') +
+          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + categoryText + testNameText + ' ｜ 录入人：' + (r.operator_name || '-') +
           '<div class="case-meta">点击查看检验单详情</div>' +
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
@@ -511,7 +512,7 @@ function loadLabRecordDetail(recordId) {
       $("#labReportMeta").html(
         '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 登记号：' + (record.id_number || '-') + '</div>' +
-        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
+        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验项目：' + (record.lab_test_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
         '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
       );
       const items = res.data.items || [];
@@ -718,6 +719,7 @@ function autoRecognize() {
         $("#labFieldsSection").addClass("hidden");
         $("#saveRecordBtn").text("创建暂存病例");
       } else {
+        $("#labTestName").val(res.data.lab_test_name || res.data.category_label || currentCategoryLabel || "");
         $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验数据"));
         $("#recordPanelHint").text("确认无误后保存当前类别，保存成功会返回病例详情。")
         $("#labFieldsSection").removeClass("hidden");
@@ -929,7 +931,8 @@ $("#saveRecordBtn").on("click", function () {
       patient,
       values,
       photo_path: uploadedPhotoPath,
-      record_category: currentRecordCategory
+      record_category: currentRecordCategory,
+      lab_test_name: $("#labTestName").val()
     })
   }).done(function (res) {
     setMsg("recordMsg", (currentCategoryLabel || "检验") + "上传成功");

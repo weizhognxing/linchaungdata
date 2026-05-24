@@ -103,6 +103,12 @@ def ensure_runtime_schema_once():
             )
             _ensure_column(
                 cur,
+                "lab_records",
+                "lab_test_name",
+                "ALTER TABLE lab_records ADD COLUMN `lab_test_name` varchar(120) DEFAULT NULL AFTER `record_category`",
+            )
+            _ensure_column(
+                cur,
                 "treatments",
                 "detail_json",
                 "ALTER TABLE treatments ADD COLUMN `detail_json` longtext DEFAULT NULL AFTER `treatment_method`",
@@ -214,6 +220,7 @@ def recognize_image(image_path, prompt_text=None):
     prompt = prompt_text or """请识别这张检验报告图片，提取患者信息和所有检验项目结果。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {
+  "lab_test_name": "这张检验单的检验项目名称，例如血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT、糖化血红蛋白等",
   "patient": {
     "name": "姓名",
     "gender": "性别",
@@ -274,6 +281,22 @@ def parse_ai_result(ai_text, fields):
                     result[field_name] = value
                     break
     return result
+
+
+def parse_lab_test_name(ai_text):
+    if not ai_text:
+        return ""
+
+    json_match = re.search(r"\{.*\}", ai_text, re.DOTALL)
+    if not json_match:
+        return ""
+
+    try:
+        ai_data = json.loads(json_match.group())
+    except json.JSONDecodeError:
+        return ""
+
+    return str(ai_data.get("lab_test_name") or ai_data.get("test_name") or ai_data.get("category") or "").strip()
 
 
 def parse_patient_info(ai_text):

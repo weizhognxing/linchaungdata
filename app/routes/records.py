@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from app.common import fail, ok, required
 from app.db import db
 from app.decorators import require_user
-from app.services.core import get_fields_for_disease, parse_ai_result, parse_patient_info, recognize_image, reorder_fields_by_values
+from app.services.core import get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
 
 
 records_bp = Blueprint("records", __name__)
@@ -69,6 +69,7 @@ LAB_CATEGORY_DEFINITIONS = {
 INTAKE_PROMPT = """请识别这张检验单或病历图片中的患者基础信息，仅返回基础信息，不要提取检验项目。
 请严格按照以下 JSON 格式返回，只返回 JSON，不要其他内容：
 {
+  "lab_test_name": "本次图片对应的检验项目名称，例如患者基础信息/入院记录",
   "patient": {
     "name": "姓名",
     "gender": "性别",
@@ -186,6 +187,7 @@ def _build_category_prompt(category_config):
 请优先使用以下字段缩写作为 code：{fields}
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {{
+  "lab_test_name": "{category_config['label']}",
   "patient": {{
     "name": "姓名",
     "gender": "性别",
@@ -360,6 +362,7 @@ def recognize():
 
     values = {}
     patient = {}
+    lab_test_name = ""
     prompt_text = INTAKE_PROMPT if recognize_mode == "intake" else None
     if recognize_mode == "lab" and record_category:
         fields = _fields_for_category(fields, record_category)
@@ -371,6 +374,7 @@ def recognize():
             ai_text = recognize_image(photo_path, prompt_text=prompt_text)
             values = {} if recognize_mode == "intake" else parse_ai_result(ai_text, fields)
             patient = parse_patient_info(ai_text)
+            lab_test_name = parse_lab_test_name(ai_text)
             fields = reorder_fields_by_values(fields, values)
         except Exception as e:
             print(f"AI recognition error: {e}")
@@ -384,6 +388,7 @@ def recognize():
             "mode": recognize_mode,
             "record_category": record_category or None,
             "category_label": (_lab_category_config(record_category) or {}).get("label") if record_category else None,
+            "lab_test_name": lab_test_name,
         },
         "识别完成",
     )
@@ -405,6 +410,7 @@ def save_record():
     values = data.get("values") or {}
     disease_id = data.get("disease_id")
     record_category = (data.get("record_category") or "").strip() or None
+    lab_test_name = (data.get("lab_test_name") or "").strip() or None
     if not disease_id:
         return fail("请先选择疾病")
     if not patient_id and required(patient, ["name"]):
@@ -515,6 +521,9 @@ def save_record():
             if "record_category" in existing_columns:
                 columns.append("record_category")
                 params.append(record_category)
+            if "lab_test_name" in existing_columns:
+                columns.append("lab_test_name")
+                params.append(lab_test_name)
             columns.extend(list(record_values.keys()))
             params.extend(list(record_values.values()))
             placeholders = ",".join(["%s"] * len(columns))
@@ -587,7 +596,7 @@ def record_detail(record_id):
                 ORDER BY id
                 """
             )
-            system_fields = {"id", "patient_id", "user_id", "disease_id", "record_category", "photo_path", "ai_raw", "created_at"}
+            system_fields = {"id", "patient_id", "user_id", "disease_id", "record_category", "lab_test_name", "photo_path", "ai_raw", "created_at"}
             items = []
             for field in cur.fetchall():
                 field_name = field["field_name"]
@@ -893,7 +902,7 @@ def patient_detail(patient_id):
 
             cur.execute(
                 """
-                SELECT r.id, r.created_at, r.record_category, d.name AS disease_name, u.name AS operator_name
+                SELECT r.id, r.created_at, r.record_category, r.lab_test_name, d.name AS disease_name, u.name AS operator_name
                 FROM lab_records r
                 LEFT JOIN diseases d ON d.id=r.disease_id
                 LEFT JOIN users u ON u.id=r.user_id

@@ -145,6 +145,8 @@ CREATE TABLE `lab_records` (
   `patient_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `disease_id` int(11) NOT NULL,
+  `record_category` varchar(50) DEFAULT NULL,
+  `lab_test_name` varchar(120) DEFAULT NULL,
   `photo_path` varchar(255) DEFAULT NULL,
   `ai_raw` text,
   `wbc` decimal(10,2) DEFAULT NULL COMMENT '白细胞',
