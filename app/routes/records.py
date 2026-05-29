@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from app.common import fail, ok, required
 from app.db import db
 from app.decorators import require_user
-from app.services.core import get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
+from app.services.core import ask_ai_yes_no, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
 
 
 records_bp = Blueprint("records", __name__)
@@ -237,6 +237,111 @@ def _patient_is_accessible(cur, patient_id, current_user, patient_columns=None):
             (patient_id, current_user["hospital_id"]),
         )
     return cur.fetchone() is not None
+
+
+def _missing_case_completion_items(cur, patient_id):
+    cur.execute("SELECT name, gender, age, id_number FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+    patient = cur.fetchone() or {}
+    missing = []
+    if required(patient, ["name", "gender", "age", "id_number"]):
+        missing.append("基础信息")
+
+    required_tables = [
+        ("diagnosis_records", "诊断"),
+        ("assessments", "评估"),
+        ("followups", "随访"),
+        ("treatments", "治疗"),
+    ]
+    for table_name, label in required_tables:
+        if not _table_exists(cur, table_name):
+            missing.append(label)
+            continue
+        cur.execute(f"SELECT COUNT(*) AS total FROM `{table_name}` WHERE patient_id=%s", (patient_id,))
+        count_row = cur.fetchone() or {}
+        if int(count_row.get("total") or 0) < 1:
+            missing.append(label)
+    if not _required_lab_tests_completed(cur, patient_id):
+        missing.append("检验")
+    return missing
+
+
+def _required_lab_tests_completed(cur, patient_id):
+    if not _table_exists(cur, "lab_records"):
+        return False
+    cur.execute("SHOW COLUMNS FROM lab_records")
+    columns = {row["Field"] for row in cur.fetchall()}
+    select_parts = []
+    if "lab_test_name" in columns:
+        select_parts.append("lab_test_name")
+    if "record_category" in columns:
+        select_parts.append("record_category")
+    if not select_parts:
+        return False
+
+    cur.execute(
+        f"SELECT {','.join(select_parts)} FROM lab_records WHERE patient_id=%s ORDER BY created_at, id",
+        (patient_id,),
+    )
+    names = []
+    for row in cur.fetchall():
+        lab_test_name = str(row.get("lab_test_name") or "").strip()
+        record_category = str(row.get("record_category") or "").strip()
+        category_label = (LAB_CATEGORY_DEFINITIONS.get(record_category) or {}).get("label", "")
+        if lab_test_name:
+            names.append(lab_test_name)
+        if category_label and category_label != lab_test_name:
+            names.append(category_label)
+    if not names:
+        return False
+
+    prompt = """你是临床检验项目分类助手。请判断下面“已完成的检验名称”中，是否已经覆盖全部七类必需检验：血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
+判断规则：
+1. 名称可能带有编码或前缀，例如“JY2625.B型钠尿肽”，应理解为 BNP。
+2. BNP 的同义名称包括：BNP、B型钠尿肽、N端B型钠尿肽、NT-proBNP、NT-pro BNP。
+3. PCT 的同义名称包括：PCT、降钙素原。
+4. 乳酸的同义名称包括：乳酸、LAC、LA。
+5. DIC7项可写作：DIC7项、DIC 7项、凝血、凝血功能、凝血七项。
+6. 只有七类都已覆盖，才返回“是”；只要缺少任意一类，就返回“否”。
+7. 只能返回一个字：是 或 否，不要解释。
+
+已完成的检验名称：
+""" + "\n".join(f"- {name}" for name in names)
+    try:
+        return ask_ai_yes_no(prompt, timeout=60)
+    except Exception as e:
+        print(f"Lab completion AI check error: {e}")
+        return False
+
+
+def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
+    patient_columns = patient_columns or _patient_columns(cur)
+    if "case_status" not in patient_columns and "case_integrity" not in patient_columns:
+        return False
+
+    status_fields = []
+    if "case_status" in patient_columns:
+        status_fields.append("case_status")
+    if "case_integrity" in patient_columns:
+        status_fields.append("case_integrity")
+    cur.execute(
+        f"SELECT {','.join(status_fields)} FROM patients WHERE id=%s LIMIT 1",
+        (patient_id,),
+    )
+    patient = cur.fetchone() or {}
+    if patient.get("case_status") == "submitted" or patient.get("case_integrity") == "complete":
+        return False
+    if _missing_case_completion_items(cur, patient_id):
+        return False
+
+    updates = []
+    if "case_status" in patient_columns:
+        updates.append("case_status='submitted'")
+    if "case_integrity" in patient_columns:
+        updates.append("case_integrity='complete'")
+    if "updated_at" in patient_columns:
+        updates.append("updated_at=NOW()")
+    cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", (patient_id,))
+    return True
 
 
 @records_bp.get("/api/diseases")
@@ -532,13 +637,15 @@ def save_record():
             safe_columns = ",".join([f"`{str(col).replace('`', '``').replace('%', '%%')}`" for col in columns])
             cur.execute(f"INSERT INTO lab_records ({safe_columns}) VALUES ({placeholders})", params)
             record_id = cur.lastrowid
+            completed_now = _mark_case_complete_if_ready(cur, patient_id, patient_columns)
         conn.commit()
+        message = "保存成功，已自动转为完整记录" if completed_now else "保存成功"
         if skipped_fields:
             return ok(
-                {"record_id": record_id, "patient_id": patient_id, "skipped_fields": skipped_fields},
-                "保存成功，部分字段未入库",
+                {"record_id": record_id, "patient_id": patient_id, "skipped_fields": skipped_fields, "completed_now": completed_now},
+                message + "，部分字段未入库",
             )
-        return ok({"record_id": record_id, "patient_id": patient_id}, "保存成功")
+        return ok({"record_id": record_id, "patient_id": patient_id, "completed_now": completed_now}, message)
     finally:
         conn.close()
 
@@ -1091,38 +1198,12 @@ def update_patient(patient_id):
                         data.get("medical_history") or "无",
                     ),
                 )
+            completed_now = _mark_case_complete_if_ready(cur, patient_id, patient_columns)
         conn.commit()
-        return ok({"patient_id": patient_id}, "诊断信息已保存" if is_diagnosis_update else "基础信息已保存")
-    finally:
-        conn.close()
-
-
-@records_bp.post("/api/patients/<int:patient_id>/submit")
-@require_user
-def submit_patient_case(patient_id):
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            current_user = _current_user_scope(cur)
-            if not current_user:
-                return fail("用户不存在", 404)
-
-            patient_columns = _patient_columns(cur)
-            if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
-                return fail("病人不存在", 404)
-            if "case_status" not in patient_columns:
-                return fail("病例状态字段不存在")
-
-            updates = []
-            if "case_status" in patient_columns:
-                updates.append("case_status='submitted'")
-            if "case_integrity" in patient_columns:
-                updates.append("case_integrity='complete'")
-            if "updated_at" in patient_columns:
-                updates.append("updated_at=NOW()")
-            cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", (patient_id,))
-        conn.commit()
-        return ok({"patient_id": patient_id}, "已标记为完整记录")
+        message = "诊断信息已保存" if is_diagnosis_update else "基础信息已保存"
+        if completed_now:
+            message += "，已自动转为完整记录"
+        return ok({"patient_id": patient_id, "completed_now": completed_now}, message)
     finally:
         conn.close()
 
@@ -1228,8 +1309,9 @@ def add_treatment(patient_id):
                 f"INSERT INTO treatments ({','.join(columns)}) VALUES ({placeholders})",
                 [values[column] for column in columns],
             )
+            completed_now = _mark_case_complete_if_ready(cur, patient_id)
         conn.commit()
-        return ok(message="治疗记录已添加")
+        return ok({"completed_now": completed_now}, "治疗记录已添加" + ("，已自动转为完整记录" if completed_now else ""))
     finally:
         conn.close()
 
@@ -1288,8 +1370,9 @@ def add_followup(patient_id):
                 f"INSERT INTO followups ({','.join(columns)}) VALUES ({placeholders})",
                 [values[column] for column in columns],
             )
+            completed_now = _mark_case_complete_if_ready(cur, patient_id)
         conn.commit()
-        return ok(message="随访记录已添加")
+        return ok({"completed_now": completed_now}, "随访记录已添加" + ("，已自动转为完整记录" if completed_now else ""))
     finally:
         conn.close()
 
@@ -1356,7 +1439,8 @@ def add_assessment(patient_id):
                 f"INSERT INTO assessments ({','.join(columns)}) VALUES ({placeholders})",
                 [values[column] for column in columns],
             )
+            completed_now = _mark_case_complete_if_ready(cur, patient_id)
         conn.commit()
-        return ok(message="评估记录已添加")
+        return ok({"completed_now": completed_now}, "评估记录已添加" + ("，已自动转为完整记录" if completed_now else ""))
     finally:
         conn.close()

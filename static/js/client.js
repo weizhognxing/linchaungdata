@@ -414,7 +414,6 @@ function loadPatientDetail(patientId, activeTab) {
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 记录完整性：' + (getCaseIntegrity(patient) === 'complete' ? '完整记录' : '暂存记录') + '</div>'
       );
-      $("#submitCaseBtn").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       setMsg("patientDetailMsg", getCaseIntegrity(patient) === 'complete' ? '当前病例为完整记录。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。', false);
 
@@ -422,9 +421,11 @@ function loadPatientDetail(patientId, activeTab) {
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
         { field_name: 'gender', form_label: '性别', value: patient.gender, required: true },
         { field_name: 'age', form_label: '年龄', value: patient.age, required: true, type: 'number' },
-        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: true },
-        { field_name: 'phone', form_label: '联系电话', value: patient.phone }
-      ].concat(patientFields.filter(function (f) { return diagnosisFieldNames.indexOf(f.field_name) === -1; }));
+        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: true }
+      ].concat(patientFields.filter(function (f) {
+        const duplicateLabels = ["登记号", "病历号", "联系电话", "电话", "手机号码"];
+        return diagnosisFieldNames.indexOf(f.field_name) === -1 && duplicateLabels.indexOf(f.form_label) === -1;
+      }));
       const baseHtml = baseFields.map(function (f) {
         return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
           '<input class="base-info-input" data-field="' + f.field_name + '" type="' + (f.type || 'text') + '" value="' + attrValue(f.value) + '" placeholder="' + f.form_label + '"></div>';
@@ -980,19 +981,6 @@ $(document).on("click", "#showNewCaseBtn", function () {
 
 $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
-});
-
-$(document).on("click", "#submitCaseBtn", function () {
-  if (!currentPatientId) return;
-  $.post("/api/patients/" + currentPatientId + "/submit")
-    .done(function (res) {
-      setMsg("patientDetailMsg", res.message || "已标记为完整记录");
-      loadCaseList();
-      loadPatientDetail(currentPatientId, "base");
-    })
-    .fail(function (xhr) {
-      setMsg("patientDetailMsg", xhr.responseJSON?.message || "提交失败", true);
-    });
 });
 
 $(document).on("click", "#exportCasesBtn", function () {

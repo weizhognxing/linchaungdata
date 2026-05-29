@@ -253,6 +253,28 @@ def recognize_image(image_path, prompt_text=None):
     return None
 
 
+def ask_ai_yes_no(prompt_text, timeout=60):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {ai_config.AI_API_KEY}",
+    }
+    payload = {
+        "model": ai_config.AI_MODEL,
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt_text}],
+            }
+        ],
+        "max_tokens": 10,
+    }
+    response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=timeout)
+    if response.status_code != 200:
+        return False
+    content = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+    return content.startswith("是")
+
+
 def parse_ai_result(ai_text, fields):
     if not ai_text:
         return {}

@@ -35,7 +35,7 @@ th { background: #eff6ee; }
 
 .client-shell { min-height: 100vh; display: grid; place-items: start center; padding: 28px 14px; }
 .phone-card { width: min(520px, 100%); display: grid; gap: 16px; }
-.inner-back { width: auto; justify-self: start; padding: 8px 16px; border-radius: 999px; background: #fff; color: var(--brand-dark); border: 1px solid var(--line); box-shadow: 0 10px 24px rgba(52, 75, 59, 0.12); }
+.inner-back { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 200; width: auto; padding: 8px 16px; border-radius: 999px; background: #fff; color: var(--brand-dark); border: 1px solid var(--line); box-shadow: 0 10px 24px rgba(52, 75, 59, 0.12); }
 .hero { padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #173f31, #2c825f); color: #fff; box-shadow: 0 24px 80px rgba(16, 84, 60, .25); }
 .hero h1 { margin: 0 0 8px; font-size: 34px; }
 .hero p:last-child { margin: 0; color: #e8f5eb; }
@@ -79,10 +79,10 @@ th { background: #eff6ee; }
 .treatment-section { margin-bottom: 12px; }
 .treatment-section-toggle { display: flex; align-items: center; justify-content: space-between; background: #eaf3ea; color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
 .treatment-toggle-indicator { color: var(--muted); font-size: 13px; }
-.treatment-option-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr); gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.treatment-option-row { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(220px, 1.2fr); gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .treatment-option-row label { border: 0; padding: 0; background: transparent; }
 .treatment-option-extras { display: grid; gap: 6px; }
-.treatment-option-extras input { margin: 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; }
+.treatment-option-extras input { margin: 0; width: 100%; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
 .treatment-extra-field { position: relative; }
 .treatment-extra-placeholder { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); max-width: calc(100% - 42px); overflow: hidden; color: var(--muted); font-size: 13px; line-height: 1; pointer-events: none; white-space: nowrap; background: #fff; }
 .treatment-extra-field:focus-within .treatment-extra-placeholder, .treatment-extra-field.has-value .treatment-extra-placeholder { display: none; }
