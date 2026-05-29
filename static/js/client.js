@@ -675,6 +675,10 @@ function showRecognizeProgress(step, total, message) {
   $("#recognizeProgress").html(html).removeClass("hidden");
 }
 
+function setRecognizeBlocking(blocked) {
+  $("#recognizeBlockingOverlay").toggleClass("hidden", !blocked);
+}
+
 // 自动识别函数
 function autoRecognize() {
   if (!selectedFile) return;
@@ -683,6 +687,7 @@ function autoRecognize() {
     showPanel("diseasePanel");
     return;
   }
+  setRecognizeBlocking(true);
 
   // 显示识别中状态
   showRecognizeProgress(1, 3, "正在上传图片...");
@@ -736,6 +741,9 @@ function autoRecognize() {
       $("#recognizeProgress").addClass("hidden");
       $("#previewContainer").removeClass("hidden");
       $("#retryBtn").removeClass("hidden");
+    })
+    .always(function () {
+      setRecognizeBlocking(false);
     });
 }
 
@@ -889,8 +897,8 @@ $("#saveRecordBtn").on("click", function () {
     phone: $("[name=patient_phone]").val(),
     id_number: $("[name=patient_id_number]").val()
   };
-  if (!patient.name || !patient.gender || !patient.id_number) {
-    setMsg("recordMsg", "请先确认姓名、性别、登记号", true);
+  if (!currentUploadPatientId && !patient.name) {
+    setMsg("recordMsg", "请先确认姓名", true);
     return;
   }
   if (currentUploadMode === "intake") {

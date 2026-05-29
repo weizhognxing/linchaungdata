@@ -247,7 +247,7 @@ def recognize_image(image_path, prompt_text=None):
         "max_tokens": ai_config.AI_MAX_TOKENS,
     }
 
-    response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=60)
+    response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=360)
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     return None
