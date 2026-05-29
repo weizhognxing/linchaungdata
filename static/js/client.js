@@ -115,7 +115,7 @@ function loadCaseList() {
           const status = isComplete ? '完整记录' : '暂存记录';
           const actionText = isComplete ? '查看' : '继续完善';
           const statusClass = isComplete ? 'case-badge-complete' : 'case-badge-draft';
-          return '<div class="case-item">' +
+          return '<div class="case-item" data-id="' + item.id + '">' +
             '<div class="case-head"><strong>' + (item.name || '-') + '</strong><span class="case-badge ' + statusClass + '">' + status + '</span><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button></div>' +
             '<div class="case-meta">性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 登记号：' + (item.id_number || '-') + disease + '</div>' +
             '<div class="case-meta">记录完整性：' + status + ' ｜ 已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
@@ -945,7 +945,12 @@ $("#saveRecordBtn").on("click", function () {
   }).fail(function (xhr) { setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true); });
 });
 
-$(document).on("click", ".view-case-btn", function () {
+$(document).on("click", ".case-item", function () {
+  loadPatientDetail($(this).data("id"));
+});
+
+$(document).on("click", ".view-case-btn", function (event) {
+  event.stopPropagation();
   loadPatientDetail($(this).data("id"));
 });
 
