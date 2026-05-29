@@ -580,19 +580,19 @@ def save_record():
                     cur.execute(
                         """
                         SELECT id FROM patients
-                        WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                        WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s
                         LIMIT 1
                         """,
-                        (current_user["hospital_id"], patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
+                        (current_user["hospital_id"], patient.get("name"), patient.get("phone", "")),
                     )
                 else:
                     cur.execute(
                         """
                         SELECT id FROM patients
-                        WHERE name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                        WHERE name=%s AND IFNULL(phone,'')=%s
                         LIMIT 1
                         """,
-                        (patient.get("name"), patient.get("phone", ""), patient.get("id_number", "")),
+                        (patient.get("name"), patient.get("phone", "")),
                     )
                 row = cur.fetchone()
                 if row:
