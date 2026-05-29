@@ -79,7 +79,7 @@ th { background: #eff6ee; }
 .treatment-section { margin-bottom: 12px; }
 .treatment-section-toggle { display: flex; align-items: center; justify-content: space-between; background: #eaf3ea; color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
 .treatment-toggle-indicator { color: var(--muted); font-size: 13px; }
-.treatment-option-row { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(220px, 1.2fr); gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.treatment-option-row { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .treatment-option-row label { border: 0; padding: 0; background: transparent; }
 .treatment-option-extras { display: grid; gap: 6px; }
 .treatment-option-extras input { margin: 0; width: 100%; padding: 10px 12px; border-radius: 12px; font-size: 14px; }
