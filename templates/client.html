@@ -78,7 +78,16 @@
         <button id="createCaseBtn">保存病例</button>
         <p class="message" id="newCaseMsg"></p>
       </div>
-      <div id="caseList" class="case-list"></div>
+      <div class="inner-tabs case-inner-tabs">
+        <button class="inner-tab active" data-case-tab="draft">暂存记录</button>
+        <button class="inner-tab" data-case-tab="complete">完整记录</button>
+      </div>
+      <div id="caseDraftPanel" class="inner-tab-page">
+        <div id="caseDraftList" class="case-list"></div>
+      </div>
+      <div id="caseCompletePanel" class="inner-tab-page hidden">
+        <div id="caseCompleteList" class="case-list"></div>
+      </div>
       <p class="message" id="caseListMsg"></p>
     </section>
 
@@ -315,7 +324,7 @@
   </div>
 
   <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/client-care-forms.js?v=20260524l"></script>
-  <script src="/static/js/client.js?v=20260524l"></script>
+  <script src="/static/js/client-care-forms.js?v=20260524m"></script>
+  <script src="/static/js/client.js?v=20260524m"></script>
 </body>
 </html>
