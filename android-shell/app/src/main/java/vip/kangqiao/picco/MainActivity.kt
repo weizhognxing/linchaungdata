@@ -86,7 +86,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.loadUrl(BuildConfig.WEB_URL)
-        Toast.makeText(this, "正在打开: ${BuildConfig.WEB_URL}", Toast.LENGTH_SHORT).show()
     }
 
     override fun onBackPressed() {
