@@ -186,6 +186,7 @@ def _build_category_prompt(category_config):
 用户可能正在补录“{category_config['label']}”，但图片不一定属于这个类别，请不要强行归类。
 如果图片确实属于“{category_config['label']}”，请优先使用以下字段缩写作为 code：{fields}
 如果图片属于其他检验，请按图片原文或最接近的报告标题填写 lab_test_name，并提取图片中的实际检验指标。
+lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面的套餐编号、医嘱编号、条码编号、内部代码和序号，例如 JY243.血淀粉酶+P-AMY 应返回 血淀粉酶+P-AMY，A001-血常规 应返回 血常规。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {{
   "lab_test_name": "图片上的实际检验名称",

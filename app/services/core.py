@@ -219,6 +219,7 @@ def recognize_image(image_path, prompt_text=None):
 
     prompt = prompt_text or """请识别这张检验报告图片，提取患者信息、图片上的实际检验名称和所有检验指标结果。
 不要把检验名称强行归类为血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT 其中之一；如果图片显示的是糖化血红蛋白、心肌标志物、尿常规、肝功能、肾功能、凝血功能等其他名称，请按图片原文或最接近的报告标题填写。
+lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面的套餐编号、医嘱编号、条码编号、内部代码和序号，例如 JY243.血淀粉酶+P-AMY 应返回 血淀粉酶+P-AMY，A001-血常规 应返回 血常规。
 如果图片没有明确报告标题，请根据检验指标内容概括一个简短检验名称。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {
@@ -320,7 +321,16 @@ def parse_lab_test_name(ai_text):
     except json.JSONDecodeError:
         return ""
 
-    return str(ai_data.get("lab_test_name") or ai_data.get("test_name") or ai_data.get("category") or "").strip()
+    return clean_lab_test_name(ai_data.get("lab_test_name") or ai_data.get("test_name") or ai_data.get("category") or "")
+
+
+def clean_lab_test_name(value):
+    name = str(value or "").strip()
+    if not name:
+        return ""
+    name = re.sub(r"^[A-Za-z]{1,8}\d{1,8}\s*[.．、:：\-_]+\s*", "", name).strip()
+    name = re.sub(r"^\d{1,8}\s*[.．、:：\-_]+\s*", "", name).strip()
+    return name
 
 
 def parse_patient_info(ai_text):
