@@ -178,9 +178,18 @@
         </div>
       </div>
       <div id="detailLabTab" class="detail-tab-page hidden">
-        <div class="subhead">分项上传检验</div>
-        <div id="labCategoryActions" class="case-actions wrap-actions"></div>
-        <div id="labRecordList" class="detail-list"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-lab-tab="list">检验记录</button>
+          <button class="inner-tab" data-lab-tab="add">添加检验</button>
+        </div>
+        <div id="labListPanel" class="inner-tab-page">
+          <div id="labRecordList" class="detail-list"></div>
+        </div>
+        <div id="labAddPanel" class="inner-tab-page hidden">
+          <div class="subhead">检验类别上传进度</div>
+          <div id="labCategorySummary" class="lab-category-summary"></div>
+          <div id="labCategoryActions" class="case-actions wrap-actions"></div>
+        </div>
       </div>
       <div id="detailAssessmentTab" class="detail-tab-page hidden">
         <div class="inner-tabs">
@@ -306,7 +315,7 @@
   </div>
 
   <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/client-care-forms.js?v=20260524g"></script>
-  <script src="/static/js/client.js?v=20260524g"></script>
+  <script src="/static/js/client-care-forms.js?v=20260524h"></script>
+  <script src="/static/js/client.js?v=20260524h"></script>
 </body>
 </html>

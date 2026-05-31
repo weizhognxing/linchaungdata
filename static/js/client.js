@@ -309,6 +309,15 @@ function showAssessmentSubTab(tab) {
   }
 }
 
+function showLabSubTab(tab) {
+  tab = tab || "list";
+  document.querySelectorAll("#detailLabTab .inner-tab").forEach(function (button) {
+    button.classList.toggle("active", button.getAttribute("data-lab-tab") === tab);
+  });
+  $("#labListPanel").toggleClass("hidden", tab !== "list");
+  $("#labAddPanel").toggleClass("hidden", tab !== "add");
+}
+
 function fillDiagnosisForm(patient) {
   resetDiagnosisDiseaseSelection();
 
@@ -434,15 +443,15 @@ function loadPatientDetail(patientId, activeTab) {
       setMsg("baseInfoMsg", "", false);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
-        const categoryText = r.record_category ? ' ｜ 检验类别：' + getLabCategoryLabel(r.record_category) : '';
-        const testNameText = r.lab_test_name ? ' ｜ 检验类别：' + r.lab_test_name : '';
+        const categoryName = r.lab_test_name || getLabCategoryLabel(r.record_category) || '-';
+        const diseaseText = r.disease_name ? ' ｜ 疾病：' + r.disease_name : '';
         return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
-          (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + categoryText + testNameText + ' ｜ 录入人：' + (r.operator_name || '-') +
+          '<strong>' + categoryName + '</strong>' + diseaseText + ' ｜ 录入人：' + (r.operator_name || '-') +
           '<div class="case-meta">点击查看检验详情</div>' +
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
-      renderLabCategoryActions(patient);
+      renderLabCategoryActions(patient, res.data.lab_records || []);
 
       const treatHtml = (res.data.treatments || []).map(function (r) {
         const details = [];
@@ -478,6 +487,7 @@ function loadPatientDetail(patientId, activeTab) {
       $("#assessmentList").html(assessmentHtml);
       $("#treatDynamicFields").html("");
       showTreatSubTab("list");
+      showLabSubTab("list");
       $("#followDynamicFields").html("");
       $("#assessmentDynamicFields").html("");
       showFollowSubTab("list");
@@ -488,7 +498,10 @@ function loadPatientDetail(patientId, activeTab) {
       $(".detail-tab-page").addClass("hidden");
       if (activeTab === "base") $("#detailBaseTab").removeClass("hidden");
       if (activeTab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
-      if (activeTab === "lab") $("#detailLabTab").removeClass("hidden");
+      if (activeTab === "lab") {
+        $("#detailLabTab").removeClass("hidden");
+        showLabSubTab("list");
+      }
       if (activeTab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
       if (activeTab === "treat") $("#detailTreatTab").removeClass("hidden");
       if (activeTab === "follow") $("#detailFollowTab").removeClass("hidden");
@@ -632,11 +645,45 @@ function triggerPhotoChooser() {
   targetInput.click();
 }
 
-function renderLabCategoryActions(patient) {
-  const html = labCategories.map(function (category) {
-    return '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="' + category.key + '" data-label="' + category.label + '">' + category.label + '</button>';
+function normalizeLabCategoryName(value) {
+  value = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  if (!value) return "";
+  if (value.indexOf("血常规") > -1 || value === "blood_routine") return "blood_routine";
+  if (value.indexOf("生化") > -1 || value.indexOf("电解质") > -1 || value === "biochemistry") return "biochemistry";
+  if (value.indexOf("血气") > -1 || value === "blood_gas") return "blood_gas";
+  if (value.indexOf("dic") > -1 || value.indexOf("凝血") > -1 || value === "dic7") return "dic7";
+  if (value.indexOf("bnp") > -1 || value.indexOf("b型钠尿肽") > -1 || value.indexOf("nt-pro") > -1) return "bnp";
+  if (value.indexOf("乳酸") > -1 || value === "lactate" || value === "lac") return "lactate";
+  if (value.indexOf("pct") > -1 || value.indexOf("降钙素原") > -1) return "pct";
+  return "";
+}
+
+function getUploadedLabCategoryKeys(records) {
+  const keys = [];
+  (records || []).forEach(function (record) {
+    const candidates = [record.record_category, record.lab_test_name];
+    candidates.forEach(function (candidate) {
+      const key = normalizeLabCategoryName(candidate);
+      if (key && keys.indexOf(key) === -1) keys.push(key);
+    });
+  });
+  return keys;
+}
+
+function renderLabCategoryActions(patient, records) {
+  const uploadedKeys = getUploadedLabCategoryKeys(records);
+  const missingCategories = labCategories.filter(function (category) {
+    return uploadedKeys.indexOf(category.key) === -1;
+  });
+  const uploadedCount = labCategories.length - missingCategories.length;
+  const summary = missingCategories.length
+    ? '已上传 ' + uploadedCount + '/' + labCategories.length + ' 类检验类别，还缺 ' + missingCategories.length + ' 类：' + missingCategories.map(function (category) { return category.label; }).join('、')
+    : '7类检验类别已全部上传。';
+  $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + summary + '</div>');
+  const html = missingCategories.map(function (category) {
+    return '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="' + category.key + '" data-label="' + category.label + '">上传' + category.label + '</button>';
   }).join('');
-  $("#labCategoryActions").html(html);
+  $("#labCategoryActions").html(html || '<div class="case-meta">无需继续上传检验类别。</div>');
 }
 
 function getLabCategoryLabel(categoryKey) {
@@ -1188,7 +1235,10 @@ $(document).on("click", ".detail-tab", function () {
   $(".detail-tab-page").addClass("hidden");
   if (tab === "base") $("#detailBaseTab").removeClass("hidden");
   if (tab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
-  if (tab === "lab") $("#detailLabTab").removeClass("hidden");
+  if (tab === "lab") {
+    $("#detailLabTab").removeClass("hidden");
+    showLabSubTab("list");
+  }
   if (tab === "assessment") {
     $("#detailAssessmentTab").removeClass("hidden");
     showAssessmentSubTab("list");
@@ -1213,6 +1263,10 @@ $(document).on("click", "#detailFollowTab .inner-tab", function () {
 
 $(document).on("click", "#detailAssessmentTab .inner-tab", function () {
   showAssessmentSubTab(this.getAttribute("data-assessment-tab"));
+});
+
+$(document).on("click", "#detailLabTab .inner-tab", function () {
+  showLabSubTab(this.getAttribute("data-lab-tab"));
 });
 
 $("#addTreatBtn").on("click", function () {

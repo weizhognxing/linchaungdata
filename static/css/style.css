@@ -50,6 +50,8 @@ th { background: #eff6ee; }
 .case-actions { display: flex; gap: 8px; }
 .wrap-actions { flex-wrap: wrap; }
 .case-actions .btn-sm { margin-right: 0; white-space: nowrap; }
+.lab-category-summary { margin-bottom: 10px; }
+.lab-missing-summary { border-color: #dca447; background: #fffaf0; color: #5b3b07; font-weight: 800; }
 .case-group { display: grid; gap: 10px; }
 .case-group-title { font-weight: 900; margin-top: 8px; }
 .compact-form { margin-bottom: 14px; }
