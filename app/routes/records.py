@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import zipfile
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
@@ -113,6 +114,16 @@ def _write_sheet(workbook, title, rows, headers):
     for column_cells in sheet.columns:
         max_length = max(len(str(cell.value or "")) for cell in column_cells)
         sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 36)
+
+
+def _build_single_sheet_workbook(sheet_title, rows, headers):
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    _write_sheet(workbook, sheet_title, rows, headers)
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return output.getvalue()
 
 
 def _fetch_rows_for_patients(cur, table_name, patient_ids, patient_column="patient_id"):
@@ -827,27 +838,27 @@ def export_cases():
                 other_patient_ids = [row["id"] for row in cur.fetchall()]
 
             patient_ids = own_patient_ids + other_patient_ids
-            patient_rows, patient_headers = _fetch_rows_for_patients(cur, "patients", patient_ids, "id")
-            lab_rows, lab_headers = _fetch_rows_for_patients(cur, "lab_records", patient_ids)
-            treatment_rows, treatment_headers = _fetch_rows_for_patients(cur, "treatments", patient_ids)
-            followup_rows, followup_headers = _fetch_rows_for_patients(cur, "followups", patient_ids)
-
-            workbook = Workbook()
-            workbook.remove(workbook.active)
-            _write_sheet(workbook, "病患信息", patient_rows, patient_headers)
-            _write_sheet(workbook, "检验记录", lab_rows, lab_headers)
-            _write_sheet(workbook, "治疗记录", treatment_rows, treatment_headers)
-            _write_sheet(workbook, "随访记录", followup_rows, followup_headers)
+            export_tables = [
+                ("01_病患信息.xlsx", "病患信息", "patients", "id"),
+                ("02_诊断记录.xlsx", "诊断记录", "diagnosis_records", "patient_id"),
+                ("03_检验记录.xlsx", "检验记录", "lab_records", "patient_id"),
+                ("04_评估记录.xlsx", "评估记录", "assessments", "patient_id"),
+                ("05_治疗记录.xlsx", "治疗记录", "treatments", "patient_id"),
+                ("06_随访记录.xlsx", "随访记录", "followups", "patient_id"),
+            ]
 
             output = BytesIO()
-            workbook.save(output)
+            with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+                for filename, sheet_title, table_name, patient_column in export_tables:
+                    rows, headers = _fetch_rows_for_patients(cur, table_name, patient_ids, patient_column)
+                    archive.writestr(filename, _build_single_sheet_workbook(sheet_title, rows, headers))
             output.seek(0)
-            filename = f"case_export_{int(time.time())}.xlsx"
+            filename = f"case_export_{int(time.time())}.zip"
             return send_file(
                 output,
                 as_attachment=True,
                 download_name=filename,
-                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                mimetype="application/zip",
             )
     finally:
         conn.close()
