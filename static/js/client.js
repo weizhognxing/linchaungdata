@@ -7,6 +7,7 @@ let currentUploadMode = "intake";
 let currentUploadPatientId = null;
 let currentRecordCategory = null;
 let currentCategoryLabel = "";
+const saveRecordButtonText = "保存检验记录";
 
 const labCategories = [
   { key: "blood_routine", label: "血常规" },
@@ -613,6 +614,14 @@ function resetRecordForm() {
   $("#dynamicFields").html("");
   $("#recordPanelHint").text("");
   setMsg("recordMsg", "", false);
+  setSaveRecordButtonSaving(false);
+}
+
+function setSaveRecordButtonSaving(saving) {
+  const button = document.getElementById("saveRecordBtn");
+  if (!button) return;
+  button.disabled = !!saving;
+  button.textContent = saving ? "保存中" : saveRecordButtonText;
 }
 
 function openPhotoPanelForIntake() {
@@ -936,6 +945,7 @@ $(document).on("click", ".approve-member-btn", function () {
 });
 
 $("#saveRecordBtn").on("click", function () {
+  if (this.disabled) return;
   const patient = {
     name: $("[name=patient_name]").val(),
     gender: $("[name=patient_gender]").val(),
@@ -947,6 +957,7 @@ $("#saveRecordBtn").on("click", function () {
     setMsg("recordMsg", "请先确认姓名", true);
     return;
   }
+  setSaveRecordButtonSaving(true);
   if (currentUploadMode === "intake") {
     $.ajax({
       url: "/api/patients",
@@ -971,6 +982,7 @@ $("#saveRecordBtn").on("click", function () {
       }
     }).fail(function (xhr) {
       setMsg("recordMsg", xhr.responseJSON?.message || "创建暂存病例失败", true);
+      setSaveRecordButtonSaving(false);
     });
     return;
   }
@@ -997,7 +1009,10 @@ $("#saveRecordBtn").on("click", function () {
       currentUploadPatientId = savedPatientId;
       loadPatientDetail(savedPatientId, "lab");
     }
-  }).fail(function (xhr) { setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true); });
+  }).fail(function (xhr) {
+    setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true);
+    setSaveRecordButtonSaving(false);
+  });
 });
 
 $(document).on("click", ".case-item", function () {
