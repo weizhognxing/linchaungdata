@@ -70,6 +70,9 @@ function showPanel(id) {
   if (id === "memberReviewPanel") {
     loadMemberReviews();
   }
+  if (id === "diseasePanel") {
+    loadDiseases();
+  }
   if (id === "caseListPanel") {
     loadCaseList();
   }
@@ -1003,6 +1006,7 @@ $("#saveRecordBtn").on("click", function () {
     })
   }).done(function (res) {
     setMsg("recordMsg", ($("#labTestName").val() || currentCategoryLabel || "检验") + "上传成功");
+    loadDiseases();
     loadCaseList();
     const savedPatientId = (res.data && res.data.patient_id) || currentUploadPatientId;
     if (savedPatientId) {
