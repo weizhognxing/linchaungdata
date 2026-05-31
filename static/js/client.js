@@ -706,7 +706,7 @@ function autoRecognize() {
 
   showRecognizeProgress(2, 3, "正在调用AI识别...");
 
-  $.ajax({ url: "/api/recognize", method: "POST", data, processData: false, contentType: false })
+  $.ajax({ url: "/api/recognize", method: "POST", data, processData: false, contentType: false, timeout: 190000 })
     .done(function (res) {
       showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
       uploadedPhotoPath = res.data.photo_path;
@@ -737,8 +737,9 @@ function autoRecognize() {
       }, 500);
     })
     .fail(function (xhr) {
-      setMsg("photoMsg", xhr.responseJSON?.message || "识别失败", true);
+      setMsg("photoMsg", xhr.responseJSON?.message || "识别超时或失败，请重新上传识别", true);
       $("#recognizeProgress").addClass("hidden");
+      $("#photoActions").removeClass("hidden");
       $("#previewContainer").removeClass("hidden");
       $("#retryBtn").removeClass("hidden");
     })
