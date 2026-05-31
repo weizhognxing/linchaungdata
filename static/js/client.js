@@ -630,12 +630,12 @@ function openPhotoPanelForIntake() {
 function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
   currentUploadMode = "lab";
   currentUploadPatientId = patientId;
-  currentRecordCategory = categoryKey;
+  currentRecordCategory = null;
   currentCategoryLabel = categoryLabel || "检验";
   initPhotoPanel();
   initPhotoButtons();
-  $("#photoPanelTitle").text("上传" + currentCategoryLabel);
-  setMsg("photoMsg", "选择图片后点击确定，系统会只识别" + currentCategoryLabel + "。", false);
+  $("#photoPanelTitle").text("上传检验单");
+  setMsg("photoMsg", "选择图片后点击确定，系统会提取图片上的实际检验名称和检验指标，不会强制归到七类检验。", false);
   showPanel("photoPanel");
 }
 
@@ -680,10 +680,8 @@ function renderLabCategoryActions(patient, records) {
     ? '已上传 ' + uploadedCount + '/' + labCategories.length + ' 类检验类别，还缺 ' + missingCategories.length + ' 类：' + missingCategories.map(function (category) { return category.label; }).join('、')
     : '7类检验类别已全部上传。';
   $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + summary + '</div>');
-  const html = missingCategories.map(function (category) {
-    return '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="' + category.key + '" data-label="' + category.label + '">上传' + category.label + '</button>';
-  }).join('');
-  $("#labCategoryActions").html(html || '<div class="case-meta">无需继续上传检验类别。</div>');
+  const html = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验">上传检验单</button>';
+  $("#labCategoryActions").html(html);
 }
 
 function getLabCategoryLabel(categoryKey) {

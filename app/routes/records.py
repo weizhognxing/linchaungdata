@@ -182,12 +182,13 @@ def _lab_category_config(category):
 
 def _build_category_prompt(category_config):
     fields = ", ".join(category_config["fields"])
-    return f"""请识别这张{category_config['label']}检验报告图片，提取患者信息和属于该检验类别的检验指标结果。
-如果图片中出现不属于该检验类别的检验指标，请忽略。
-请优先使用以下字段缩写作为 code：{fields}
+    return f"""请识别这张检验报告图片，提取患者信息、图片上的实际检验名称和所有检验指标结果。
+用户可能正在补录“{category_config['label']}”，但图片不一定属于这个类别，请不要强行归类。
+如果图片确实属于“{category_config['label']}”，请优先使用以下字段缩写作为 code：{fields}
+如果图片属于其他检验，请按图片原文或最接近的报告标题填写 lab_test_name，并提取图片中的实际检验指标。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {{
-  "lab_test_name": "{category_config['label']}",
+  "lab_test_name": "图片上的实际检验名称",
   "patient": {{
     "name": "姓名",
     "gender": "性别",
@@ -513,7 +514,6 @@ def recognize():
     lab_test_name = ""
     prompt_text = INTAKE_PROMPT if recognize_mode == "intake" else None
     if recognize_mode == "lab" and record_category:
-        fields = _fields_for_category(fields, record_category)
         category_config = _lab_category_config(record_category)
         if category_config:
             prompt_text = _build_category_prompt(category_config)
