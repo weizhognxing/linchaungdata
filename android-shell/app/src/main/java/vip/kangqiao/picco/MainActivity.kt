@@ -2,10 +2,15 @@ package vip.kangqiao.picco
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.webkit.CookieManager
+import android.webkit.URLUtil
 import android.provider.MediaStore
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -84,6 +89,9 @@ class MainActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
             }
         }
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            downloadFile(url, userAgent, contentDisposition, mimeType)
+        }
 
         webView.loadUrl(BuildConfig.WEB_URL)
     }
@@ -104,6 +112,24 @@ class MainActivity : AppCompatActivity() {
             putExtra(MediaStore.EXTRA_OUTPUT, imageUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+    }
+
+    private fun downloadFile(url: String, userAgent: String?, contentDisposition: String?, mimeType: String?) {
+        try {
+            val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
+            val request = DownloadManager.Request(Uri.parse(url)).apply {
+                setMimeType(mimeType)
+                addRequestHeader("User-Agent", userAgent ?: "")
+                addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            }
+            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            manager.enqueue(request)
+            Toast.makeText(this, "导出文件已开始下载", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "导出文件下载失败", Toast.LENGTH_SHORT).show()
         }
     }
 }

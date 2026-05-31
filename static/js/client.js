@@ -1057,7 +1057,16 @@ $(document).on("click", "#innerBackBtn", function () {
 });
 
 $(document).on("click", "#exportCasesBtn", function () {
+  const button = this;
+  button.disabled = true;
+  button.textContent = "导出中";
+  setMsg("caseListMsg", "正在准备导出文件，请稍候...", false);
   window.location.href = "/api/cases/export";
+  setTimeout(function () {
+    button.disabled = false;
+    button.textContent = "导出数据";
+    setMsg("caseListMsg", "", false);
+  }, 3000);
 });
 
 $(document).on("click", "#saveBaseInfoBtn", function () {
