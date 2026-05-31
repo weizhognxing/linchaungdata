@@ -31,7 +31,7 @@ function initPhotoButtons() {
     $("#uploadBtn").removeClass("hidden");
     $("#photoActions").removeClass("single-btn");
   } else {
-    $("#photoPanelTitle").text("上传检验单");
+    $("#photoPanelTitle").text("上传检验图片");
     $("#takePhotoBtn").addClass("hidden");
     $("#uploadBtn").removeClass("hidden");
     $("#photoActions").addClass("single-btn");
@@ -434,11 +434,11 @@ function loadPatientDetail(patientId, activeTab) {
       setMsg("baseInfoMsg", "", false);
 
       const labHtml = (res.data.lab_records || []).map(function (r) {
-        const categoryText = r.record_category ? ' ｜ 类别：' + getLabCategoryLabel(r.record_category) : '';
-        const testNameText = r.lab_test_name ? ' ｜ 检验项目：' + r.lab_test_name : '';
+        const categoryText = r.record_category ? ' ｜ 检验类别：' + getLabCategoryLabel(r.record_category) : '';
+        const testNameText = r.lab_test_name ? ' ｜ 检验类别：' + r.lab_test_name : '';
         return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
           (r.created_at || '-') + ' ｜ ' + (r.disease_name || '-') + categoryText + testNameText + ' ｜ 录入人：' + (r.operator_name || '-') +
-          '<div class="case-meta">点击查看检验单详情</div>' +
+          '<div class="case-meta">点击查看检验详情</div>' +
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
@@ -504,7 +504,7 @@ function loadLabRecordDetail(recordId) {
   $.getJSON("/api/records/" + recordId)
     .done(function (res) {
       if (!res.success) {
-        setMsg("labReportMsg", "检验单加载失败", true);
+        setMsg("labReportMsg", "检验详情加载失败", true);
         showPanel("labReportPanel");
         return;
       }
@@ -513,7 +513,7 @@ function loadLabRecordDetail(recordId) {
       $("#labReportMeta").html(
         '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 登记号：' + (record.id_number || '-') + '</div>' +
-        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验项目：' + (record.lab_test_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
+        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验类别：' + (record.lab_test_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
         '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
       );
       const items = res.data.items || [];
@@ -527,12 +527,12 @@ function loadLabRecordDetail(recordId) {
           '<div class="report-item-head"><span>' + (item.form_label || item.field_name) + '</span><span class="report-value">' + value + unit + '</span></div>' +
           (extras.length ? '<div class="report-extra">' + extras.join(' ｜ ') + '</div>' : '') +
           '</div>';
-      }).join('') || '<div class="detail-item">暂无检验数据</div>';
+      }).join('') || '<div class="detail-item">暂无检验指标</div>';
       $("#labReportItems").html(html);
       showPanel("labReportPanel");
     })
     .fail(function (xhr) {
-      setMsg("labReportMsg", xhr.responseJSON?.message || "检验单加载失败", true);
+      setMsg("labReportMsg", xhr.responseJSON?.message || "检验详情加载失败", true);
       showPanel("labReportPanel");
     });
 }
@@ -609,8 +609,8 @@ function openPhotoPanelForIntake() {
   currentCategoryLabel = "检验";
   initPhotoPanel();
   initPhotoButtons();
-  $("#photoPanelTitle").text("拍照上传检验单");
-  setMsg("photoMsg", "选择图片后会同时识别患者基础信息和当前疾病需要填写的检验内容。", false);
+  $("#photoPanelTitle").text("拍照上传检验图片");
+  setMsg("photoMsg", "选择图片后会同时识别患者基础信息和当前疾病需要填写的检验指标。", false);
   showPanel("photoPanel");
 }
 
@@ -721,13 +721,13 @@ function autoRecognize() {
 
       if (currentUploadMode === "intake") {
         $("#recordPanelTitle").text("确认基础信息");
-        $("#recordPanelHint").text("当前步骤仅提取患者基础信息，确认后会创建暂存病例。后续请在病例中继续上传各项检验内容。");
+        $("#recordPanelHint").text("当前步骤仅提取患者基础信息，确认后会创建暂存病例。后续请在病例中继续上传各项检验指标。");
         $("#labFieldsSection").addClass("hidden");
         $("#saveRecordBtn").text("创建暂存病例");
       } else {
         $("#labTestName").val(res.data.lab_test_name || res.data.category_label || currentCategoryLabel || "");
-        $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验数据"));
-        $("#recordPanelHint").text("确认无误后保存当前类别，保存成功会返回病例详情。")
+        $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
+        $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。")
         $("#labFieldsSection").removeClass("hidden");
         $("#saveRecordBtn").text("保存" + (currentCategoryLabel || "检验"));
       }

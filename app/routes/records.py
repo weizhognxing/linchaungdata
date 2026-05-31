@@ -66,10 +66,10 @@ LAB_CATEGORY_DEFINITIONS = {
     },
 }
 
-INTAKE_PROMPT = """请识别这张检验单或病历图片中的患者基础信息，仅返回基础信息，不要提取检验项目。
+INTAKE_PROMPT = """请识别这张检验图片或病历图片中的患者基础信息，仅返回基础信息，不要提取检验指标。
 请严格按照以下 JSON 格式返回，只返回 JSON，不要其他内容：
 {
-  "lab_test_name": "本次图片对应的检验项目名称，例如患者基础信息/入院记录",
+  "lab_test_name": "本次图片对应的检验类别，例如患者基础信息/入院记录",
   "patient": {
     "name": "姓名",
     "gender": "性别",
@@ -182,8 +182,8 @@ def _lab_category_config(category):
 
 def _build_category_prompt(category_config):
     fields = ", ".join(category_config["fields"])
-    return f"""请识别这张{category_config['label']}检验报告图片，提取患者信息和属于该类别的检验项目结果。
-如果图片中出现不属于该类别的项目，请忽略。
+    return f"""请识别这张{category_config['label']}检验报告图片，提取患者信息和属于该检验类别的检验指标结果。
+如果图片中出现不属于该检验类别的检验指标，请忽略。
 请优先使用以下字段缩写作为 code：{fields}
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {{
@@ -196,7 +196,7 @@ def _build_category_prompt(category_config):
     "id_number": "登记号"
   }},
   "items": [
-    {{"name": "中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}}
+    {{"name": "检验指标中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}}
   ]
 }}"""
 
@@ -294,7 +294,7 @@ def _required_lab_tests_completed(cur, patient_id):
     if not names:
         return False
 
-    prompt = """你是临床检验项目分类助手。请判断下面“已完成的检验名称”中，是否已经覆盖全部七类必需检验：血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
+    prompt = """你是临床检验类别判断助手。请判断下面“已完成的检验类别”中，是否已经覆盖全部七类必需检验类别：血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
 判断规则：
 1. 名称可能带有编码或前缀，例如“JY2625.B型钠尿肽”，应理解为 BNP。
 2. BNP 的同义名称包括：BNP、B型钠尿肽、N端B型钠尿肽、NT-proBNP、NT-pro BNP。
@@ -342,6 +342,49 @@ def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
         updates.append("updated_at=NOW()")
     cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", (patient_id,))
     return True
+
+
+def _find_existing_patient_for_lab(cur, current_user, patient, patient_columns):
+    conditions = ["name=%s", "IFNULL(gender,'')=%s", "IFNULL(age,'')=%s"]
+    params = [patient.get("name"), patient.get("gender", ""), patient.get("age") or ""]
+    if "hospital_id" in patient_columns:
+        conditions.insert(0, "hospital_id=%s")
+        params.insert(0, current_user["hospital_id"])
+    cur.execute(
+        f"SELECT id FROM patients WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1",
+        params,
+    )
+    row = cur.fetchone()
+    return row["id"] if row else None
+
+
+def _find_duplicate_lab_record(cur, patient_id, existing_columns, record_category, lab_test_name, photo_path, record_values):
+    if photo_path and "photo_path" in existing_columns:
+        cur.execute(
+            "SELECT id FROM lab_records WHERE patient_id=%s AND photo_path=%s LIMIT 1",
+            (patient_id, photo_path),
+        )
+        row = cur.fetchone()
+        if row:
+            return row["id"]
+
+    conditions = ["patient_id=%s"]
+    params = [patient_id]
+    if "record_category" in existing_columns:
+        conditions.append("IFNULL(record_category,'')=%s")
+        params.append(record_category or "")
+    if "lab_test_name" in existing_columns:
+        conditions.append("IFNULL(lab_test_name,'')=%s")
+        params.append(lab_test_name or "")
+    for field, value in record_values.items():
+        conditions.append(f"IFNULL(`{field.replace('`', '``')}`,'')=%s")
+        params.append(value or "")
+    cur.execute(
+        f"SELECT id FROM lab_records WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1",
+        params,
+    )
+    row = cur.fetchone()
+    return row["id"] if row else None
 
 
 @records_bp.get("/api/diseases")
@@ -578,27 +621,9 @@ def save_record():
                 params.append(patient_id)
                 cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
             else:
-                if "hospital_id" in patient_columns:
-                    cur.execute(
-                        """
-                        SELECT id FROM patients
-                        WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s
-                        LIMIT 1
-                        """,
-                        (current_user["hospital_id"], patient.get("name"), patient.get("phone", "")),
-                    )
-                else:
-                    cur.execute(
-                        """
-                        SELECT id FROM patients
-                        WHERE name=%s AND IFNULL(phone,'')=%s
-                        LIMIT 1
-                        """,
-                        (patient.get("name"), patient.get("phone", "")),
-                    )
-                row = cur.fetchone()
-                if row:
-                    patient_id = row["id"]
+                existing_patient_id = _find_existing_patient_for_lab(cur, current_user, patient, patient_columns)
+                if existing_patient_id:
+                    patient_id = existing_patient_id
                 else:
                     patient_insert = {
                         "name": patient.get("name"),
@@ -622,6 +647,18 @@ def save_record():
                         list(patient_insert.values()),
                     )
                     patient_id = cur.lastrowid
+
+            duplicate_record_id = _find_duplicate_lab_record(
+                cur,
+                patient_id,
+                existing_columns,
+                record_category,
+                lab_test_name,
+                data.get("photo_path"),
+                record_values,
+            )
+            if duplicate_record_id:
+                return ok({"record_id": duplicate_record_id, "patient_id": patient_id, "duplicate": True}, "本次检验指标已存在，未重复保存")
 
             columns = ["patient_id", "user_id", "disease_id", "photo_path", "ai_raw"]
             params = [patient_id, session["user_id"], disease_id, data.get("photo_path"), data.get("ai_raw")]

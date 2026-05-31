@@ -217,10 +217,10 @@ def recognize_image(image_path, prompt_text=None):
         "Authorization": f"Bearer {ai_config.AI_API_KEY}",
     }
 
-    prompt = prompt_text or """请识别这张检验报告图片，提取患者信息和所有检验项目结果。
+    prompt = prompt_text or """请识别这张检验报告图片，提取患者信息和所有检验指标结果。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {
-  "lab_test_name": "这张检验单的检验项目名称，例如血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT、糖化血红蛋白等",
+  "lab_test_name": "这张检验图片的检验类别，例如血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT、糖化血红蛋白等",
   "patient": {
     "name": "姓名",
     "gender": "性别",
@@ -229,7 +229,7 @@ def recognize_image(image_path, prompt_text=None):
     "id_number": "身份证号或住院号"
   },
   "items": [
-    {"name": "中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}
+    {"name": "检验指标中文名称", "code": "英文缩写", "value": "结果值", "unit": "单位", "reference": "参考区间", "abnormal": "↑/↓/正常"}
   ]
 }"""
 

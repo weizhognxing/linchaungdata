@@ -100,7 +100,7 @@
     </section>
 
     <section id="recordPanel" class="panel hidden">
-      <h2 id="recordPanelTitle">校对检验数据</h2>
+      <h2 id="recordPanelTitle">校对检验指标</h2>
       <p id="recordPanelHint" class="hint"></p>
       <div class="subhead">病患信息</div>
       <div class="grid two">
@@ -111,11 +111,11 @@
         <input name="patient_id_number" placeholder="登记号">
       </div>
       <div id="labFieldsSection">
-        <div class="subhead">检验单信息</div>
+        <div class="subhead">检验类别</div>
         <div class="grid two">
-          <input id="labTestName" placeholder="检验项目名称，例如血常规">
+          <input id="labTestName" placeholder="检验类别，例如血常规">
         </div>
-        <div class="subhead">检验项目</div>
+        <div class="subhead">检验指标</div>
         <div id="dynamicFields" class="grid two"></div>
       </div>
       <button id="saveRecordBtn">保存检验记录</button>
@@ -246,7 +246,7 @@
 
     <section id="labReportPanel" class="panel hidden lab-report-panel">
       <div class="report-topbar">
-        <h2>检验单详情</h2>
+        <h2>检验详情</h2>
       </div>
       <div id="labReportMeta" class="patient-profile"></div>
       <div id="labReportItems" class="report-list"></div>
@@ -301,12 +301,12 @@
     <div class="blocking-card">
       <div class="blocking-spinner"></div>
       <strong>不要离开界面，请等待识别完成</strong>
-      <p>AI 正在识别检验单，完成前请不要返回、刷新或点击其他按钮。</p>
+      <p>AI 正在识别检验图片，完成前请不要返回、刷新或点击其他按钮。</p>
     </div>
   </div>
 
   <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/client-care-forms.js?v=20260524f"></script>
-  <script src="/static/js/client.js?v=20260524f"></script>
+  <script src="/static/js/client-care-forms.js?v=20260524g"></script>
+  <script src="/static/js/client.js?v=20260524g"></script>
 </body>
 </html>
