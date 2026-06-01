@@ -267,10 +267,10 @@ def _patient_is_complete(cur, patient_id, patient_columns=None):
 
 
 def _missing_case_completion_items(cur, patient_id):
-    cur.execute("SELECT name, gender, age, id_number FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+    cur.execute("SELECT name, gender, age FROM patients WHERE id=%s LIMIT 1", (patient_id,))
     patient = cur.fetchone() or {}
     missing = []
-    if required(patient, ["name", "gender", "age", "id_number"]):
+    if required(patient, ["name", "gender", "age"]):
         missing.append("基础信息")
 
     required_tables = [
@@ -1198,9 +1198,9 @@ def update_patient(patient_id):
         field in data for field in {"diagnosis_disease", "medical_history", "preliminary_diagnosis"}
     )
     if not is_diagnosis_update:
-        required_fields = ["name", "gender", "age", "id_number"]
+        required_fields = ["name", "gender", "age"]
         if required(data, required_fields):
-            return fail("请填写姓名、性别、年龄、病历号")
+            return fail("请填写姓名、性别、年龄")
 
     conn = db()
     try:

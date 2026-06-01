@@ -451,7 +451,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
         { field_name: 'gender', form_label: '性别', value: patient.gender, required: true },
         { field_name: 'age', form_label: '年龄', value: patient.age, required: true, type: 'number' },
-        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: true }
+        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: false }
       ].concat(patientFields.filter(function (f) {
         const duplicateLabels = ["登记号", "病历号", "联系电话", "电话", "手机号码"];
         return diagnosisFieldNames.indexOf(f.field_name) === -1 && duplicateLabels.indexOf(f.form_label) === -1;
@@ -1216,7 +1216,10 @@ $(document).on("click", "#saveBaseInfoBtn", function () {
   let missingFields = [];
   $("#baseInfoList .base-info-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
-    if (!$(this).val()) missingFields.push($(this).prev("label").text().replace(" *", ""));
+    const fieldName = this.getAttribute("data-field");
+    if (["name", "gender", "age"].indexOf(fieldName) > -1 && !$(this).val()) {
+      missingFields.push($(this).prev("label").text().replace(" *", ""));
+    }
   });
   if (missingFields.length) {
     setMsg("baseInfoMsg", "请填写：" + missingFields.join("、"), true);
