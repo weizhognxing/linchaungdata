@@ -18,16 +18,20 @@ from app.services.core import ask_ai_yes_no, get_fields_for_disease, parse_ai_re
 
 records_bp = Blueprint("records", __name__)
 
-DIAGNOSIS_DISEASE_OPTIONS = {"脓毒症部位", "重症胰腺炎", "心源性休克/心脏骤停", "中毒", "脑损伤", "多发伤", "胸部创伤"}
+DIAGNOSIS_DISEASE_OPTIONS = {"脓毒症", "重症肺炎", "心肺复苏后", "急性坏死性胰腺炎", "消化道出血", "中毒", "心源性休克/心衰", "脑卒中", "多发伤", "颅脑损伤", "胸部损伤"}
 MEDICAL_HISTORY_OPTIONS = {"无", "糖尿病", "乙肝/肝硬化", "肾衰", "肝衰", "冠心病", "COPD", "高血压"}
 DIAGNOSIS_SUBCATEGORY_OPTIONS = {
-    "脓毒症部位": {"肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"},
-    "重症胰腺炎": set(),
-    "心源性休克/心脏骤停": {"1心肌梗塞", "2心衰", "3.心肌炎", "4.急性瓣膜病变", "5电传导病变"},
+    "脓毒症": {"肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"},
+    "重症肺炎": set(),
+    "心肺复苏后": set(),
+    "急性坏死性胰腺炎": set(),
+    "消化道出血": set(),
     "中毒": {"有机磷中毒", "CO中毒", "蘑菇中毒", "杀虫剂/除草剂中毒", "药物中毒"},
-    "脑损伤": {"大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑梗塞", "脑干出血", "热射病"},
+    "心源性休克/心衰": {"1心肌梗塞", "2心衰", "3.心肌炎", "4.急性瓣膜病变", "5电传导病变"},
+    "脑卒中": {"脑梗塞", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑干出血"},
     "多发伤": {"颅脑损伤", "胸部创伤", "腹部创伤", "四肢损伤", "脊柱损伤"},
-    "胸部创伤": {"连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"},
+    "颅脑损伤": {"大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "热射病"},
+    "胸部损伤": {"连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"},
 }
 
 LAB_CATEGORY_DEFINITIONS = {
@@ -70,13 +74,13 @@ LAB_CATEGORY_DEFINITIONS = {
 INTAKE_PROMPT = """请识别这张检验图片或病历图片中的患者基础信息，仅返回基础信息，不要提取检验指标。
 请严格按照以下 JSON 格式返回，只返回 JSON，不要其他内容：
 {
-  "lab_test_name": "本次图片对应的检验类别，例如患者基础信息/入院记录",
+  "lab_test_name": "患者基础信息",
   "patient": {
     "name": "姓名",
     "gender": "性别",
     "age": "年龄",
-    "phone": "电话",
-    "id_number": "登记号"
+    "phone": "",
+    "id_number": ""
   },
   "items": []
 }"""
@@ -250,6 +254,16 @@ def _patient_is_accessible(cur, patient_id, current_user, patient_columns=None):
             (patient_id, current_user["hospital_id"]),
         )
     return cur.fetchone() is not None
+
+
+def _patient_is_complete(cur, patient_id, patient_columns=None):
+    patient_columns = patient_columns or _patient_columns(cur)
+    status_fields = [field for field in ("case_status", "case_integrity") if field in patient_columns]
+    if not status_fields:
+        return False
+    cur.execute(f"SELECT {','.join(status_fields)} FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+    patient = cur.fetchone() or {}
+    return patient.get("case_status") == "submitted" or patient.get("case_integrity") in {"complete", "submitted"}
 
 
 def _missing_case_completion_items(cur, patient_id):
@@ -607,6 +621,8 @@ def save_record():
                 patient_id = int(patient_id)
                 if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
                     return fail("病人不存在", 404)
+                if _patient_is_complete(cur, patient_id, patient_columns):
+                    return fail("完整记录已提交，不能修改")
                 updates = []
                 params = []
                 if patient.get("name"):
@@ -932,6 +948,7 @@ def cases():
 def create_patient():
     data = request.get_json(silent=True) or request.form.to_dict()
     require_age = str(data.get("require_age") or "1") != "0"
+    require_id_number = str(data.get("require_id_number") or "1") != "0"
     patient = {
         "name": (data.get("name") or "").strip(),
         "gender": (data.get("gender") or "").strip(),
@@ -939,11 +956,14 @@ def create_patient():
         "phone": (data.get("phone") or "").strip(),
         "id_number": (data.get("id_number") or "").strip(),
     }
-    required_fields = ["name", "gender", "id_number"]
+    required_fields = ["name", "gender"]
     if require_age:
         required_fields.append("age")
+    if require_id_number:
+        required_fields.append("id_number")
     if required(patient, required_fields):
-        return fail("请填写姓名、性别、登记号" + ("、年龄" if require_age else ""))
+        missing_text = "姓名、性别" + ("、年龄" if require_age else "") + ("、登记号" if require_id_number else "")
+        return fail("请填写" + missing_text)
 
     conn = db()
     try:
@@ -1192,6 +1212,8 @@ def update_patient(patient_id):
             patient_columns = _patient_columns(cur)
             if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
                 return fail("病人不存在", 404)
+            if _patient_is_complete(cur, patient_id, patient_columns):
+                return fail("完整记录已提交，不能修改")
 
             allowed_fields = {"name", "gender", "age", "phone", "id_number"}
             cur.execute("SELECT field_name FROM patient_field_settings WHERE enabled=1")
@@ -1259,6 +1281,68 @@ def update_patient(patient_id):
         conn.close()
 
 
+@records_bp.delete("/api/patients/<int:patient_id>/diagnosis-records/<int:diagnosis_record_id>")
+@require_user
+def delete_diagnosis_record(patient_id, diagnosis_record_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            if not _patient_is_accessible(cur, patient_id, current_user):
+                return fail("病人不存在", 404)
+            if _patient_is_complete(cur, patient_id):
+                return fail("完整记录已提交，不能修改")
+            if not _table_exists(cur, "diagnosis_records"):
+                return fail("诊断记录表不存在", 404)
+            cur.execute("SELECT id FROM diagnosis_records WHERE id=%s AND patient_id=%s LIMIT 1", (diagnosis_record_id, patient_id))
+            if not cur.fetchone():
+                return fail("诊断记录不存在", 404)
+
+            related_tables = [("treatments", "治疗"), ("followups", "随访"), ("assessments", "评估"), ("lab_records", "检验")]
+            blocked = []
+            for table_name, label in related_tables:
+                if not _table_exists(cur, table_name):
+                    continue
+                cur.execute(f"SHOW COLUMNS FROM `{table_name}`")
+                columns = {row["Field"] for row in cur.fetchall()}
+                if "diagnosis_record_id" not in columns:
+                    if table_name == "lab_records" and "patient_id" in columns:
+                        cur.execute(f"SELECT COUNT(*) AS total FROM `{table_name}` WHERE patient_id=%s", (patient_id,))
+                        if int((cur.fetchone() or {}).get("total") or 0) > 0:
+                            blocked.append(label)
+                    continue
+                cur.execute(f"SELECT COUNT(*) AS total FROM `{table_name}` WHERE diagnosis_record_id=%s", (diagnosis_record_id,))
+                if int((cur.fetchone() or {}).get("total") or 0) > 0:
+                    blocked.append(label)
+            if blocked:
+                return fail("该诊断已有对应的" + "、".join(blocked) + "数据，不能删除")
+            cur.execute("DELETE FROM diagnosis_records WHERE id=%s AND patient_id=%s", (diagnosis_record_id, patient_id))
+        conn.commit()
+        return ok(message="诊断记录已删除")
+    finally:
+        conn.close()
+
+
+@records_bp.get("/api/patients/<int:patient_id>/completion-missing")
+@require_user
+def case_completion_missing(patient_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            if not _patient_is_accessible(cur, patient_id, current_user):
+                return fail("病人不存在", 404)
+            if _patient_is_complete(cur, patient_id):
+                return fail("完整记录已提交，不能修改")
+            return ok({"missing": _missing_case_completion_items(cur, patient_id)})
+    finally:
+        conn.close()
+
+
 @records_bp.post("/api/patients/<int:patient_id>/treatments")
 @require_user
 def add_treatment(patient_id):
@@ -1278,6 +1362,8 @@ def add_treatment(patient_id):
                 return fail("用户不存在", 404)
             if not _patient_is_accessible(cur, patient_id, current_user):
                 return fail("病人不存在", 404)
+            if _patient_is_complete(cur, patient_id):
+                return fail("完整记录已提交，不能修改")
             if not _table_exists(cur, "diagnosis_records"):
                 return fail("诊断记录表不存在，请先执行 ensure_diagnosis_records.sql")
 
@@ -1373,8 +1459,10 @@ def add_followup(patient_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
     follow_time = (payload.get("follow_time") or "").strip()
     diagnosis_record_id = payload.get("diagnosis_record_id")
-    if not follow_time or not diagnosis_record_id:
-        return fail("请选择诊断记录并填写随访时间")
+    if not diagnosis_record_id:
+        return fail("请选择诊断记录")
+    if not follow_time:
+        follow_time = datetime.now().strftime("%Y-%m-%dT%H:%M")
 
     conn = db()
     try:
@@ -1384,6 +1472,8 @@ def add_followup(patient_id):
                 return fail("用户不存在", 404)
             if not _patient_is_accessible(cur, patient_id, current_user):
                 return fail("病人不存在", 404)
+            if _patient_is_complete(cur, patient_id):
+                return fail("完整记录已提交，不能修改")
 
             if _table_exists(cur, "diagnosis_records"):
                 cur.execute(

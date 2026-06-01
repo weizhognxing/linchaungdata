@@ -8,6 +8,9 @@ let currentUploadPatientId = null;
 let currentRecordCategory = null;
 let currentCategoryLabel = "";
 const saveRecordButtonText = "保存检验记录";
+const photoTargetBytes = 100 * 1024;
+const photoTargetMaxBytes = 115 * 1024;
+let fileSelectToken = 0;
 
 const labCategories = [
   { key: "blood_routine", label: "血常规" },
@@ -128,9 +131,7 @@ function getCaseIntegrity(item) {
 }
 
 function openNewCaseForm() {
-  showPanel("caseListPanel");
-  $("#newCasePanel").removeClass("hidden");
-  setMsg("newCaseMsg", "", false);
+  showPanel("diseasePanel");
 }
 
 function resetNewCaseForm() {
@@ -145,6 +146,7 @@ function renderDiagnosisRecordLists(records) {
     const detail = record.preliminary_diagnosis ? '<div class="case-meta">' + record.preliminary_diagnosis + '</div>' : '';
     return '<div class="detail-item">' +
       '<strong>' + (record.diagnosis_disease || '-') + '</strong>' +
+      '<button type="button" class="btn-sm secondary delete-diagnosis-btn" data-id="' + record.id + '">删除</button>' +
       '<div class="case-meta">诊断时间：' + (record.diagnosis_time || '-') + '</div>' +
       detail +
       '</div>';
@@ -231,13 +233,17 @@ function collectTreatmentOptionDetails(field, selected) {
 
 const diagnosisFieldNames = ["diagnosis", "diagnosis_disease", "medical_history", "preliminary_diagnosis"];
 const diagnosisSubcategoryOptions = {
-  "脓毒症部位": ["肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"],
-  "重症胰腺炎": [],
-  "心源性休克/心脏骤停": ["1心肌梗塞", "2心衰", "3.心肌炎", "4.急性瓣膜病变", "5电传导病变"],
+  "脓毒症": ["肺部", "腹部", "心血管/血液", "泌尿系", "脑部", "软组织", "不详"],
+  "重症肺炎": [],
+  "心肺复苏后": [],
+  "急性坏死性胰腺炎": [],
+  "消化道出血": [],
   "中毒": ["有机磷中毒", "CO中毒", "蘑菇中毒", "杀虫剂/除草剂中毒", "药物中毒"],
-  "脑损伤": ["大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑梗塞", "脑干出血", "热射病"],
+  "心源性休克/心衰": ["1心肌梗塞", "2心衰", "3.心肌炎", "4.急性瓣膜病变", "5电传导病变"],
+  "脑卒中": ["脑梗塞", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑干出血"],
   "多发伤": ["颅脑损伤", "胸部创伤", "腹部创伤", "四肢损伤", "脊柱损伤"],
-  "胸部创伤": ["连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"]
+  "颅脑损伤": ["大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "热射病"],
+  "胸部损伤": ["连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"]
 };
 function showTreatSubTab(tab) {
   tab = tab || "list";
@@ -413,7 +419,7 @@ function normalizeMedicalHistorySelection(changedValue) {
   }
 }
 
-function loadPatientDetail(patientId, activeTab) {
+function loadPatientDetail(patientId, activeTab, subTab) {
   activeTab = activeTab || "base";
   $.getJSON("/api/patients/" + patientId)
     .done(function (res) {
@@ -435,7 +441,11 @@ function loadPatientDetail(patientId, activeTab) {
         '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 记录完整性：' + (getCaseIntegrity(patient) === 'complete' ? '完整记录' : '暂存记录') + '</div>'
       );
       $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
-      setMsg("patientDetailMsg", getCaseIntegrity(patient) === 'complete' ? '当前病例为完整记录。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。', false);
+      const isCompleteCase = getCaseIntegrity(patient) === 'complete';
+      $("#saveBaseInfoBtn, #saveDiagnosisBtn, #addAssessmentBtn, #addTreatBtn, #addFollowBtn").toggleClass("hidden", isCompleteCase);
+      $("#detailLabTab .inner-tab[data-lab-tab=add], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add]").toggleClass("hidden", isCompleteCase);
+      $(".delete-diagnosis-btn").toggleClass("hidden", isCompleteCase);
+      setMsg("patientDetailMsg", isCompleteCase ? '当前病例为完整记录，提交后不能修改。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。所有基础信息均需真实填写。', false);
 
       const baseFields = [
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
@@ -445,10 +455,10 @@ function loadPatientDetail(patientId, activeTab) {
       ].concat(patientFields.filter(function (f) {
         const duplicateLabels = ["登记号", "病历号", "联系电话", "电话", "手机号码"];
         return diagnosisFieldNames.indexOf(f.field_name) === -1 && duplicateLabels.indexOf(f.form_label) === -1;
-      }));
+      }).map(function (f) { f.required = true; return f; }));
       const baseHtml = baseFields.map(function (f) {
         return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
-          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + (f.type || 'text') + '" value="' + attrValue(f.value) + '" placeholder="' + f.form_label + '"></div>';
+          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + (f.type || 'text') + '" value="' + attrValue(f.value) + '" placeholder="' + f.form_label + '"' + (isCompleteCase ? ' disabled' : '') + '></div>';
       }).join('') || '<div class="detail-item">暂无基础信息</div>';
       $("#baseInfoList").html(baseHtml);
       setMsg("baseInfoMsg", "", false);
@@ -511,7 +521,7 @@ function loadPatientDetail(patientId, activeTab) {
       if (activeTab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
       if (activeTab === "lab") {
         $("#detailLabTab").removeClass("hidden");
-        showLabSubTab("list");
+        showLabSubTab(subTab || "list");
       }
       if (activeTab === "assessment") $("#detailAssessmentTab").removeClass("hidden");
       if (activeTab === "treat") $("#detailTreatTab").removeClass("hidden");
@@ -605,6 +615,7 @@ function initPhotoPanel() {
   $("#retryBtn").addClass("hidden");
   $("#photoMsg").text("");
   $("#previewImage").attr("src", "");
+  $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
   document.getElementById("photoInputCamera").value = "";
   document.getElementById("photoInputFile").value = "";
 }
@@ -617,6 +628,87 @@ function showPreview(file) {
     $("#previewContainer").removeClass("hidden");
   };
   reader.readAsDataURL(file);
+}
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return "-";
+  return Math.round(bytes / 1024) + "KB";
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise(function (resolve) {
+    canvas.toBlob(resolve, "image/jpeg", quality);
+  });
+}
+
+function loadImageFromFile(file) {
+  return new Promise(function (resolve, reject) {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = function () {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = function () {
+      URL.revokeObjectURL(url);
+      reject(new Error("图片读取失败"));
+    };
+    image.src = url;
+  });
+}
+
+function makeCompressedFile(blob, sourceFile) {
+  const baseName = String(sourceFile.name || "lab-photo").replace(/\.[^.]+$/, "");
+  try {
+    return new File([blob], baseName + ".jpg", { type: "image/jpeg", lastModified: Date.now() });
+  } catch (err) {
+    blob.name = baseName + ".jpg";
+    return blob;
+  }
+}
+
+async function compressImageToTarget(file) {
+  if (!file || !String(file.type || "").startsWith("image/")) return file;
+  if (file.size <= photoTargetMaxBytes) return file;
+
+  const image = await loadImageFromFile(file);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) return file;
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const maxSide = Math.max(sourceWidth, sourceHeight);
+  let bestBlob = null;
+
+  for (let scale = 1; scale >= 0.35; scale -= 0.1) {
+    const sideScale = Math.min(1, 1700 / maxSide) * scale;
+    canvas.width = Math.max(1, Math.round(sourceWidth * sideScale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * sideScale));
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let low = 0.45;
+    let high = 0.92;
+    let candidate = null;
+    for (let i = 0; i < 7; i++) {
+      const quality = (low + high) / 2;
+      const blob = await canvasToBlob(canvas, quality);
+      if (!blob) break;
+      if (!bestBlob || Math.abs(blob.size - photoTargetBytes) < Math.abs(bestBlob.size - photoTargetBytes)) {
+        bestBlob = blob;
+      }
+      if (blob.size > photoTargetMaxBytes) {
+        high = quality;
+      } else {
+        candidate = blob;
+        low = quality;
+      }
+    }
+    if (candidate) return makeCompressedFile(candidate, file);
+  }
+
+  return bestBlob ? makeCompressedFile(bestBlob, file) : file;
 }
 
 function resetRecordForm() {
@@ -635,14 +727,14 @@ function setSaveRecordButtonSaving(saving) {
 }
 
 function openPhotoPanelForIntake() {
-  currentUploadMode = "lab";
+  currentUploadMode = "intake";
   currentUploadPatientId = null;
   currentRecordCategory = null;
   currentCategoryLabel = "检验";
   initPhotoPanel();
   initPhotoButtons();
-  $("#photoPanelTitle").text("拍照上传检验图片");
-  setMsg("photoMsg", "选择图片后会同时识别患者基础信息和当前疾病需要填写的检验指标。", false);
+  $("#photoPanelTitle").text("拍照新建病例");
+  setMsg("photoMsg", "选择图片后仅识别姓名、性别、年龄，用于新建暂存病例。", false);
   showPanel("photoPanel");
 }
 
@@ -763,7 +855,7 @@ function autoRecognize() {
 
   var data = new FormData();
   data.append("disease_id", selectedDiseaseId);
-  data.append("photo", selectedFile);
+  data.append("photo", selectedFile, selectedFile.name || "lab-photo.jpg");
   data.append("mode", currentUploadMode);
   if (currentRecordCategory) data.append("record_category", currentRecordCategory);
   if (currentUploadPatientId) data.append("patient_id", currentUploadPatientId);
@@ -785,10 +877,12 @@ function autoRecognize() {
 
       if (currentUploadMode === "intake") {
         $("#recordPanelTitle").text("确认基础信息");
-        $("#recordPanelHint").text("当前步骤仅提取患者基础信息，确认后会创建暂存病例。后续请在病例中继续上传各项检验指标。");
+        $("#recordPanelHint").text("当前步骤仅提取姓名、性别、年龄，确认后会创建暂存病例。后续请在病例中继续补录基础信息、诊断、检验、评估、治疗和随访。");
         $("#labFieldsSection").addClass("hidden");
+        $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
         $("#saveRecordBtn").text("创建暂存病例");
       } else {
+        $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
         $("#labTestName").val(res.data.lab_test_name || res.data.category_label || currentCategoryLabel || "");
         $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
         $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。")
@@ -874,17 +968,33 @@ function bindFileInputs() {
   document.getElementById("photoInputFile").addEventListener("change", handleFileSelect);
 }
 
-function handleFileSelect(e) {
+async function handleFileSelect(e) {
   if (!selectedDiseaseId || selectedDiseaseId === "null") {
     alert("请先选择疾病");
     showPanel("diseasePanel");
     return;
   }
   if (e.target.files && e.target.files[0]) {
-    selectedFile = e.target.files[0];
-    showPreview(selectedFile);
-    setMsg("photoMsg", "图片已选择，请点击确定开始上传识别。", false);
-    $("#confirmUploadBtn").removeClass("hidden");
+    const originalFile = e.target.files[0];
+    const token = ++fileSelectToken;
+    selectedFile = null;
+    $("#confirmUploadBtn").addClass("hidden");
+    $("#previewContainer").addClass("hidden");
+    setMsg("photoMsg", "正在检查并压缩图片，请稍候...", false);
+
+    try {
+      const compressedFile = await compressImageToTarget(originalFile);
+      if (token !== fileSelectToken) return;
+      selectedFile = compressedFile;
+      showPreview(selectedFile);
+      const sizeText = formatFileSize(originalFile.size) + " -> " + formatFileSize(selectedFile.size);
+      setMsg("photoMsg", "图片已检查并压缩（" + sizeText + "），请点击确定开始上传识别。", false);
+      $("#confirmUploadBtn").removeClass("hidden");
+    } catch (err) {
+      if (token !== fileSelectToken) return;
+      selectedFile = null;
+      setMsg("photoMsg", "图片压缩失败，请重新选择图片。", true);
+    }
   }
 }
 
@@ -967,6 +1077,10 @@ $("#saveRecordBtn").on("click", function () {
     setMsg("recordMsg", "请先确认姓名", true);
     return;
   }
+  if (currentUploadMode === "intake" && (!patient.name || !patient.gender || !patient.age)) {
+    setMsg("recordMsg", "请先确认姓名、性别、年龄", true);
+    return;
+  }
   setSaveRecordButtonSaving(true);
   if (currentUploadMode === "intake") {
     $.ajax({
@@ -981,7 +1095,8 @@ $("#saveRecordBtn").on("click", function () {
         id_number: patient.id_number,
         case_status: "draft",
         last_disease_id: selectedDiseaseId,
-        require_age: patient.age ? 1 : 0
+        require_age: 1,
+        require_id_number: 0
       })
     }).done(function (res) {
       setMsg("recordMsg", "暂存病例已创建");
@@ -1018,7 +1133,7 @@ $("#saveRecordBtn").on("click", function () {
     const savedPatientId = (res.data && res.data.patient_id) || currentUploadPatientId;
     if (savedPatientId) {
       currentUploadPatientId = savedPatientId;
-      loadPatientDetail(savedPatientId, "lab");
+      loadPatientDetail(savedPatientId, "lab", "add");
     }
   }).fail(function (xhr) {
     setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true);
@@ -1059,6 +1174,21 @@ $(document).on("click", "#showNewCaseBtn", function () {
   openNewCaseForm();
 });
 
+$(document).on("click", ".delete-diagnosis-btn", function (event) {
+  event.stopPropagation();
+  if (!currentPatientId) return;
+  const diagnosisId = this.getAttribute("data-id");
+  if (!confirm("确认删除这条诊断记录？仅无对应检验、随访、治疗、评估数据时可删除。")) return;
+  $.ajax({ url: "/api/patients/" + currentPatientId + "/diagnosis-records/" + diagnosisId, method: "DELETE" })
+    .done(function (res) {
+      setMsg("diagnosisMsg", res.message || "诊断记录已删除");
+      loadPatientDetail(currentPatientId, "diagnosis");
+    })
+    .fail(function (xhr) {
+      setMsg("diagnosisMsg", xhr.responseJSON?.message || "诊断记录删除失败", true);
+    });
+});
+
 $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
 });
@@ -1083,11 +1213,13 @@ $(document).on("click", "#caseListPanel .inner-tab", function () {
 $(document).on("click", "#saveBaseInfoBtn", function () {
   if (!currentPatientId) return;
   const payload = {};
+  let missingFields = [];
   $("#baseInfoList .base-info-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
+    if (!$(this).val()) missingFields.push($(this).prev("label").text().replace(" *", ""));
   });
-  if (!payload.name || !payload.gender || !payload.age || !payload.id_number) {
-    setMsg("baseInfoMsg", "请填写姓名、性别、年龄、登记号", true);
+  if (missingFields.length) {
+    setMsg("baseInfoMsg", "请填写：" + missingFields.join("、"), true);
     return;
   }
   $.post("/api/patients/" + currentPatientId, payload)
@@ -1183,6 +1315,14 @@ document.addEventListener("change", function (event) {
 
 $(document).on("input", "#assessmentDynamicFields .assessment-input[data-field=systolic_bp], #assessmentDynamicFields .assessment-input[data-field=heart_rate]", function () {
   updateAssessmentShockIndex();
+});
+
+$(document).on("input", "#assessmentDynamicFields .assessment-kpa-input", function () {
+  updateAssessmentOxygenFromKpa();
+});
+
+$(document).on("input", "#followDynamicFields .followup-input[data-field=prognosis]", function () {
+  updateFollowupPrognosisState();
 });
 
 $(document).on("change", ".treatment-choice", function () {
@@ -1347,20 +1487,32 @@ $("#addFollowBtn").on("click", function () {
     setMsg("followMsg", "请选择本次随访针对哪次诊断", true);
     return;
   }
-  const payload = {
-    diagnosis_record_id: selectedDiagnosis.value,
-    follow_time: $("#followTime").val()
-  };
+  const payload = { diagnosis_record_id: selectedDiagnosis.value };
+  let missing = [];
   $("#followDynamicFields .followup-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
+    if (!this.disabled && !$(this).val()) missing.push($(this).closest(".form-field").querySelector("label").textContent.replace(" *", ""));
   });
-  $.post("/api/patients/" + currentPatientId + "/followups", payload).done(function (res) {
-    setMsg("followMsg", res.message || "已保存");
-    $("#followTime").val("");
-    $("#followDynamicFields").html("");
-    loadPatientDetail(currentPatientId, "follow");
-  }).fail(function (xhr) {
-    setMsg("followMsg", xhr.responseJSON?.message || "保存失败", true);
+  if (missing.length) {
+    setMsg("followMsg", "请填写：" + missing.join("、"), true);
+    return;
+  }
+  $.getJSON("/api/patients/" + currentPatientId + "/completion-missing").always(function (res) {
+    const data = res && res.responseJSON ? res.responseJSON : res;
+    const missingSteps = ((data || {}).data || {}).missing || [];
+    const beforeFollowMissing = missingSteps.filter(function (item) { return item !== "随访"; });
+    const message = beforeFollowMissing.length
+      ? "该记录还有以下步骤未完成：" + beforeFollowMissing.join("、") + "。随访提交后不能修改，是否继续提交？"
+      : "前置步骤已完成。随访提交后不能修改，提交后符合完整条件会进入完整记录，是否继续提交？";
+    if (!confirm(message)) return;
+    $.post("/api/patients/" + currentPatientId + "/followups", payload).done(function (saveRes) {
+      setMsg("followMsg", saveRes.message || "已保存");
+      $("#followDynamicFields").html("");
+      loadPatientDetail(currentPatientId, "follow");
+      loadCaseList();
+    }).fail(function (xhr) {
+      setMsg("followMsg", xhr.responseJSON?.message || "保存失败", true);
+    });
   });
 });
 
@@ -1372,13 +1524,20 @@ $("#addAssessmentBtn").on("click", function () {
     return;
   }
   updateAssessmentShockIndex();
+  updateAssessmentOxygenFromKpa();
   const payload = {
     diagnosis_record_id: selectedDiagnosis.value,
-    assessment_time: $("#assessmentTime").val()
+    assessment_time: $("#assessmentTime").val() || new Date().toISOString().slice(0, 16)
   };
+  let assessmentMissing = [];
   $("#assessmentDynamicFields .assessment-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
+    if (!$(this).val()) assessmentMissing.push($(this).closest(".form-field").querySelector("label").textContent.replace(" *", ""));
   });
+  if (assessmentMissing.length) {
+    setMsg("assessmentMsg", "请填写：" + assessmentMissing.join("、"), true);
+    return;
+  }
   $.post("/api/patients/" + currentPatientId + "/assessments", payload).done(function (res) {
     setMsg("assessmentMsg", res.message || "已保存");
     $("#assessmentTime").val("");

@@ -1,24 +1,24 @@
-const internalMedicineDiseases = ["脓毒症部位", "心源性休克/心脏骤停", "中毒", "脑损伤"];
+const internalMedicineDiseases = ["脓毒症", "重症肺炎", "心肺复苏后", "急性坏死性胰腺炎", "消化道出血", "中毒", "心源性休克/心衰", "脑卒中"];
 
 const assessmentCommonFields = [
-  ["temperature", "体温", "number"],
-  ["respiration", "呼吸", "number"],
-  ["systolic_bp", "收缩压", "number"],
-  ["diastolic_bp", "舒张压", "number"],
-  ["heart_rate", "心率", "number"],
+  ["temperature", "体温", "number", false, "℃"],
+  ["respiration", "呼吸", "number", false, "次/分"],
+  ["systolic_bp", "收缩压", "number", false, "mmHg"],
+  ["diastolic_bp", "舒张压", "number", false, "mmHg"],
+  ["heart_rate", "心率", "number", false, "次/分"],
   ["shock_index", "休克指数（自动计算心率/收缩压）", "number", true]
 ];
 const assessmentMultipleTraumaFields = [
-  ["temperature", "体温", "number"],
-  ["respiration", "呼吸", "number"],
-  ["systolic_bp", "收缩压", "number"],
-  ["diastolic_bp", "舒张压", "number"],
-  ["heart_rate", "心率", "number"],
+  ["temperature", "体温", "number", false, "℃"],
+  ["respiration", "呼吸", "number", false, "次/分"],
+  ["systolic_bp", "收缩压", "number", false, "mmHg"],
+  ["diastolic_bp", "舒张压", "number", false, "mmHg"],
+  ["heart_rate", "心率", "number", false, "次/分"],
   ["shock_index", "休克指数", "number"]
 ];
 const assessmentMedicalFields = assessmentCommonFields.concat([
-  ["oxygen_partial_pressure", "氧分压", "number"],
-  ["oxygen_concentration", "氧浓度", "number"],
+  ["oxygen_partial_pressure", "氧分压", "number", false, "mmHg", "oxygen_dual_unit"],
+  ["oxygen_concentration", "氧浓度", "number", false, "%"],
   ["sofa_score", "SOFA评分", "number"],
   ["apache_ii_score", "APACHEⅡ评分", "number"],
   ["barthel_score", "barthel评分", "number"],
@@ -26,15 +26,22 @@ const assessmentMedicalFields = assessmentCommonFields.concat([
   ["gcs_score", "GCS评分", "number"]
 ]);
 const assessmentFieldsByDisease = {
-  "脓毒症部位": assessmentMedicalFields,
-  "重症胰腺炎": assessmentMedicalFields,
-  "心源性休克/心脏骤停": assessmentMedicalFields,
+  "脓毒症": assessmentMedicalFields,
+  "重症肺炎": assessmentMedicalFields,
+  "心肺复苏后": assessmentMedicalFields,
+  "急性坏死性胰腺炎": assessmentMedicalFields,
+  "消化道出血": assessmentMedicalFields,
+  "心源性休克/心衰": assessmentMedicalFields,
   "中毒": assessmentMedicalFields,
-  "脑损伤": assessmentMedicalFields.concat([
+  "脑卒中": assessmentMedicalFields.concat([
     ["nihss_score", "NIHSS评分", "number"],
     ["cerebral_hernia", "脑疝", "number"]
   ]),
-  "胸部创伤": assessmentCommonFields.concat([
+  "颅脑损伤": assessmentMedicalFields.concat([
+    ["nihss_score", "NIHSS评分", "number"],
+    ["cerebral_hernia", "脑疝", "number"]
+  ]),
+  "胸部损伤": assessmentCommonFields.concat([
     ["oxygen_saturation", "氧饱和度", "number"],
     ["ais_score", "AIS评分", "number"],
     ["pain_score", "疼痛评分", "number"]
@@ -150,27 +157,33 @@ const treatmentConfigs = {
 
 const treatmentDiseaseAliases = {
   "脓毒症": "脓毒症部位",
-  "脓毒症字段": "脓毒症部位"
+  "重症肺炎": "脓毒症部位",
+  "心肺复苏后": "心源性休克/心脏骤停",
+  "急性坏死性胰腺炎": "重症胰腺炎",
+  "心源性休克/心衰": "心源性休克/心脏骤停",
+  "脑卒中": "脑损伤",
+  "颅脑损伤": "脑损伤",
+  "胸部损伤": "胸部创伤"
 };
 
 const followupFieldsInternal = [
   ["prognosis", "预后（死亡1/生存0）", "number"],
-  ["death_days", "死亡天数", "number"],
+  ["death_days", "死亡天数（距离入院时天数）", "number"],
   ["barthel_28d", "barthel评分（28天时）", "number"],
-  ["ventilator_days", "呼吸机治疗天数", "number"],
-  ["tracheotomy", "气管切开(是1/否0）", "number"],
-  ["blood_purification", "血液净化治疗(1/0)", "number"],
-  ["total_cost", "总费用", "number"],
+  ["ventilator_days", "28天内呼吸机天数", "number"],
+  ["tracheotomy", "28天内气管切开（是1/否0）", "number"],
+  ["blood_purification", "28天内血液净化（1/0）", "number"],
+  ["total_cost", "总费用", "number", "元"],
   ["mods", "MODS", "number"]
 ];
 const followupFieldsNonInternal = [
   ["prognosis", "预后（死亡1/生存0）", "number"],
-  ["death_days", "死亡天数", "number"],
+  ["death_days", "死亡天数（距离入院时天数）", "number"],
   ["barthel_28d", "barthel评分（28天时）", "number"],
-  ["ventilator_days", "呼吸机治疗天数", "number"],
-  ["tracheotomy", "气管切开（1/0）", "number"],
-  ["blood_purification", "血液净化治疗(1/0)", "number"],
-  ["total_cost", "总费用", "number"],
+  ["ventilator_days", "28天内呼吸机天数", "number"],
+  ["tracheotomy", "28天内气管切开（1/0）", "number"],
+  ["blood_purification", "28天内血液净化（1/0）", "number"],
+  ["total_cost", "总费用", "number", "元"],
   ["sepsis", "脓毒症（1/0）", "number"],
   ["pulmonary_infection", "肺部感染（1/0）", "number"],
   ["icu_days", "ICU天数", "number"],
@@ -178,14 +191,18 @@ const followupFieldsNonInternal = [
 ];
 
 function renderFollowupFields(disease) {
+  disease = normalizeCareDisease(disease);
   const isInternal = internalMedicineDiseases.indexOf(disease) > -1;
   const fields = isInternal ? followupFieldsInternal : followupFieldsNonInternal;
   const html = fields.map(function (field) {
-    const hint = !isInternal && field[0] === "death_days" ? '<div class="hint">只有死亡患者可以填写，生存患者默认28天。</div>' : '';
-    return '<div class="form-field"><label>' + field[1] + '</label><input class="followup-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '">' + hint + '</div>';
+    const hint = field[0] === "death_days" ? '<div class="hint">预后为1时填写距离入院时天数；预后为0时系统默认28天。</div>' : '';
+    const input = '<input class="followup-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '">';
+    const control = field[3] ? '<div class="input-with-unit">' + input + '<span>' + field[3] + '</span></div>' : input;
+    return '<div class="form-field"><label>' + field[1] + ' *</label>' + control + hint + '</div>';
   }).join("");
   $("#followDynamicFields").html(html);
-  setMsg("followMsg", isInternal ? "当前选择为内科疾病随访表单" : "当前选择为非内科疾病随访表单");
+  updateFollowupPrognosisState();
+  setMsg("followMsg", "以下信息均为必填。提交前会提示尚未完成的前置步骤；提交后不能修改。");
 }
 
 function renderTreatmentChoiceGroup(field, title, options, defaultNone, inputType, detailFields) {
@@ -215,6 +232,19 @@ function normalizeTreatmentDisease(disease) {
   disease = String(disease || "").trim();
   if (disease.indexOf("脓毒症") > -1) return "脓毒症部位";
   return treatmentDiseaseAliases[disease] || disease;
+}
+
+function normalizeCareDisease(disease) {
+  disease = String(disease || "").trim();
+  if (disease.indexOf("脓毒症") > -1) return "脓毒症";
+  const reverseAliases = {
+    "脓毒症部位": "脓毒症",
+    "重症胰腺炎": "急性坏死性胰腺炎",
+    "心源性休克/心脏骤停": "心源性休克/心衰",
+    "脑损伤": "颅脑损伤",
+    "胸部创伤": "胸部损伤"
+  };
+  return reverseAliases[disease] || disease;
 }
 
 function getDiagnosisOptionDisease(input) {
@@ -282,10 +312,16 @@ function normalizeTreatmentChoice(changedInput) {
 }
 
 function renderAssessmentFields(disease) {
+  disease = normalizeCareDisease(disease);
   const fields = assessmentFieldsByDisease[disease] || [];
   const html = fields.map(function (field) {
     const readonly = field[3] ? ' readonly' : '';
-    return '<div class="form-field"><label>' + field[1] + '</label><input class="assessment-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '"' + readonly + '></div>';
+    if (field[5] === "oxygen_dual_unit") {
+      return '<div class="form-field"><label>' + field[1] + ' *</label><div class="input-with-unit"><input class="assessment-input" data-field="oxygen_partial_pressure" type="number" placeholder="氧分压"><span>mmHg</span></div><div class="input-with-unit"><input class="assessment-kpa-input" type="number" placeholder="氧分压"><span>kPa</span></div></div>';
+    }
+    const input = '<input class="assessment-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '"' + readonly + '>';
+    const control = field[4] ? '<div class="input-with-unit">' + input + '<span>' + field[4] + '</span></div>' : input;
+    return '<div class="form-field"><label>' + field[1] + ' *</label>' + control + '</div>';
   }).join("");
   $("#assessmentDynamicFields").html(html || '<div class="detail-item">该疾病暂无评估字段配置</div>');
   setMsg("assessmentMsg", fields.length ? "当前选择为" + disease + "评估表单" : "该疾病暂无评估字段配置", !fields.length);
@@ -298,4 +334,25 @@ function updateAssessmentShockIndex() {
   const heartRate = Number($("#assessmentDynamicFields .assessment-input[data-field=heart_rate]").val());
   const shockIndex = systolic > 0 && heartRate > 0 ? (heartRate / systolic).toFixed(2) : "";
   shockInput.value = shockIndex;
+}
+
+function updateAssessmentOxygenFromKpa() {
+  const kpa = Number($("#assessmentDynamicFields .assessment-kpa-input").val());
+  if (kpa > 0) {
+    $("#assessmentDynamicFields .assessment-input[data-field=oxygen_partial_pressure]").val((kpa * 7.5).toFixed(1));
+  }
+}
+
+function updateFollowupPrognosisState() {
+  const prognosis = $("#followDynamicFields .followup-input[data-field=prognosis]").val();
+  const deathDays = $("#followDynamicFields .followup-input[data-field=death_days]");
+  if (!deathDays.length) return;
+  $("#followDynamicFields .followup-input").not("[data-field=prognosis], [data-field=death_days]").prop("disabled", prognosis === "1");
+  if (prognosis === "1") {
+    deathDays.prop("disabled", false).val(deathDays.val() === "28" ? "" : deathDays.val());
+  } else if (prognosis === "0") {
+    deathDays.val("28").prop("disabled", true);
+  } else {
+    deathDays.val("").prop("disabled", true);
+  }
 }

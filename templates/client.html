@@ -11,8 +11,8 @@
     <button id="innerBackBtn" class="inner-back hidden" type="button">返回</button>
     <section id="clientHero" class="hero compact">
       <p class="eyebrow">PICCO</p>
-      <h1>临床检验数据录入</h1>
-      <p>选择疾病、拍照识别、校对表单并保存检验记录。</p>
+      <h1>按疾病新建病例记录</h1>
+      <p>选择疾病、拍照识别基础信息并创建暂存病例。</p>
     </section>
 
     <section id="loginPanel" class="panel hidden">
@@ -62,21 +62,8 @@
       <div class="case-title-row">
         <h2>病例列表</h2>
         <div class="case-actions">
-          <button id="showNewCaseBtn" class="btn-sm">新建病例</button>
           <button id="exportCasesBtn" type="button" class="btn-sm secondary">导出数据</button>
         </div>
-      </div>
-      <div id="newCasePanel" class="panel hidden compact-form">
-        <h3>新建病例</h3>
-        <div class="grid two">
-          <input id="newCaseName" placeholder="姓名 *" required>
-          <input id="newCaseGender" placeholder="性别 *" required>
-          <input id="newCaseAge" type="number" placeholder="年龄 *" required>
-          <input id="newCasePhone" placeholder="联系电话">
-          <input id="newCaseIdNumber" placeholder="登记号 *" required>
-        </div>
-        <button id="createCaseBtn">保存病例</button>
-        <p class="message" id="newCaseMsg"></p>
       </div>
       <div class="inner-tabs case-inner-tabs">
         <button class="inner-tab active" data-case-tab="draft">暂存记录</button>
@@ -165,13 +152,17 @@
           </div>
           <div class="subhead">初步诊断</div>
           <div class="radio-grid" id="diagnosisDiseaseOptions">
-            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症部位">脓毒症部位</label>
-            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症胰腺炎">重症胰腺炎</label>
-            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心脏骤停">心源性休克/心脏骤停</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症">脓毒症</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症肺炎">重症肺炎</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心肺复苏后">心肺复苏后</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="急性坏死性胰腺炎">急性坏死性胰腺炎</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="消化道出血">消化道出血</label>
             <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
-            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑损伤">脑损伤</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心衰">心源性休克/心衰</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑卒中">脑卒中</label>
             <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
-            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部创伤">胸部创伤</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="颅脑损伤">颅脑损伤</label>
+            <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部损伤">胸部损伤</label>
           </div>
           <div id="diagnosisSubcategoryPanel" class="hidden">
             <div class="diagnosis-selected-row">
@@ -212,7 +203,8 @@
           <div class="subhead">诊断记录</div>
           <div id="diagnosisRecordListAssessment" class="detail-list"></div>
           <div id="assessmentFormPanel" class="panel hidden">
-            <h3>新增评估记录</h3>
+            <h3>入院时评估</h3>
+            <p class="hint">请提前计算好下面的评估数据：SOFA、APACHE2、barthel、MODS评分、GCS评分等。以下信息均为必填。</p>
             <input id="assessmentTime" type="datetime-local" placeholder="时间">
             <div id="assessmentDynamicFields" class="grid two"></div>
             <button id="addAssessmentBtn">保存评估记录</button>
@@ -253,7 +245,6 @@
           <div id="diagnosisRecordListFollow" class="detail-list"></div>
           <div id="followFormPanel" class="panel hidden">
             <h3>新增随访记录</h3>
-            <input id="followTime" type="datetime-local" placeholder="时间">
             <div id="followDynamicFields" class="grid two"></div>
             <button id="addFollowBtn">保存随访记录</button>
             <p class="message" id="followMsg"></p>
@@ -293,13 +284,9 @@
   </main>
 
   <nav id="bottomNav" class="bottom-nav hidden">
-    <a class="nav-item" data-nav="newCase">
-      <span class="nav-icon">+</span>
-      <span>新建病例</span>
-    </a>
     <a class="nav-item active" data-nav="diseasePanel">
       <span class="nav-icon">&#9776;</span>
-      <span>上传检验</span>
+      <span>新建病例</span>
     </a>
     <a class="nav-item" data-nav="caseListPanel">
       <span class="nav-icon">&#128196;</span>
@@ -324,7 +311,7 @@
   </div>
 
   <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/client-care-forms.js?v=20260524m"></script>
-  <script src="/static/js/client.js?v=20260524m"></script>
+  <script src="/static/js/client-care-forms.js?v=20260524o"></script>
+  <script src="/static/js/client.js?v=20260524o"></script>
 </body>
 </html>

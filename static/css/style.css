@@ -37,7 +37,7 @@ th { background: #eff6ee; }
 .phone-card { width: min(520px, 100%); display: grid; gap: 16px; }
 .inner-back { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 200; width: auto; padding: 8px 16px; border-radius: 999px; background: #fff; color: var(--brand-dark); border: 1px solid var(--line); box-shadow: 0 10px 24px rgba(52, 75, 59, 0.12); }
 .hero { padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #173f31, #2c825f); color: #fff; box-shadow: 0 24px 80px rgba(16, 84, 60, .25); }
-.hero h1 { margin: 0 0 8px; font-size: 34px; }
+.hero h1 { margin: 0 0 8px; font-size: 26px; white-space: nowrap; }
 .hero p:last-child { margin: 0; color: #e8f5eb; }
 .disease-list { display: grid; gap: 10px; }
 .disease-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: #fff; color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
@@ -119,6 +119,9 @@ th { background: #eff6ee; }
 .form-field { margin-bottom: 12px; }
 .form-field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
 .form-field input { width: 100%; border-radius: 12px; border: 1px solid var(--line); padding: 10px 12px; font: inherit; }
+.input-with-unit { display: flex; align-items: center; gap: 8px; }
+.input-with-unit input { flex: 1; min-width: 0; }
+.input-with-unit span { color: var(--muted); font-size: 13px; white-space: nowrap; }
 #retryBtn { margin-top: 12px; }
 
 .admin-shell { min-height: 100vh; padding: 28px; }
