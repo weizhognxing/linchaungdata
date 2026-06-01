@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from app.common import fail, ok, required
 from app.db import db
 from app.decorators import require_user
-from app.services.core import ask_ai_yes_no, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
+from app.services.core import AIRecognitionError, ask_ai_yes_no, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
 
 
 records_bp = Blueprint("records", __name__)
@@ -552,8 +552,11 @@ def recognize():
             patient = parse_patient_info(ai_text)
             lab_test_name = parse_lab_test_name(ai_text)
             fields = reorder_fields_by_values(fields, values)
+        except AIRecognitionError as e:
+            return fail(str(e), 502)
         except Exception as e:
             print(f"AI recognition error: {e}")
+            return fail("AI识别处理失败，请稍后重试", 500)
 
     return ok(
         {

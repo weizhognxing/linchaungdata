@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import re
+import time
 
 import requests
 from werkzeug.security import generate_password_hash
@@ -9,6 +10,10 @@ from werkzeug.security import generate_password_hash
 import ai_config
 from app.common import DEFAULT_FIELDS, DISEASES
 from app.db import db
+
+
+class AIRecognitionError(Exception):
+    pass
 
 
 def init_database():
@@ -250,10 +255,35 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
         "max_tokens": ai_config.AI_MAX_TOKENS,
     }
 
-    response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=180)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    return None
+    last_error = "AI识别接口暂无返回"
+    for attempt in range(3):
+        try:
+            response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=360)
+        except requests.Timeout:
+            last_error = "AI识别接口超时，请稍后重试"
+        except requests.RequestException as e:
+            last_error = f"AI识别接口请求失败：{e}"
+        else:
+            if response.status_code == 200:
+                try:
+                    return response.json()["choices"][0]["message"]["content"]
+                except (KeyError, IndexError, TypeError, ValueError) as e:
+                    raise AIRecognitionError(f"AI识别接口返回格式异常：{e}")
+            detail = ""
+            try:
+                body = response.json()
+                detail = ((body.get("error") or {}).get("message") or "").strip()
+            except ValueError:
+                detail = response.text[:200].strip()
+            if response.status_code == 429:
+                last_error = "AI识别接口请求过快，请稍后重试"
+            else:
+                last_error = f"AI识别接口返回异常：HTTP {response.status_code}"
+            if detail:
+                last_error += f"，{detail}"
+        if attempt < 2:
+            time.sleep(3 * (attempt + 1))
+    raise AIRecognitionError(last_error)
 
 
 def ask_ai_yes_no(prompt_text, timeout=60):

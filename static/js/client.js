@@ -862,7 +862,7 @@ function autoRecognize() {
 
   showRecognizeProgress(2, 3, "正在调用AI识别...");
 
-  $.ajax({ url: "/api/recognize", method: "POST", data, processData: false, contentType: false, timeout: 190000 })
+  $.ajax({ url: "/api/recognize", method: "POST", data, processData: false, contentType: false, timeout: 420000 })
     .done(function (res) {
       showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
       uploadedPhotoPath = res.data.photo_path;
