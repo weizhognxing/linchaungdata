@@ -191,6 +191,15 @@ def _optional_datetime(value):
     return value if value != "" else None
 
 
+def _request_flag_enabled(data, key, default=True):
+    if key not in data:
+        return default
+    value = data.get(key)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in {"0", "false", "no", "off", ""}
+
+
 def _lab_category_config(category):
     return LAB_CATEGORY_DEFINITIONS.get(str(category or "").strip())
 
@@ -950,8 +959,8 @@ def cases():
 @require_user
 def create_patient():
     data = request.get_json(silent=True) or request.form.to_dict()
-    require_age = str(data.get("require_age") or "1") != "0"
-    require_id_number = str(data.get("require_id_number") or "1") != "0"
+    require_age = _request_flag_enabled(data, "require_age", True)
+    require_id_number = _request_flag_enabled(data, "require_id_number", True)
     patient = {
         "name": (data.get("name") or "").strip(),
         "gender": (data.get("gender") or "").strip(),
