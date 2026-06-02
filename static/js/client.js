@@ -7,7 +7,7 @@ let currentUploadMode = "intake";
 let currentUploadPatientId = null;
 let currentRecordCategory = null;
 let currentCategoryLabel = "";
-const saveRecordButtonText = "保存检验记录";
+const saveRecordButtonText = "保存信息";
 const photoTargetBytes = 100 * 1024;
 const photoTargetMaxBytes = 115 * 1024;
 let fileSelectToken = 0;
@@ -880,14 +880,14 @@ function autoRecognize() {
         $("#recordPanelHint").text("当前步骤仅提取姓名、性别、年龄，确认后会创建暂存病例。后续请在病例中继续补录基础信息、诊断、检验、评估、治疗和随访。");
         $("#labFieldsSection").addClass("hidden");
         $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
-        $("#saveRecordBtn").text("创建暂存病例");
+        $("#saveRecordBtn").text("保存信息");
       } else {
         $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
         $("#labTestName").val(res.data.lab_test_name || res.data.category_label || currentCategoryLabel || "");
         $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
         $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。")
         $("#labFieldsSection").removeClass("hidden");
-        $("#saveRecordBtn").text("保存" + (currentCategoryLabel || "检验"));
+        $("#saveRecordBtn").text("保存信息");
       }
 
       setTimeout(function() {
