@@ -547,7 +547,7 @@ def recognize():
         try:
             ai_text = recognize_image(photo_path, prompt_text=prompt_text)
             if not ai_text:
-                return fail("AI识别接口暂无返回，请稍后重试", 502)
+                return fail("AI识别接口返回内容为空，请重新上传或稍后重试", 502)
             values = {} if recognize_mode == "intake" else parse_ai_result(ai_text, fields)
             patient = parse_patient_info(ai_text)
             lab_test_name = parse_lab_test_name(ai_text)

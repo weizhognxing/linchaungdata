@@ -252,11 +252,12 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
                 ],
             }
         ],
-        "max_tokens": ai_config.AI_MAX_TOKENS,
+        "max_tokens": max(int(ai_config.AI_MAX_TOKENS or 0), 4000),
     }
 
     last_error = "AI识别接口暂无返回"
     for attempt in range(3):
+        retry_delay = 3 * (attempt + 1)
         try:
             response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=360)
         except requests.Timeout:
@@ -266,9 +267,13 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
         else:
             if response.status_code == 200:
                 try:
-                    return response.json()["choices"][0]["message"]["content"]
+                    content = str(response.json()["choices"][0]["message"].get("content") or "").strip()
                 except (KeyError, IndexError, TypeError, ValueError) as e:
                     raise AIRecognitionError(f"AI识别接口返回格式异常：{e}")
+                if content:
+                    return content
+                last_error = "AI识别接口返回内容为空，请重新上传或稍后重试"
+                continue
             detail = ""
             try:
                 body = response.json()
@@ -277,12 +282,13 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
                 detail = response.text[:200].strip()
             if response.status_code == 429:
                 last_error = "AI识别接口请求过快，请稍后重试"
+                retry_delay = 60 * (attempt + 1)
             else:
                 last_error = f"AI识别接口返回异常：HTTP {response.status_code}"
             if detail:
                 last_error += f"，{detail}"
         if attempt < 2:
-            time.sleep(3 * (attempt + 1))
+            time.sleep(retry_delay)
     raise AIRecognitionError(last_error)
 
 
