@@ -983,40 +983,26 @@ def create_patient():
                 cur.execute(
                     """
                     SELECT id FROM patients
-                    WHERE hospital_id=%s AND name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                    WHERE hospital_id=%s AND name=%s AND IFNULL(gender,'')=%s AND IFNULL(age,'')=%s
                     LIMIT 1
                     """,
-                    (current_user["hospital_id"], patient["name"], patient["phone"], patient["id_number"]),
+                    (current_user["hospital_id"], patient["name"], patient["gender"], str(patient["age"] or "")),
                 )
             else:
                 cur.execute(
                     """
                     SELECT id FROM patients
-                    WHERE name=%s AND IFNULL(phone,'')=%s AND IFNULL(id_number,'')=%s
+                    WHERE name=%s AND IFNULL(gender,'')=%s AND IFNULL(age,'')=%s
                     LIMIT 1
                     """,
-                    (patient["name"], patient["phone"], patient["id_number"]),
+                    (patient["name"], patient["gender"], str(patient["age"] or "")),
                 )
             existing = cur.fetchone()
             last_disease_id = data.get("last_disease_id") or None
             case_status = (data.get("case_status") or "draft").strip() or "draft"
             case_integrity = (data.get("case_integrity") or "draft").strip() or "draft"
             if existing:
-                updates = []
-                params = []
-                if "last_disease_id" in patient_columns and last_disease_id:
-                    updates.append("last_disease_id=%s")
-                    params.append(last_disease_id)
-                if "case_status" in patient_columns:
-                    updates.append("case_status=%s")
-                    params.append(case_status)
-                if "case_integrity" in patient_columns:
-                    updates.append("case_integrity=%s")
-                    params.append(case_integrity)
-                updates.append("updated_at=NOW()")
-                params.append(existing["id"])
-                cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", params)
-                return ok({"patient_id": existing["id"]}, "病例已存在")
+                return fail("这个病人在系统里面已经存在了，不能重复添加病例", 409)
 
             patient_insert = dict(patient)
             if "hospital_id" in patient_columns:
