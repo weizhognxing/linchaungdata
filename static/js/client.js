@@ -7,6 +7,9 @@ let currentUploadMode = "intake";
 let currentUploadPatientId = null;
 let currentRecordCategory = null;
 let currentCategoryLabel = "";
+let pendingLabUploadPatientId = null;
+let pendingLabUploadCategory = "";
+let pendingLabUploadLabel = "";
 const saveRecordButtonText = "保存信息";
 const photoTargetBytes = 100 * 1024;
 const photoTargetMaxBytes = 115 * 1024;
@@ -60,8 +63,14 @@ function showPanel(id) {
     $("#bottomNav").removeClass("hidden");
     $(".nav-item").removeClass("active");
     $(".nav-item[data-nav='" + id + "']").addClass("active");
-    if (id === "recordPanel" || id === "photoPanel") {
-      $(".nav-item[data-nav='diseasePanel']").addClass("active");
+    if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode === "intake") {
+      $(".nav-item[data-nav='newCase']").addClass("active");
+    }
+    if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode !== "intake") {
+      $(".nav-item[data-nav='caseListPanel']").addClass("active");
+    }
+    if (id === "diseasePanel" && pendingLabUploadPatientId) {
+      $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
     if (id === "patientDetailPanel" || id === "labReportPanel") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
@@ -131,6 +140,38 @@ function getCaseIntegrity(item) {
 }
 
 function openNewCaseForm() {
+  currentUploadMode = "intake";
+  currentUploadPatientId = null;
+  currentRecordCategory = null;
+  currentCategoryLabel = "";
+  pendingLabUploadPatientId = null;
+  pendingLabUploadCategory = "";
+  pendingLabUploadLabel = "";
+  uploadedPhotoPath = null;
+  selectedFile = null;
+  selectedDiseaseId = null;
+  localStorage.removeItem("selectedDiseaseId");
+  resetRecordForm();
+  $("#recordPanelTitle").text("新建病例");
+  $("#recordPanelHint").text("请填写姓名、性别、年龄。系统会根据姓名、性别、年龄判断是否重复添加病例。");
+  $("#labFieldsSection").addClass("hidden");
+  $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
+  $("#saveRecordBtn").text("保存信息");
+  showPanel("recordPanel");
+}
+
+function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel) {
+  pendingLabUploadPatientId = patientId;
+  pendingLabUploadCategory = categoryKey || "";
+  pendingLabUploadLabel = categoryLabel || "检验";
+  currentUploadMode = "lab";
+  currentUploadPatientId = patientId;
+  currentRecordCategory = null;
+  currentCategoryLabel = pendingLabUploadLabel;
+  selectedDiseaseId = null;
+  localStorage.removeItem("selectedDiseaseId");
+  $("#diseasePanel h2").html('选择疾病 <span id="diseaseTotalCount" class="disease-total">总共录入0人</span>');
+  $("#diseasePanel .hint").text("请选择本次检验对应的疾病，系统会按所选疾病表单展示识别结果。选择后再拍照或上传图片。");
   showPanel("diseasePanel");
 }
 
@@ -191,7 +232,8 @@ function backFromInnerPage() {
     return;
   }
   if (currentPanelId === "recordPanel") {
-    showPanel("photoPanel");
+    if (currentUploadMode === "intake" && !uploadedPhotoPath) showPanel("caseListPanel");
+    else showPanel("photoPanel");
     return;
   }
   if (currentPanelId === "photoPanel") {
@@ -588,14 +630,16 @@ $(function() {
       var saved = localStorage.getItem("clientPanel");
       if (saved && saved !== "loginPanel" && saved !== "registerPanel" && saved !== "resetPanel") {
         if (saved === "memberReviewPanel" && !canReviewMembers) {
-          showPanel("diseasePanel");
+          openNewCaseForm();
         } else if (saved === "labReportPanel") {
           showPanel("caseListPanel");
+        } else if (saved === "diseasePanel" || saved === "photoPanel" || saved === "recordPanel") {
+          openNewCaseForm();
         } else {
           showPanel(saved);
         }
       } else {
-        showPanel("diseasePanel");
+        openNewCaseForm();
       }
     }
   }).fail(function() {
@@ -929,7 +973,7 @@ $("#loginBtn").on("click", function () {
       canReviewMembers = Number(res?.data?.parent_id || 0) === 0;
       $("#memberReviewNav").toggleClass("hidden", !canReviewMembers);
       loadDiseases();
-      showPanel("diseasePanel");
+      openNewCaseForm();
     })
     .fail(function (xhr) { setMsg("loginMsg", xhr.responseJSON?.message || "登录失败", true); });
 });
@@ -958,6 +1002,16 @@ document.addEventListener("click", function (event) {
   event.preventDefault();
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
+  if (pendingLabUploadPatientId) {
+    const patientId = pendingLabUploadPatientId;
+    const category = pendingLabUploadCategory;
+    const label = pendingLabUploadLabel;
+    pendingLabUploadPatientId = null;
+    pendingLabUploadCategory = "";
+    pendingLabUploadLabel = "";
+    startLabCategoryUpload(patientId, category, label);
+    return;
+  }
   openPhotoPanelForIntake();
 });
 
@@ -1103,7 +1157,7 @@ $("#saveRecordBtn").on("click", function () {
       loadCaseList();
       if (res.data && res.data.patient_id) {
         currentUploadPatientId = res.data.patient_id;
-        loadPatientDetail(res.data.patient_id, "lab");
+        loadPatientDetail(res.data.patient_id, "base");
       }
     }).fail(function (xhr) {
       setMsg("recordMsg", xhr.responseJSON?.message || "创建暂存病例失败", true);
@@ -1154,8 +1208,7 @@ $(document).on("click", ".lab-category-upload-btn", function () {
   const patientId = $(this).data("patient-id");
   const category = $(this).data("category");
   const label = $(this).data("label");
-  startLabCategoryUpload(patientId, category, label);
-  triggerPhotoChooser();
+  openDiseaseSelectionForLabUpload(patientId, category, label);
 });
 
 $(document).on("click", ".lab-record-item", function () {
