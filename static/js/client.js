@@ -127,10 +127,19 @@ function loadDiseases() {
     const payload = res.data || {};
     const diseases = payload.diseases || [];
     const total = Number(payload.total_patients || 0);
+    const labContext = loadLabUploadContext();
+    const isLabUploadSelection = diseaseSelectionPurpose === "labUpload" || !!labContext.patientId;
     $("#diseaseTotalCount").text(`总共录入${total}人`);
     const html = diseases.map(function (d) {
       const count = Number(d.patient_count || 0);
-      return `<button type="button" class="disease-item" data-id="${d.id}"><span class="disease-name">${d.name}</span><span class="disease-count">已录入${count}人</span></button>`;
+      const buttonClass = isLabUploadSelection ? "disease-item lab-upload-disease-item" : "disease-item";
+      const patientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId || "";
+      const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
+      const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
+      const uploadAttrs = isLabUploadSelection
+        ? ` data-patient-id="${patientId}" data-category="${category}" data-label="${label}"`
+        : "";
+      return `<button type="button" class="${buttonClass}" data-id="${d.id}"${uploadAttrs}><span class="disease-name">${d.name}</span><span class="disease-count">已录入${count}人</span></button>`;
     }).join("");
     $("#diseaseList").html(html);
   });
@@ -1033,17 +1042,15 @@ $("#resetBtn").on("click", function () {
 });
 
 document.addEventListener("click", function (event) {
-  const diseaseButton = event.target && event.target.closest ? event.target.closest(".disease-item") : null;
-  if (!diseaseButton) return;
-  event.preventDefault();
-  selectedDiseaseId = diseaseButton.getAttribute("data-id");
-  localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  const labContext = loadLabUploadContext();
-  const labContextPatientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId;
-  if (diseaseSelectionPurpose === "labUpload" || labContextPatientId || (currentUploadMode === "lab" && currentUploadPatientId)) {
-    const patientId = labContextPatientId;
-    const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
-    const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
+  const labUploadDiseaseButton = event.target && event.target.closest ? event.target.closest(".lab-upload-disease-item") : null;
+  if (labUploadDiseaseButton) {
+    event.preventDefault();
+    selectedDiseaseId = labUploadDiseaseButton.getAttribute("data-id");
+    localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
+    const labContext = loadLabUploadContext();
+    const patientId = labUploadDiseaseButton.getAttribute("data-patient-id") || labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId;
+    const category = labUploadDiseaseButton.getAttribute("data-category") || labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
+    const label = labUploadDiseaseButton.getAttribute("data-label") || labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
     if (!patientId) {
       setMsg("caseListMsg", "请先从病例详情的检验添加入口上传检验单。", true);
       showPanel("caseListPanel");
@@ -1057,6 +1064,12 @@ document.addEventListener("click", function (event) {
     startLabCategoryUpload(patientId, category, label);
     return;
   }
+
+  const diseaseButton = event.target && event.target.closest ? event.target.closest(".disease-item") : null;
+  if (!diseaseButton) return;
+  event.preventDefault();
+  selectedDiseaseId = diseaseButton.getAttribute("data-id");
+  localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   setMsg("caseListMsg", "请从病例详情的检验添加入口上传检验单。", true);
   showPanel("caseListPanel");
 });
