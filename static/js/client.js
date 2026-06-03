@@ -1013,10 +1013,15 @@ document.addEventListener("click", function (event) {
   event.preventDefault();
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  if (diseaseSelectionPurpose === "labUpload" && pendingLabUploadPatientId) {
-    const patientId = pendingLabUploadPatientId;
-    const category = pendingLabUploadCategory;
-    const label = pendingLabUploadLabel;
+  if (diseaseSelectionPurpose === "labUpload" || (currentUploadMode === "lab" && currentUploadPatientId)) {
+    const patientId = pendingLabUploadPatientId || currentUploadPatientId;
+    const category = pendingLabUploadCategory || currentRecordCategory || "";
+    const label = pendingLabUploadLabel || currentCategoryLabel || "检验";
+    if (!patientId) {
+      setMsg("caseListMsg", "请先从病例详情的检验添加入口上传检验单。", true);
+      showPanel("caseListPanel");
+      return;
+    }
     diseaseSelectionPurpose = "";
     pendingLabUploadPatientId = null;
     pendingLabUploadCategory = "";
