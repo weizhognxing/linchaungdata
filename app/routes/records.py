@@ -959,8 +959,6 @@ def cases():
 @require_user
 def create_patient():
     data = request.get_json(silent=True) or request.form.to_dict()
-    require_age = _request_flag_enabled(data, "require_age", True)
-    require_id_number = _request_flag_enabled(data, "require_id_number", True)
     patient = {
         "name": (data.get("name") or "").strip(),
         "gender": (data.get("gender") or "").strip(),
@@ -968,14 +966,8 @@ def create_patient():
         "phone": (data.get("phone") or "").strip(),
         "id_number": (data.get("id_number") or "").strip(),
     }
-    required_fields = ["name", "gender"]
-    if require_age:
-        required_fields.append("age")
-    if require_id_number:
-        required_fields.append("id_number")
-    if required(patient, required_fields):
-        missing_text = "姓名、性别" + ("、年龄" if require_age else "") + ("、登记号" if require_id_number else "")
-        return fail("请填写" + missing_text)
+    if required(patient, ["name", "gender", "age"]):
+        return fail("请填写姓名、性别、年龄")
 
     conn = db()
     try:
