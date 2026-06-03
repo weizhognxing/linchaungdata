@@ -269,10 +269,12 @@ $(document).on("click", ".view-case-btn", function (event) {
   loadPatientDetail($(this).data("id"));
 });
 
-$(document).on("click", ".lab-category-upload-btn", function () {
-  const patientId = $(this).data("patient-id");
-  const category = $(this).data("category");
-  const label = $(this).data("label");
+$(document).on("click", ".lab-category-upload-btn", function (event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const patientId = this.getAttribute("data-patient-id") || currentPatientId;
+  const category = this.getAttribute("data-category") || "";
+  const label = this.getAttribute("data-label") || "检验";
   openDiseaseSelectionForLabUpload(patientId, category, label);
 });
 

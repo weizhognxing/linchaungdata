@@ -162,7 +162,9 @@ function getActiveLabUploadContext() {
 }
 
 function finishLabDiseaseSelection(diseaseId, labContext) {
-  if (!diseaseId || !labContext || !labContext.patientId) return false;
+  labContext = labContext || getActiveLabUploadContext() || {};
+  labContext.patientId = labContext.patientId || currentUploadPatientId || currentPatientId;
+  if (!diseaseId || !labContext.patientId) return false;
   selectedDiseaseId = diseaseId;
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   clearDiseaseSelectionContext();
@@ -187,7 +189,7 @@ function loadDiseases() {
     $("#diseaseTotalCount").text(`总共录入${total}人`);
     const html = diseases.map(function (d) {
       const count = Number(d.patient_count || 0);
-      const buttonClass = isLabUploadSelection ? "lab-upload-disease-item" : "disease-item";
+      const buttonClass = isLabUploadSelection ? "disease-item lab-upload-disease-item" : "disease-item";
       const patientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId || "";
       const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
       const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
@@ -244,6 +246,12 @@ function openNewCaseForm() {
 }
 
 function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel) {
+  patientId = patientId || currentPatientId;
+  if (!patientId) {
+    setMsg("patientDetailMsg", "请先进入病例详情后再上传检验单。", true);
+    showPanel("caseListPanel");
+    return;
+  }
   diseaseSelectionPurpose = "labUpload";
   pendingLabUploadPatientId = patientId;
   pendingLabUploadCategory = categoryKey || "";

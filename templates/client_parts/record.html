@@ -1,0 +1,22 @@
+<section id="recordPanel" class="panel hidden">
+  <h2 id="recordPanelTitle">校对检验指标</h2>
+  <p id="recordPanelHint" class="hint"></p>
+  <div class="subhead">病患信息</div>
+  <div class="grid two">
+    <input name="patient_name" placeholder="病患姓名">
+    <input name="patient_gender" placeholder="性别">
+    <input name="patient_age" type="number" placeholder="年龄">
+    <input name="patient_phone" placeholder="联系电话">
+    <input name="patient_id_number" placeholder="登记号">
+  </div>
+  <div id="labFieldsSection">
+    <div class="subhead">检验类别</div>
+    <div class="grid two">
+      <input id="labTestName" placeholder="检验类别，例如血常规">
+    </div>
+    <div class="subhead">检验指标</div>
+    <div id="dynamicFields" class="grid two"></div>
+  </div>
+  <button id="saveRecordBtn">保存信息</button>
+  <p class="message" id="recordMsg"></p>
+</section>

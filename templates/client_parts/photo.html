@@ -1,0 +1,16 @@
+<section id="photoPanel" class="panel hidden">
+  <h2 id="photoPanelTitle">拍照上传</h2>
+  <input type="file" id="photoInputCamera" class="sr-only-input" accept="image/*" capture="environment">
+  <input type="file" id="photoInputFile" class="sr-only-input" accept="image/*">
+  <div id="photoActions" class="photo-actions">
+    <label id="takePhotoBtn" class="photo-btn photo-btn-label" for="photoInputCamera">拍照</label>
+    <label id="uploadBtn" class="photo-btn photo-btn-label secondary" for="photoInputFile">上传图片</label>
+  </div>
+  <div id="recognizeProgress" class="hidden"></div>
+  <div id="previewContainer" class="hidden">
+    <img id="previewImage" src="" alt="预览">
+  </div>
+  <button id="confirmUploadBtn" class="hidden photo-btn">确定并上传</button>
+  <button id="retryBtn" class="hidden photo-btn secondary">重新识别</button>
+  <p class="message" id="photoMsg"></p>
+</section>

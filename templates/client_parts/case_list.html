@@ -1,0 +1,19 @@
+<section id="caseListPanel" class="panel hidden">
+  <div class="case-title-row">
+    <h2>病例列表</h2>
+    <div class="case-actions">
+      <button id="exportCasesBtn" type="button" class="btn-sm secondary">导出数据</button>
+    </div>
+  </div>
+  <div class="inner-tabs case-inner-tabs">
+    <button class="inner-tab active" data-case-tab="draft">暂存记录</button>
+    <button class="inner-tab" data-case-tab="complete">完整记录</button>
+  </div>
+  <div id="caseDraftPanel" class="inner-tab-page">
+    <div id="caseDraftList" class="case-list"></div>
+  </div>
+  <div id="caseCompletePanel" class="inner-tab-page hidden">
+    <div id="caseCompleteList" class="case-list"></div>
+  </div>
+  <p class="message" id="caseListMsg"></p>
+</section>

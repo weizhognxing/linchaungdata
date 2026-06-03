@@ -1,0 +1,42 @@
+<section id="clientHero" class="hero compact">
+  <p class="eyebrow">PICCO</p>
+  <h1>按疾病新建病例记录</h1>
+  <p>选择疾病、拍照识别基础信息并创建暂存病例。</p>
+</section>
+
+<section id="loginPanel" class="panel hidden">
+  <h2>用户登录</h2>
+  <input id="loginAccount" placeholder="邮箱或手机号码">
+  <input id="loginPassword" type="password" placeholder="密码">
+  <button id="loginBtn">登录</button>
+  <div class="links"><a data-show="registerPanel">注册账号</a><a data-show="resetPanel">找回密码</a></div>
+  <p class="message" id="loginMsg"></p>
+</section>
+
+<section id="registerPanel" class="panel hidden">
+  <h2>注册账号</h2>
+  <div class="grid two">
+    <input name="name" placeholder="姓名">
+    <input name="email" placeholder="邮箱">
+    <input name="phone" placeholder="手机号码">
+    <input name="province" placeholder="省份">
+    <input name="city" placeholder="城市">
+    <input name="organization" placeholder="单位名称，要求一字不差">
+    <input name="department" placeholder="科室">
+    <input name="password" type="password" placeholder="密码">
+  </div>
+  <button id="registerBtn">提交注册</button>
+  <div class="links"><a data-show="loginPanel">返回登录</a></div>
+  <p class="message" id="registerMsg"></p>
+</section>
+
+<section id="resetPanel" class="panel hidden">
+  <h2>找回密码</h2>
+  <input id="resetPhone" placeholder="手机号码">
+  <button id="smsBtn" class="secondary">获取短信验证码</button>
+  <input id="resetCode" placeholder="验证码，开发环境为 123456">
+  <input id="resetPassword" type="password" placeholder="新密码">
+  <button id="resetBtn">重置密码</button>
+  <div class="links"><a data-show="loginPanel">返回登录</a></div>
+  <p class="message" id="resetMsg"></p>
+</section>

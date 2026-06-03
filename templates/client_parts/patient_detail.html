@@ -1,0 +1,134 @@
+<section id="patientDetailPanel" class="panel hidden">
+  <h2>病人详情</h2>
+  <div id="patientProfile" class="patient-profile"></div>
+  <p class="message" id="patientDetailMsg"></p>
+  <div class="detail-tabs">
+    <button class="detail-tab active" data-detail-tab="base">基础信息</button>
+    <button class="detail-tab" data-detail-tab="diagnosis">诊断</button>
+    <button class="detail-tab" data-detail-tab="lab">检验</button>
+    <button class="detail-tab" data-detail-tab="assessment">评估</button>
+    <button class="detail-tab" data-detail-tab="treat">治疗</button>
+    <button class="detail-tab" data-detail-tab="follow">随访</button>
+  </div>
+  <div id="detailBaseTab" class="detail-tab-page">
+    <div id="baseInfoList" class="base-info-form"></div>
+    <button id="saveBaseInfoBtn">保存基础信息</button>
+    <p class="message" id="baseInfoMsg"></p>
+  </div>
+  <div id="detailDiagnosisTab" class="detail-tab-page hidden">
+    <div class="subhead">诊断记录</div>
+    <div id="diagnosisRecordListDiagnosis" class="detail-list"></div>
+    <div class="diagnosis-form">
+      <div class="subhead">既往史</div>
+      <div class="radio-grid" id="medicalHistoryOptions">
+        <label><input type="checkbox" class="medical-history-checkbox" value="无">无</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="糖尿病">糖尿病</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="乙肝/肝硬化">乙肝/肝硬化</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="肾衰">肾衰</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="肝衰">肝衰</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="冠心病">冠心病</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="COPD">COPD</label>
+        <label><input type="checkbox" class="medical-history-checkbox" value="高血压">高血压</label>
+      </div>
+      <div class="subhead">初步诊断</div>
+      <div class="radio-grid" id="diagnosisDiseaseOptions">
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症">脓毒症</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症肺炎">重症肺炎</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心肺复苏后">心肺复苏后</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="急性坏死性胰腺炎">急性坏死性胰腺炎</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="消化道出血">消化道出血</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心衰">心源性休克/心衰</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑卒中">脑卒中</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="颅脑损伤">颅脑损伤</label>
+        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部损伤">胸部损伤</label>
+      </div>
+      <div id="diagnosisSubcategoryPanel" class="hidden">
+        <div class="diagnosis-selected-row">
+          <div><strong id="selectedDiagnosisDisease">-</strong></div>
+          <button id="resetDiagnosisDiseaseBtn" type="button" class="btn-sm secondary">重新选择</button>
+        </div>
+        <div class="subhead">子分类</div>
+        <div class="radio-grid" id="diagnosisSubcategoryOptions"></div>
+        <p class="hint" id="diagnosisSubcategoryHint"></p>
+      </div>
+      <button id="saveDiagnosisBtn">保存诊断信息</button>
+      <p class="message" id="diagnosisMsg"></p>
+    </div>
+  </div>
+  <div id="detailLabTab" class="detail-tab-page hidden">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-lab-tab="list">检验记录</button>
+      <button class="inner-tab" data-lab-tab="add">添加检验</button>
+    </div>
+    <div id="labListPanel" class="inner-tab-page">
+      <div id="labRecordList" class="detail-list"></div>
+    </div>
+    <div id="labAddPanel" class="inner-tab-page hidden">
+      <div class="subhead">检验类别上传进度</div>
+      <div id="labCategorySummary" class="lab-category-summary"></div>
+      <div id="labCategoryActions" class="case-actions wrap-actions"></div>
+    </div>
+  </div>
+  <div id="detailAssessmentTab" class="detail-tab-page hidden">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-assessment-tab="list">评估记录</button>
+      <button class="inner-tab" data-assessment-tab="add">添加评估</button>
+    </div>
+    <div id="assessmentListPanel" class="inner-tab-page">
+      <div id="assessmentList" class="detail-list"></div>
+    </div>
+    <div id="assessmentAddPanel" class="inner-tab-page hidden">
+      <div class="subhead">诊断记录</div>
+      <div id="diagnosisRecordListAssessment" class="detail-list"></div>
+      <div id="assessmentFormPanel" class="panel hidden">
+        <h3>入院时评估</h3>
+        <p class="hint">请提前计算好下面的评估数据：SOFA、APACHE2、barthel、MODS评分、GCS评分等。以下信息均为必填。</p>
+        <input id="assessmentTime" type="datetime-local" placeholder="时间">
+        <div id="assessmentDynamicFields" class="grid two"></div>
+        <button id="addAssessmentBtn">保存评估记录</button>
+        <p class="message" id="assessmentMsg"></p>
+      </div>
+    </div>
+  </div>
+  <div id="detailTreatTab" class="detail-tab-page hidden">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-treat-tab="list">治疗记录</button>
+      <button class="inner-tab" data-treat-tab="add">添加治疗</button>
+    </div>
+    <div id="treatListPanel" class="inner-tab-page">
+      <div id="treatList" class="detail-list"></div>
+    </div>
+    <div id="treatAddPanel" class="inner-tab-page hidden">
+      <div class="subhead">选择治疗的疾病</div>
+      <div id="diagnosisRecordListTreat" class="detail-list"></div>
+      <div id="treatFormPanel" class="panel hidden">
+        <h3>新增治疗记录</h3>
+        <p class="hint">每个治疗项目都单独记录时间点，不再整页共用一个时间。</p>
+        <div id="treatDynamicFields"></div>
+        <button id="addTreatBtn">保存治疗记录</button>
+        <p class="message" id="treatMsg"></p>
+      </div>
+    </div>
+  </div>
+  <div id="detailFollowTab" class="detail-tab-page hidden">
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-follow-tab="list">随访记录</button>
+      <button class="inner-tab" data-follow-tab="add">添加随访</button>
+    </div>
+    <div id="followListPanel" class="inner-tab-page">
+      <div id="followList" class="detail-list"></div>
+    </div>
+    <div id="followAddPanel" class="inner-tab-page hidden">
+      <div class="subhead">诊断记录</div>
+      <div id="diagnosisRecordListFollow" class="detail-list"></div>
+      <div id="followFormPanel" class="panel hidden">
+        <h3>新增随访记录</h3>
+        <div id="followDynamicFields" class="grid two"></div>
+        <button id="addFollowBtn">保存随访记录</button>
+        <p class="message" id="followMsg"></p>
+      </div>
+    </div>
+  </div>
+</section>
