@@ -70,7 +70,7 @@ function showPanel(id) {
     if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode !== "intake") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
-    if (id === "diseasePanel" && diseaseSelectionPurpose === "labUpload") {
+    if (id === "diseasePanel" && (diseaseSelectionPurpose === "labUpload" || loadLabUploadContext().patientId)) {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
     if (id === "patientDetailPanel" || id === "labReportPanel") {
@@ -93,6 +93,26 @@ function showPanel(id) {
 
 function setMsg(id, text, error) {
   $("#" + id).text(text).toggleClass("error", !!error);
+}
+
+function saveLabUploadContext(patientId, categoryKey, categoryLabel) {
+  localStorage.setItem("labUploadContext", JSON.stringify({
+    patientId: patientId || "",
+    categoryKey: categoryKey || "",
+    categoryLabel: categoryLabel || "检验"
+  }));
+}
+
+function loadLabUploadContext() {
+  try {
+    return JSON.parse(localStorage.getItem("labUploadContext") || "{}") || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function clearLabUploadContext() {
+  localStorage.removeItem("labUploadContext");
 }
 
 function formDataFrom(panel) {
@@ -149,6 +169,7 @@ function openNewCaseForm() {
   pendingLabUploadCategory = "";
   pendingLabUploadLabel = "";
   diseaseSelectionPurpose = "";
+  clearLabUploadContext();
   uploadedPhotoPath = null;
   selectedFile = null;
   selectedDiseaseId = null;
@@ -167,6 +188,7 @@ function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel)
   pendingLabUploadPatientId = patientId;
   pendingLabUploadCategory = categoryKey || "";
   pendingLabUploadLabel = categoryLabel || "检验";
+  saveLabUploadContext(patientId, categoryKey, categoryLabel);
   currentUploadMode = "lab";
   currentUploadPatientId = patientId;
   currentRecordCategory = null;
@@ -631,11 +653,14 @@ $(function() {
       $("#memberReviewNav").toggleClass("hidden", !canReviewMembers);
       loadDiseases();
       var saved = localStorage.getItem("clientPanel");
+      var savedLabContext = loadLabUploadContext();
       if (saved && saved !== "loginPanel" && saved !== "registerPanel" && saved !== "resetPanel") {
         if (saved === "memberReviewPanel" && !canReviewMembers) {
           openNewCaseForm();
         } else if (saved === "labReportPanel") {
           showPanel("caseListPanel");
+        } else if (saved === "diseasePanel" && savedLabContext.patientId) {
+          openDiseaseSelectionForLabUpload(savedLabContext.patientId, savedLabContext.categoryKey, savedLabContext.categoryLabel);
         } else if (saved === "diseasePanel" || saved === "photoPanel" || saved === "recordPanel") {
           openNewCaseForm();
         } else {
@@ -1013,10 +1038,12 @@ document.addEventListener("click", function (event) {
   event.preventDefault();
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  if (diseaseSelectionPurpose === "labUpload" || (currentUploadMode === "lab" && currentUploadPatientId)) {
-    const patientId = pendingLabUploadPatientId || currentUploadPatientId;
-    const category = pendingLabUploadCategory || currentRecordCategory || "";
-    const label = pendingLabUploadLabel || currentCategoryLabel || "检验";
+  const labContext = loadLabUploadContext();
+  const labContextPatientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId;
+  if (diseaseSelectionPurpose === "labUpload" || labContextPatientId || (currentUploadMode === "lab" && currentUploadPatientId)) {
+    const patientId = labContextPatientId;
+    const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
+    const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
     if (!patientId) {
       setMsg("caseListMsg", "请先从病例详情的检验添加入口上传检验单。", true);
       showPanel("caseListPanel");
@@ -1026,6 +1053,7 @@ document.addEventListener("click", function (event) {
     pendingLabUploadPatientId = null;
     pendingLabUploadCategory = "";
     pendingLabUploadLabel = "";
+    clearLabUploadContext();
     startLabCategoryUpload(patientId, category, label);
     return;
   }
