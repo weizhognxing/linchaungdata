@@ -132,7 +132,7 @@ function loadDiseases() {
     $("#diseaseTotalCount").text(`总共录入${total}人`);
     const html = diseases.map(function (d) {
       const count = Number(d.patient_count || 0);
-      const buttonClass = isLabUploadSelection ? "disease-item lab-upload-disease-item" : "disease-item";
+      const buttonClass = isLabUploadSelection ? "lab-upload-disease-item" : "disease-item";
       const patientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId || "";
       const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
       const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
@@ -822,7 +822,7 @@ function openPhotoPanelForIntake() {
 function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
   currentUploadMode = "lab";
   currentUploadPatientId = patientId;
-  currentRecordCategory = null;
+  currentRecordCategory = categoryKey || "";
   currentCategoryLabel = categoryLabel || "检验";
   initPhotoPanel();
   initPhotoButtons();
@@ -1067,9 +1067,23 @@ document.addEventListener("click", function (event) {
 
   const diseaseButton = event.target && event.target.closest ? event.target.closest(".disease-item") : null;
   if (!diseaseButton) return;
+  if (diseaseButton.classList.contains("lab-upload-disease-item")) return;
   event.preventDefault();
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
+  const labContext = loadLabUploadContext();
+  const patientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId;
+  if (patientId && (diseaseSelectionPurpose === "labUpload" || currentUploadMode === "lab" || labContext.patientId)) {
+    const category = labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "";
+    const label = labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验";
+    diseaseSelectionPurpose = "";
+    pendingLabUploadPatientId = null;
+    pendingLabUploadCategory = "";
+    pendingLabUploadLabel = "";
+    clearLabUploadContext();
+    startLabCategoryUpload(patientId, category, label);
+    return;
+  }
   setMsg("caseListMsg", "请从病例详情的检验添加入口上传检验单。", true);
   showPanel("caseListPanel");
 });
