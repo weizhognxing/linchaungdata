@@ -10,6 +10,7 @@ let currentCategoryLabel = "";
 let pendingLabUploadPatientId = null;
 let pendingLabUploadCategory = "";
 let pendingLabUploadLabel = "";
+let diseaseSelectionPurpose = "";
 const saveRecordButtonText = "保存信息";
 const photoTargetBytes = 100 * 1024;
 const photoTargetMaxBytes = 115 * 1024;
@@ -69,7 +70,7 @@ function showPanel(id) {
     if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode !== "intake") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
-    if (id === "diseasePanel" && pendingLabUploadPatientId) {
+    if (id === "diseasePanel" && diseaseSelectionPurpose === "labUpload") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
     if (id === "patientDetailPanel" || id === "labReportPanel") {
@@ -147,6 +148,7 @@ function openNewCaseForm() {
   pendingLabUploadPatientId = null;
   pendingLabUploadCategory = "";
   pendingLabUploadLabel = "";
+  diseaseSelectionPurpose = "";
   uploadedPhotoPath = null;
   selectedFile = null;
   selectedDiseaseId = null;
@@ -161,6 +163,7 @@ function openNewCaseForm() {
 }
 
 function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel) {
+  diseaseSelectionPurpose = "labUpload";
   pendingLabUploadPatientId = patientId;
   pendingLabUploadCategory = categoryKey || "";
   pendingLabUploadLabel = categoryLabel || "检验";
@@ -882,9 +885,17 @@ function setRecognizeBlocking(blocked) {
 // 自动识别函数
 function autoRecognize() {
   if (!selectedFile) return;
+  if (currentUploadMode === "lab" && !currentUploadPatientId) {
+    setMsg("photoMsg", "请先从病例详情进入上传检验单。", true);
+    return;
+  }
   if (!selectedDiseaseId || selectedDiseaseId === "null") {
     alert("请先选择疾病");
-    showPanel("diseasePanel");
+    if (currentUploadMode === "lab" && currentUploadPatientId) {
+      openDiseaseSelectionForLabUpload(currentUploadPatientId, currentRecordCategory, currentCategoryLabel);
+    } else {
+      showPanel("caseListPanel");
+    }
     return;
   }
   setRecognizeBlocking(true);
@@ -900,7 +911,7 @@ function autoRecognize() {
   var data = new FormData();
   data.append("disease_id", selectedDiseaseId);
   data.append("photo", selectedFile, selectedFile.name || "lab-photo.jpg");
-  data.append("mode", currentUploadMode);
+  data.append("mode", currentUploadMode === "lab" ? "lab" : "intake");
   if (currentRecordCategory) data.append("record_category", currentRecordCategory);
   if (currentUploadPatientId) data.append("patient_id", currentUploadPatientId);
 
@@ -1002,17 +1013,19 @@ document.addEventListener("click", function (event) {
   event.preventDefault();
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  if (pendingLabUploadPatientId) {
+  if (diseaseSelectionPurpose === "labUpload" && pendingLabUploadPatientId) {
     const patientId = pendingLabUploadPatientId;
     const category = pendingLabUploadCategory;
     const label = pendingLabUploadLabel;
+    diseaseSelectionPurpose = "";
     pendingLabUploadPatientId = null;
     pendingLabUploadCategory = "";
     pendingLabUploadLabel = "";
     startLabCategoryUpload(patientId, category, label);
     return;
   }
-  openPhotoPanelForIntake();
+  setMsg("caseListMsg", "请从病例详情的检验添加入口上传检验单。", true);
+  showPanel("caseListPanel");
 });
 
 // 拍照/上传：点击按钮触发隐藏的 file input
@@ -1025,7 +1038,11 @@ function bindFileInputs() {
 async function handleFileSelect(e) {
   if (!selectedDiseaseId || selectedDiseaseId === "null") {
     alert("请先选择疾病");
-    showPanel("diseasePanel");
+    if (currentUploadMode === "lab" && currentUploadPatientId) {
+      openDiseaseSelectionForLabUpload(currentUploadPatientId, currentRecordCategory, currentCategoryLabel);
+    } else {
+      showPanel("caseListPanel");
+    }
     return;
   }
   if (e.target.files && e.target.files[0]) {
