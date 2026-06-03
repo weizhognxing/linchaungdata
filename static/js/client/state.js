@@ -72,7 +72,7 @@ function showPanel(id) {
     if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode !== "intake") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
-    if (id === "diseasePanel" && (diseaseSelectionPurpose === "labUpload" || loadLabUploadContext().patientId)) {
+    if (id === "diseasePanel" && isDiseasePanelLabMode()) {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
     if (id === "patientDetailPanel" || id === "labReportPanel") {
@@ -117,11 +117,43 @@ function clearLabUploadContext() {
   localStorage.removeItem("labUploadContext");
 }
 
+function isDiseasePanelLabMode() {
+  const labContext = loadLabUploadContext();
+  return diseaseSelectionPurpose === "labUpload" || currentUploadMode === "lab" || !!labContext.patientId;
+}
+
+function clearDiseaseSelectionContext() {
+  pendingLabUploadPatientId = null;
+  pendingLabUploadCategory = "";
+  pendingLabUploadLabel = "";
+  diseaseSelectionPurpose = "";
+  clearLabUploadContext();
+}
+
+function resolveLabUploadContextFromButton(btn) {
+  const directContext = {
+    patientId: btn.getAttribute("data-patient-id") || "",
+    category: btn.getAttribute("data-category") || "",
+    label: btn.getAttribute("data-label") || "检验"
+  };
+  const labContext = loadLabUploadContext();
+  const backupContext = {
+    patientId: labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId || "",
+    category: labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "",
+    label: labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验"
+  };
+  return {
+    patientId: directContext.patientId || backupContext.patientId,
+    category: directContext.category || backupContext.category,
+    label: directContext.label || backupContext.label
+  };
+}
+
 function getActiveLabUploadContext() {
   const labContext = loadLabUploadContext();
   const patientId = labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId;
   if (!patientId) return null;
-  if (diseaseSelectionPurpose !== "labUpload" && currentUploadMode !== "lab" && !labContext.patientId) return null;
+  if (!isDiseasePanelLabMode() && currentUploadMode !== "lab") return null;
   return {
     patientId: patientId,
     category: labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "",
@@ -133,11 +165,7 @@ function finishLabDiseaseSelection(diseaseId, labContext) {
   if (!diseaseId || !labContext || !labContext.patientId) return false;
   selectedDiseaseId = diseaseId;
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
-  diseaseSelectionPurpose = "";
-  pendingLabUploadPatientId = null;
-  pendingLabUploadCategory = "";
-  pendingLabUploadLabel = "";
-  clearLabUploadContext();
+  clearDiseaseSelectionContext();
   startLabCategoryUpload(labContext.patientId, labContext.category, labContext.label);
   return true;
 }
@@ -155,7 +183,7 @@ function loadDiseases() {
     const diseases = payload.diseases || [];
     const total = Number(payload.total_patients || 0);
     const labContext = loadLabUploadContext();
-    const isLabUploadSelection = diseaseSelectionPurpose === "labUpload" || !!labContext.patientId;
+    const isLabUploadSelection = isDiseasePanelLabMode();
     $("#diseaseTotalCount").text(`总共录入${total}人`);
     const html = diseases.map(function (d) {
       const count = Number(d.patient_count || 0);
@@ -201,11 +229,7 @@ function openNewCaseForm() {
   currentUploadPatientId = null;
   currentRecordCategory = null;
   currentCategoryLabel = "";
-  pendingLabUploadPatientId = null;
-  pendingLabUploadCategory = "";
-  pendingLabUploadLabel = "";
-  diseaseSelectionPurpose = "";
-  clearLabUploadContext();
+  clearDiseaseSelectionContext();
   uploadedPhotoPath = null;
   selectedFile = null;
   selectedDiseaseId = null;

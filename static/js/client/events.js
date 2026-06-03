@@ -50,12 +50,9 @@ document.addEventListener("click", function (event) {
   const labUploadDiseaseButton = event.target && event.target.closest ? event.target.closest(".lab-upload-disease-item") : null;
   if (labUploadDiseaseButton) {
     event.preventDefault();
-    const labContext = getActiveLabUploadContext() || {
-      patientId: labUploadDiseaseButton.getAttribute("data-patient-id"),
-      category: labUploadDiseaseButton.getAttribute("data-category") || "",
-      label: labUploadDiseaseButton.getAttribute("data-label") || "检验"
-    };
+    const labContext = resolveLabUploadContextFromButton(labUploadDiseaseButton);
     if (!finishLabDiseaseSelection(labUploadDiseaseButton.getAttribute("data-id"), labContext)) {
+      clearDiseaseSelectionContext();
       setMsg("caseListMsg", "请先从病例详情的检验添加入口上传检验单。", true);
       showPanel("caseListPanel");
     }
@@ -69,6 +66,9 @@ document.addEventListener("click", function (event) {
   const activeLabContext = getActiveLabUploadContext();
   if (finishLabDiseaseSelection(diseaseButton.getAttribute("data-id"), activeLabContext)) {
     return;
+  }
+  if (activeLabContext) {
+    clearDiseaseSelectionContext();
   }
   selectedDiseaseId = diseaseButton.getAttribute("data-id");
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
