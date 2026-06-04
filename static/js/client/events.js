@@ -252,7 +252,7 @@ $("#saveRecordBtn").on("click", function () {
     const savedPatientId = (res.data && res.data.patient_id) || currentUploadPatientId;
     if (savedPatientId) {
       currentUploadPatientId = savedPatientId;
-      loadPatientDetail(savedPatientId, "lab", "add");
+      loadPatientDetail(savedPatientId, "lab");
     }
   }).fail(function (xhr) {
     setMsg("recordMsg", xhr.responseJSON?.message || "保存失败", true);
