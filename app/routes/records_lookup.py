@@ -155,6 +155,12 @@ def recognize():
             patient = parse_patient_info(ai_text)
             lab_test_name = parse_lab_test_name(ai_text)
             fields = reorder_fields_by_values(fields, values)
+            if recognize_mode == "lab":
+                fields = [
+                    field for field in fields
+                    if values.get(field.get("field_name")) is not None
+                    and str(values.get(field.get("field_name"))).strip() != ""
+                ]
         except AIRecognitionError as e:
             return fail(str(e), 502)
         except Exception as e:

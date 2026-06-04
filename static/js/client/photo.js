@@ -271,11 +271,16 @@ function autoRecognize() {
       resetRecordForm();
       fillPatientForm(res.data.patient);
 
-      var html = (res.data.fields || []).map(function(f) {
-        var value = (res.data.values || {})[f.field_name] || '';
+      var recognizedValues = res.data.values || {};
+      var recognizedFields = (res.data.fields || []).filter(function (f) {
+        var value = recognizedValues[f.field_name];
+        return value !== null && value !== undefined && String(value).trim() !== "";
+      });
+      var html = recognizedFields.map(function(f) {
+        var value = recognizedValues[f.field_name];
         return '<div class="form-field"><label>' + f.form_label + '</label><input name="' + f.field_name + '" value="' + value + '" placeholder="' + f.form_label + '"></div>';
       }).join("");
-      $("#dynamicFields").html(html);
+      $("#dynamicFields").html(html || '<div class="detail-item">未识别到检验指标</div>');
 
       if (currentUploadMode === "intake") {
         $("#recordPanelTitle").text("确认基础信息");
