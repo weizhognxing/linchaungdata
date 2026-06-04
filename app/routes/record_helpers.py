@@ -63,7 +63,7 @@ DIAGNOSIS_SUBCATEGORY_OPTIONS = {
 
 LAB_CATEGORY_DEFINITIONS = {
     "blood_routine": {
-        "label": "血常规",
+        "label": "血细胞分析",
         "fields": [
             "wbc", "neu", "lym", "mono", "eos", "baso", "neu_r", "lym_r", "mono_r", "eos_r", "baso_r",
             "rbc", "hgb", "hct", "mcv", "mch", "mchc", "rdw_sd", "rdw_cv", "plt", "mpv", "pdw", "p_lcr", "hscrp",
@@ -215,6 +215,10 @@ def _optional_decimal(value):
 
 def _optional_datetime(value):
     value = str(value or "").strip()
+    if value and "T" in value:
+        value = value.replace("T", " ")
+    if value and len(value) == 16:
+        value += ":00"
     return value if value != "" else None
 
 
@@ -237,7 +241,7 @@ def _build_category_prompt(category_config):
 用户可能正在补录“{category_config['label']}”，但图片不一定属于这个类别，请不要强行归类。
 如果图片确实属于“{category_config['label']}”，请优先使用以下字段缩写作为 code：{fields}
 如果图片属于其他检验，请按图片原文或最接近的报告标题填写 lab_test_name，并提取图片中的实际检验指标。
-lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面的套餐编号、医嘱编号、条码编号、内部代码和序号，例如 JY243.血淀粉酶+P-AMY 应返回 血淀粉酶+P-AMY，A001-血常规 应返回 血常规。
+lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面的套餐编号、医嘱编号、条码编号、内部代码和序号，例如 JY243.血淀粉酶+P-AMY 应返回 血淀粉酶+P-AMY，A001-血细胞分析 应返回 血细胞分析。
 请严格按照以下JSON格式返回，只返回JSON，不要其他内容：
 {{
   "lab_test_name": "图片上的实际检验名称",
@@ -357,7 +361,7 @@ def _required_lab_tests_completed(cur, patient_id):
     if not names:
         return False
 
-    prompt = """你是临床检验类别判断助手。请判断下面“已完成的检验类别”中，是否已经覆盖全部七类必需检验类别：血常规、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
+    prompt = """你是临床检验类别判断助手。请判断下面“已完成的检验类别”中，是否已经覆盖全部七类必需检验类别：血细胞分析、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
 判断规则：
 1. 名称可能带有编码或前缀，例如“JY2625.B型钠尿肽”，应理解为 BNP。
 2. BNP 的同义名称包括：BNP、B型钠尿肽、N端B型钠尿肽、NT-proBNP、NT-pro BNP。

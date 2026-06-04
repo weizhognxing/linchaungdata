@@ -15,6 +15,7 @@ body { margin: 0; color: var(--ink); font-family: "Microsoft YaHei", "Noto Sans 
 input, select, button, textarea { width: 100%; border-radius: 14px; border: 1px solid var(--line); padding: 12px 14px; font: inherit; }
 textarea { min-height: 96px; resize: vertical; }
 button { border: 0; background: var(--brand); color: #fff; font-weight: 700; cursor: pointer; box-shadow: 0 10px 22px rgba(31, 122, 90, 0.18); }
+button:disabled { background: #9aaca3; color: #edf3ef; cursor: not-allowed; box-shadow: none; }
 button.secondary { background: var(--accent); color: #2f2108; }
 a { color: var(--brand-dark); cursor: pointer; font-weight: 700; }
 table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; }
@@ -98,6 +99,7 @@ th { background: #eff6ee; }
 .radio-grid { display: grid; gap: 10px; }
 .radio-grid label { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-weight: 700; }
 .radio-grid input { width: auto; margin: 0; }
+#treatDynamicFields input[type="datetime-local"], #treatDynamicFields .treatment-option-extras input { width: 100%; min-width: 0; }
 .lab-record-item { cursor: pointer; }
 .report-topbar { display: grid; align-items: center; gap: 10px; margin-bottom: 14px; }
 .report-topbar h2 { margin: 0; text-align: left; }

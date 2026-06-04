@@ -153,7 +153,7 @@ function triggerPhotoChooser() {
 function normalizeLabCategoryName(value) {
   value = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if (!value) return "";
-  if (value.indexOf("血常规") > -1 || value === "blood_routine") return "blood_routine";
+  if (value.indexOf("血细胞分析") > -1 || value.indexOf("血" + "常规") > -1 || value === "blood_routine") return "blood_routine";
   if (value.indexOf("生化") > -1 || value.indexOf("电解质") > -1 || value === "biochemistry") return "biochemistry";
   if (value.indexOf("血气") > -1 || value === "blood_gas") return "blood_gas";
   if (value.indexOf("dic") > -1 || value.indexOf("凝血") > -1 || value === "dic7") return "dic7";

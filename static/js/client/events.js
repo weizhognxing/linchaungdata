@@ -330,6 +330,13 @@ $(document).on("click", "#caseListPanel .inner-tab", function () {
   showCaseSubTab(this.getAttribute("data-case-tab"));
 });
 
+function setBaseInfoButtonSaving(saving) {
+  const button = document.getElementById("saveBaseInfoBtn");
+  if (!button) return;
+  button.disabled = !!saving;
+  button.textContent = saving ? "保存中" : "保存基础信息";
+}
+
 $(document).on("click", "#saveBaseInfoBtn", function () {
   if (!currentPatientId) return;
   const payload = {};
@@ -345,6 +352,7 @@ $(document).on("click", "#saveBaseInfoBtn", function () {
     setMsg("baseInfoMsg", "请填写：" + missingFields.join("、"), true);
     return;
   }
+  setBaseInfoButtonSaving(true);
   $.post("/api/patients/" + currentPatientId, payload)
     .done(function (res) {
       setMsg("baseInfoMsg", res.message || "基础信息已保存");
@@ -352,6 +360,9 @@ $(document).on("click", "#saveBaseInfoBtn", function () {
     })
     .fail(function (xhr) {
       setMsg("baseInfoMsg", xhr.responseJSON?.message || "基础信息保存失败", true);
+    })
+    .always(function () {
+      setBaseInfoButtonSaving(false);
     });
 });
 
@@ -442,6 +453,10 @@ $(document).on("input", "#assessmentDynamicFields .assessment-input[data-field=s
 
 $(document).on("input", "#assessmentDynamicFields .assessment-kpa-input", function () {
   updateAssessmentOxygenFromKpa();
+});
+
+$(document).on("input", "#assessmentDynamicFields .assessment-input[data-field=oxygen_partial_pressure]", function () {
+  updateAssessmentOxygenFromMmhg();
 });
 
 $(document).on("input", "#followDynamicFields .followup-input[data-field=prognosis]", function () {
@@ -598,8 +613,14 @@ $("#addTreatBtn").on("click", function () {
     const selected = Array.from(document.querySelectorAll('.treatment-choice[data-field="' + field + '"]'))
       .filter(function (input) { return input.checked; })
       .map(function (input) { return input.value; });
+    const details = collectTreatmentOptionDetails(field, selected);
     payload[field] = selected.join(",");
-    payload[field + "_details"] = JSON.stringify(collectTreatmentOptionDetails(field, selected));
+    payload[field + "_details"] = JSON.stringify(details);
+    details.forEach(function (item) {
+      Object.keys(item.details || {}).forEach(function (detailField) {
+        if (!payload[detailField] && item.details[detailField]) payload[detailField] = item.details[detailField];
+      });
+    });
   });
   $.post("/api/patients/" + currentPatientId + "/treatments", payload).done(function (res) {
     setMsg("treatMsg", res.message || "已保存");
@@ -621,7 +642,11 @@ $("#addFollowBtn").on("click", function () {
   let missing = [];
   $("#followDynamicFields .followup-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
-    if (!this.disabled && !$(this).val()) missing.push($(this).closest(".form-field").querySelector("label").textContent.replace(" *", ""));
+    if (!this.disabled && !$(this).val()) {
+      const field = this.closest(".form-field");
+      const label = field ? field.querySelector("label") : null;
+      missing.push(label ? label.textContent.replace(" *", "") : this.getAttribute("data-field"));
+    }
   });
   if (missing.length) {
     setMsg("followMsg", "请填写：" + missing.join("、"), true);
@@ -654,7 +679,8 @@ $("#addAssessmentBtn").on("click", function () {
     return;
   }
   updateAssessmentShockIndex();
-  updateAssessmentOxygenFromKpa();
+  if ($("#assessmentDynamicFields .assessment-kpa-input").val()) updateAssessmentOxygenFromKpa();
+  else updateAssessmentOxygenFromMmhg();
   const payload = {
     diagnosis_record_id: selectedDiagnosis.value,
     assessment_time: $("#assessmentTime").val() || new Date().toISOString().slice(0, 16)
@@ -662,7 +688,11 @@ $("#addAssessmentBtn").on("click", function () {
   let assessmentMissing = [];
   $("#assessmentDynamicFields .assessment-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
-    if (!$(this).val()) assessmentMissing.push($(this).closest(".form-field").querySelector("label").textContent.replace(" *", ""));
+    if (!$(this).val()) {
+      const field = this.closest(".form-field");
+      const label = field ? field.querySelector("label") : null;
+      assessmentMissing.push(label ? label.textContent.replace(" *", "") : this.getAttribute("data-field"));
+    }
   });
   if (assessmentMissing.length) {
     setMsg("assessmentMsg", "请填写：" + assessmentMissing.join("、"), true);

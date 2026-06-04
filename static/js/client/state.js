@@ -14,12 +14,12 @@ let pendingLabUploadCategory = "";
 let pendingLabUploadLabel = "";
 let diseaseSelectionPurpose = "";
 const saveRecordButtonText = "保存信息";
-const photoTargetBytes = 100 * 1024;
-const photoTargetMaxBytes = 115 * 1024;
+const photoTargetBytes = 200 * 1024;
+const photoTargetMaxBytes = 230 * 1024;
 let fileSelectToken = 0;
 
 const labCategories = [
-  { key: "blood_routine", label: "血常规" },
+  { key: "blood_routine", label: "血细胞分析" },
   { key: "biochemistry", label: "生化电解质" },
   { key: "blood_gas", label: "血气分析" },
   { key: "dic7", label: "DIC7项" },

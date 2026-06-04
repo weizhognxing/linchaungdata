@@ -364,13 +364,14 @@ def patient_detail(patient_id):
                 "diagnosis", "diagnosis_disease", "medical_history", "preliminary_diagnosis",
                 "case_integrity", "created_at", "updated_at",
             }
-            cur.execute("SELECT field_name, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
+            cur.execute("SELECT field_name, data_type, form_label FROM patient_field_settings WHERE enabled=1 ORDER BY created_at DESC")
             patient_meta = []
             for field in cur.fetchall():
                 field_name = field["field_name"]
                 if field_name in patient_columns and field_name not in base_fields:
                     patient_meta.append({
                         "field_name": field_name,
+                        "data_type": field.get("data_type"),
                         "form_label": field["form_label"],
                         "value": patient.get(field_name),
                     })

@@ -133,6 +133,29 @@ function showLabSubTab(tab) {
   $("#labAddPanel").toggleClass("hidden", tab !== "add");
 }
 
+function normalizeDateTimeLocalValue(value) {
+  value = String(value || "").trim();
+  if (!value) return "";
+  return value.replace(" ", "T").slice(0, 16);
+}
+
+function resolveBaseInfoInputType(field) {
+  const fieldName = String(field.field_name || "").toLowerCase();
+  const label = String(field.form_label || "");
+  const dataType = String(field.data_type || field.type || "").toLowerCase();
+  if (label === "入院时间" || fieldName.indexOf("admission") > -1 || dataType === "datetime") return "datetime-local";
+  if (dataType === "date") return "date";
+  if (dataType === "int" || dataType === "decimal" || dataType === "number") return "number";
+  return field.type || "text";
+}
+
+function resolveBaseInfoValue(field) {
+  const value = field.value;
+  const inputType = resolveBaseInfoInputType(field);
+  if (inputType === "datetime-local") return normalizeDateTimeLocalValue(value);
+  return value;
+}
+
 function showDiagnosisSubTab(tab) {
   tab = tab || "list";
   document.querySelectorAll("#detailDiagnosisTab .inner-tab").forEach(function (button) {
@@ -265,7 +288,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       }).map(function (f) { f.required = true; return f; }));
       const baseHtml = baseFields.map(function (f) {
         return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
-          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + (f.type || 'text') + '" value="' + attrValue(f.value) + '" placeholder="' + f.form_label + '"' + (isCompleteCase ? ' disabled' : '') + '></div>';
+          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + resolveBaseInfoInputType(f) + '" value="' + attrValue(resolveBaseInfoValue(f)) + '" placeholder="' + f.form_label + '"' + (isCompleteCase ? ' disabled' : '') + '></div>';
       }).join('') || '<div class="detail-item">暂无基础信息</div>';
       $("#baseInfoList").html(baseHtml);
       setMsg("baseInfoMsg", "", false);
