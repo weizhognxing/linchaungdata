@@ -534,7 +534,10 @@ $(document).on("click", ".detail-tab", function () {
   $(this).addClass("active");
   $(".detail-tab-page").addClass("hidden");
   if (tab === "base") $("#detailBaseTab").removeClass("hidden");
-  if (tab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
+  if (tab === "diagnosis") {
+    $("#detailDiagnosisTab").removeClass("hidden");
+    showDiagnosisSubTab("list");
+  }
   if (tab === "lab") {
     $("#detailLabTab").removeClass("hidden");
     showLabSubTab("list");
@@ -567,6 +570,10 @@ $(document).on("click", "#detailAssessmentTab .inner-tab", function () {
 
 $(document).on("click", "#detailLabTab .inner-tab", function () {
   showLabSubTab(this.getAttribute("data-lab-tab"));
+});
+
+$(document).on("click", "#detailDiagnosisTab .inner-tab", function () {
+  showDiagnosisSubTab(this.getAttribute("data-diagnosis-tab"));
 });
 
 $("#addTreatBtn").on("click", function () {

@@ -133,6 +133,15 @@ function showLabSubTab(tab) {
   $("#labAddPanel").toggleClass("hidden", tab !== "add");
 }
 
+function showDiagnosisSubTab(tab) {
+  tab = tab || "list";
+  document.querySelectorAll("#detailDiagnosisTab .inner-tab").forEach(function (button) {
+    button.classList.toggle("active", button.getAttribute("data-diagnosis-tab") === tab);
+  });
+  $("#diagnosisListPanel").toggleClass("hidden", tab !== "list");
+  $("#diagnosisAddPanel").toggleClass("hidden", tab !== "add");
+}
+
 function fillDiagnosisForm(patient) {
   resetDiagnosisDiseaseSelection();
 
@@ -241,7 +250,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       const isCompleteCase = getCaseIntegrity(patient) === 'complete';
       $("#saveBaseInfoBtn, #saveDiagnosisBtn, #addAssessmentBtn, #addTreatBtn, #addFollowBtn").toggleClass("hidden", isCompleteCase);
-      $("#detailLabTab .inner-tab[data-lab-tab=add], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add]").toggleClass("hidden", isCompleteCase);
+      $("#detailLabTab .inner-tab[data-lab-tab=add], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add], #detailDiagnosisTab .inner-tab[data-diagnosis-tab=add]").toggleClass("hidden", isCompleteCase);
       $(".delete-diagnosis-btn").toggleClass("hidden", isCompleteCase);
       setMsg("patientDetailMsg", isCompleteCase ? '当前病例为完整记录，提交后不能修改。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。所有基础信息均需真实填写。', false);
 
@@ -316,7 +325,10 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       $(".detail-tab[data-detail-tab='" + activeTab + "']").addClass("active");
       $(".detail-tab-page").addClass("hidden");
       if (activeTab === "base") $("#detailBaseTab").removeClass("hidden");
-      if (activeTab === "diagnosis") $("#detailDiagnosisTab").removeClass("hidden");
+      if (activeTab === "diagnosis") {
+        $("#detailDiagnosisTab").removeClass("hidden");
+        showDiagnosisSubTab(subTab || "list");
+      }
       if (activeTab === "lab") {
         $("#detailLabTab").removeClass("hidden");
         showLabSubTab(subTab || "list");

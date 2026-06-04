@@ -16,45 +16,52 @@
     <p class="message" id="baseInfoMsg"></p>
   </div>
   <div id="detailDiagnosisTab" class="detail-tab-page hidden">
-    <div class="subhead">诊断记录</div>
-    <div id="diagnosisRecordListDiagnosis" class="detail-list"></div>
-    <div class="diagnosis-form">
-      <div class="subhead">既往史</div>
-      <div class="radio-grid" id="medicalHistoryOptions">
-        <label><input type="checkbox" class="medical-history-checkbox" value="无">无</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="糖尿病">糖尿病</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="乙肝/肝硬化">乙肝/肝硬化</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="肾衰">肾衰</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="肝衰">肝衰</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="冠心病">冠心病</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="COPD">COPD</label>
-        <label><input type="checkbox" class="medical-history-checkbox" value="高血压">高血压</label>
-      </div>
-      <div class="subhead">初步诊断</div>
-      <div class="radio-grid" id="diagnosisDiseaseOptions">
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症">脓毒症</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症肺炎">重症肺炎</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心肺复苏后">心肺复苏后</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="急性坏死性胰腺炎">急性坏死性胰腺炎</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="消化道出血">消化道出血</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心衰">心源性休克/心衰</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑卒中">脑卒中</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="颅脑损伤">颅脑损伤</label>
-        <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部损伤">胸部损伤</label>
-      </div>
-      <div id="diagnosisSubcategoryPanel" class="hidden">
-        <div class="diagnosis-selected-row">
-          <div><strong id="selectedDiagnosisDisease">-</strong></div>
-          <button id="resetDiagnosisDiseaseBtn" type="button" class="btn-sm secondary">重新选择</button>
+    <div class="inner-tabs">
+      <button class="inner-tab active" data-diagnosis-tab="list">诊断记录</button>
+      <button class="inner-tab" data-diagnosis-tab="add">添加诊断</button>
+    </div>
+    <div id="diagnosisListPanel" class="inner-tab-page">
+      <div id="diagnosisRecordListDiagnosis" class="detail-list"></div>
+    </div>
+    <div id="diagnosisAddPanel" class="inner-tab-page hidden">
+      <div class="diagnosis-form">
+        <div class="subhead">既往史</div>
+        <div class="radio-grid" id="medicalHistoryOptions">
+          <label><input type="checkbox" class="medical-history-checkbox" value="无">无</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="糖尿病">糖尿病</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="乙肝/肝硬化">乙肝/肝硬化</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="肾衰">肾衰</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="肝衰">肝衰</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="冠心病">冠心病</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="COPD">COPD</label>
+          <label><input type="checkbox" class="medical-history-checkbox" value="高血压">高血压</label>
         </div>
-        <div class="subhead">子分类</div>
-        <div class="radio-grid" id="diagnosisSubcategoryOptions"></div>
-        <p class="hint" id="diagnosisSubcategoryHint"></p>
+        <div class="subhead">初步诊断</div>
+        <div class="radio-grid" id="diagnosisDiseaseOptions">
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脓毒症">脓毒症</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="重症肺炎">重症肺炎</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心肺复苏后">心肺复苏后</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="急性坏死性胰腺炎">急性坏死性胰腺炎</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="消化道出血">消化道出血</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="中毒">中毒</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="心源性休克/心衰">心源性休克/心衰</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="脑卒中">脑卒中</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="多发伤">多发伤</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="颅脑损伤">颅脑损伤</label>
+          <label class="diagnosis-disease-label"><input type="radio" name="diagnosisDisease" value="胸部损伤">胸部损伤</label>
+        </div>
+        <div id="diagnosisSubcategoryPanel" class="hidden">
+          <div class="diagnosis-selected-row">
+            <div><strong id="selectedDiagnosisDisease">-</strong></div>
+            <button id="resetDiagnosisDiseaseBtn" type="button" class="btn-sm secondary">重新选择</button>
+          </div>
+          <div class="subhead">子分类</div>
+          <div class="radio-grid" id="diagnosisSubcategoryOptions"></div>
+          <p class="hint" id="diagnosisSubcategoryHint"></p>
+        </div>
+        <button id="saveDiagnosisBtn">保存诊断信息</button>
+        <p class="message" id="diagnosisMsg"></p>
       </div>
-      <button id="saveDiagnosisBtn">保存诊断信息</button>
-      <p class="message" id="diagnosisMsg"></p>
     </div>
   </div>
   <div id="detailLabTab" class="detail-tab-page hidden">
