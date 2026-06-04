@@ -6,6 +6,7 @@ from io import BytesIO
 from flask import session
 from openpyxl import Workbook
 
+from app.common import required
 from app.db import db
 from app.services.core import ask_ai_yes_no, get_fields_for_disease
 
