@@ -405,13 +405,20 @@ def reorder_fields_by_values(fields, values):
     if not values:
         return fields
 
-    with_values = []
+    field_map = {field.get("field_name"): field for field in fields}
+    ordered = []
+    used = set()
+    for field_name, value in values.items():
+        if value is None or str(value).strip() == "":
+            continue
+        field = field_map.get(field_name)
+        if field:
+            ordered.append(field)
+            used.add(field_name)
+
     without_values = []
     for field in fields:
         field_name = field.get("field_name")
-        value = values.get(field_name)
-        if value is not None and str(value).strip() != "":
-            with_values.append(field)
-        else:
+        if field_name not in used:
             without_values.append(field)
-    return with_values + without_values
+    return ordered + without_values

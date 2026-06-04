@@ -55,9 +55,9 @@ const assessmentFieldsByDisease = {
 
 const treatmentOptionSets = {
   antibiotics: ["无", "左氧氟沙星", "哌拉西林/他唑巴坦", "头孢曲松", "万古霉素", "美罗培南", "头孢哌酮/舒巴坦", "甲硝唑", "亚胺培南/西司他丁", "阿奇霉素", "环丙沙星", "氟康唑", "阿米卡星", "复方新诺明", "阿莫西林/克拉维酸", "利奈唑胺", "莫西沙星", "头孢他啶", "克拉霉素", "克林霉素"],
-  vasoactive_drugs: ["无", "肾上腺素", "多巴酚丁胺", "加压素", "多巴胺", "去氧肾上腺素", "亚甲蓝", "去甲肾上腺素"],
-  vasoactive_drugs_with_levosimendan: ["无", "肾上腺素", "多巴酚丁胺", "加压素", "多巴胺", "去氧肾上腺素", "去甲肾上腺素", "左西孟旦"],
-  volume_management: ["晶体液", "白蛋白", "人工胶体", "血浆"],
+  vasoactive_drugs: ["无", "肾上腺素（ug/kg/min）", "多巴酚丁胺（ug/kg/min）", "加压素（ug/kg/min）", "多巴胺（ug/kg/min）", "去氧肾上腺素（ug/kg/min）", "亚甲蓝（mg/kg）", "去甲肾上腺素（ug/kg/min）"],
+  vasoactive_drugs_with_levosimendan: ["无", "肾上腺素（ug/kg/min）", "多巴酚丁胺（ug/kg/min）", "加压素（ug/kg/min）", "多巴胺（ug/kg/min）", "去氧肾上腺素（ug/kg/min）", "去甲肾上腺素（ug/kg/min）", "左西孟旦（ug/kg/min）"],
+  volume_management: ["晶体液（ml）", "白蛋白（g）", "人工胶体（ml）", "血浆（ml）"],
   respiratory_support: ["无", "高流量吸氧", "无创通气", "有创通气", "支纤镜+肺泡灌洗"],
   respiratory_support_without_lavage: ["无", "高流量吸氧", "无创通气", "有创通气"],
   immunomodulators: ["无", "乌司他丁", "西维来司他纳", "氢化可的松", "IL1抑制剂", "抗IL-6", "TLR4拮抗剂", "干扰素-γ", "粒细胞-巨噬细胞集落刺激因子", "IL7", "阻断PD-1/PDL-1", "免疫球蛋白", "胸腺肽", "胸腺肽α1", "血必净", "黄芪注射液", "清瘟败毒饮", "黄连解毒汤", "犀角地黄汤", "八位败毒散", "仙方活命饮", "独参汤", "补中益气汤", "温肾护脉汤", "左金方"],
@@ -89,11 +89,11 @@ const treatmentConfigs = {
   "脓毒症部位": [
     ["antibiotics", "抗生素（默认为0，可以多选，选中为1）", "antibiotics", true],
     ["antibiotics_start_time", "具体开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs", true],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs", true],
     ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["vasoactive_concentration", "具体使用浓度", "text"],
     ["volume_management", "血容量管理", "volume_management", false],
-    ["volume_total_ml", "总量（ml）", "number"],
+    ["volume_total_ml", "总量", "number"],
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support", true],
     ["respiratory_start_time", "具体开始使用时间", "time"],
     ["immunomodulators", "免疫调节药物", "immunomodulators", true],
@@ -103,8 +103,8 @@ const treatmentConfigs = {
   ],
   "重症胰腺炎": [
     ["antibiotics", "抗生素（默认为0，可以多选，选中为1）", "antibiotics", true], ["antibiotics_start_time", "具体开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs", true], ["vasoactive_start_time", "具体开始使用时间", "time"], ["vasoactive_concentration", "具体使用浓度", "text"],
-    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量（ml）", "number"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs", true], ["vasoactive_start_time", "具体开始使用时间", "time"], ["vasoactive_concentration", "具体使用浓度", "text"],
+    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量", "number"],
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support", true], ["respiratory_start_time", "具体开始使用时间", "time"],
     ["traditional_chinese_medicine", "中医中药", "traditional_chinese_medicine", true], ["traditional_chinese_medicine_start_time", "具体开始使用时间", "time"],
     ["blood_purification", "血液净化（可以多选）", "blood_purification", true], ["blood_purification_start_time", "具体开始使用时间", "time"],
@@ -112,7 +112,7 @@ const treatmentConfigs = {
   ],
   "心源性休克/心脏骤停": [
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support_without_lavage", true], ["respiratory_start_time", "具体开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["cardiac_treatment_methods", "治疗手段", "cardiac_treatment_methods", false], ["cardiac_treatment_start_time", "具体开始使用时间", "time"],
     ["sodium_channel_blockers", "钠通道阻滞药物", "sodium_channel_blockers", true], ["sodium_channel_blocker_start_time", "具体开始使用时间", "time"],
     ["beta_blockers", "β受体阻滞药", "beta_blockers", true], ["beta_blocker_start_time", "具体开始使用时间", "time"],
@@ -121,14 +121,14 @@ const treatmentConfigs = {
     ["other_cardiac_drugs", "其他药物", "other_cardiac_drugs", true], ["other_cardiac_drugs_start_time", "具体开始使用时间", "time"]
   ],
   "中毒": [
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support", true], ["respiratory_start_time", "具体开始使用时间", "time"],
     ["blood_purification", "血液净化（可以多选）", "blood_purification", true], ["blood_purification_start_time", "具体开始使用时间", "time"],
     ["poisoning_other_drugs", "其他药物（可多选）", "poisoning_other_drugs", false], ["poisoning_other_drugs_start_time", "具体开始使用时间", "time"]
   ],
   "脑损伤": [
     ["intracranial_pressure_reduction", "降颅压", "intracranial_pressure_reduction", false], ["intracranial_pressure_start_time", "开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["surgical_treatment", "手术治疗", "surgical_treatment", true], ["surgical_treatment_start_time", "具体开始使用时间", "time"],
     ["mild_hypothermia", "亚低温治疗", "mild_hypothermia", true], ["mild_hypothermia_start_time", "具体开始使用时间", "time"],
     ["brain_protection_drugs", "脑功能保护药物（可多选）", "brain_protection_drugs", true], ["brain_protection_start_time", "具体开始使用时间", "time"],
@@ -137,17 +137,17 @@ const treatmentConfigs = {
   ],
   "胸部创伤": [
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support_without_lavage", true], ["respiratory_start_time", "具体开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["surgery_methods", "手术方式", "chest_surgery_methods", true], ["surgery_start_time", "具体开始使用时间", "time"],
     ["chest_fixation", "胸部固定方式（单选）", "chest_fixation", true, "radio"], ["chest_fixation_start_time", "具体开始使用时间", "time"],
-    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量（ml）", "number"]
+    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量", "number"]
   ],
   "多发伤": [
     ["respiratory_support", "辅助呼吸（1/0）", "respiratory_support_without_lavage", true], ["respiratory_start_time", "具体开始使用时间", "time"],
-    ["vasoactive_drugs", "血管活性物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
+    ["vasoactive_drugs", "血管活性药物", "vasoactive_drugs_with_levosimendan", true], ["vasoactive_start_time", "具体开始使用时间", "time"],
     ["surgery_methods", "手术方式", "trauma_surgery_methods", true], ["surgery_start_time", "具体开始使用时间", "time"],
     ["chest_fixation", "胸部固定方式（单选）", "chest_fixation", true, "radio"], ["chest_fixation_start_time", "具体开始使用时间", "time"],
-    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量（ml）", "number"],
+    ["volume_management", "血容量管理", "volume_management", false], ["volume_total_ml", "总量", "number"],
     ["airway_control", "气道控制", "airway_control", true], ["airway_control_start_time", "具体开始使用时间", "time"],
     ["oxygen_support", "吸氧支持", "oxygen_support", false], ["oxygen_support_start_time", "具体开始使用时间", "time"],
     ["blood_transfusion", "输血", "blood_transfusion", true], ["blood_transfusion_start_time", "具体开始使用时间", "time"], ["blood_transfusion_total", "总量", "text"],

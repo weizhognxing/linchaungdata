@@ -308,7 +308,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
         const details = [];
         if (r.diagnosis_disease) details.push('疾病：' + r.diagnosis_disease);
         if (r.antibiotics) details.push('抗生素：' + formatTreatmentDetail(r, 'antibiotics', r.antibiotics));
-        if (r.vasoactive_drugs) details.push('血管活性物：' + formatTreatmentDetail(r, 'vasoactive_drugs', r.vasoactive_drugs));
+        if (r.vasoactive_drugs) details.push('血管活性药物：' + formatTreatmentDetail(r, 'vasoactive_drugs', r.vasoactive_drugs));
         if (r.volume_management) details.push('血容量管理：' + formatTreatmentDetail(r, 'volume_management', r.volume_management));
         if (r.respiratory_support) details.push('辅助呼吸：' + r.respiratory_support);
         if (r.immunomodulators) details.push('免疫调节药物：' + r.immunomodulators);
