@@ -15,6 +15,7 @@ ALLOWED_FIELD_TYPES = {
 DISEASES = [
     "脓毒症",
     "重症肺炎",
+    "ARDS",
     "心肺复苏后",
     "急性坏死性胰腺炎",
     "消化道出血",
@@ -24,6 +25,7 @@ DISEASES = [
     "多发伤",
     "颅脑损伤",
     "胸部损伤",
+    "热射病",
 ]
 
 DEFAULT_FIELDS = [

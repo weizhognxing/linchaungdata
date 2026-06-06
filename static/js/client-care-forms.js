@@ -1,4 +1,4 @@
-const internalMedicineDiseases = ["脓毒症", "重症肺炎", "心肺复苏后", "急性坏死性胰腺炎", "消化道出血", "中毒", "心源性休克/心衰", "脑卒中"];
+const internalMedicineDiseases = ["脓毒症", "重症肺炎", "ARDS", "心肺复苏后", "急性坏死性胰腺炎", "消化道出血", "中毒", "心源性休克/心衰", "脑卒中", "热射病"];
 
 const assessmentCommonFields = [
   ["temperature", "体温", "number", false, "℃"],
@@ -28,11 +28,13 @@ const assessmentMedicalFields = assessmentCommonFields.concat([
 const assessmentFieldsByDisease = {
   "脓毒症": assessmentMedicalFields,
   "重症肺炎": assessmentMedicalFields,
+  "ARDS": assessmentMedicalFields,
   "心肺复苏后": assessmentMedicalFields,
   "急性坏死性胰腺炎": assessmentMedicalFields,
   "消化道出血": assessmentMedicalFields,
   "心源性休克/心衰": assessmentMedicalFields,
   "中毒": assessmentMedicalFields,
+  "热射病": assessmentMedicalFields,
   "脑卒中": assessmentMedicalFields.concat([
     ["nihss_score", "NIHSS评分", "number"],
     ["cerebral_hernia", "脑疝", "number"]
@@ -158,11 +160,13 @@ const treatmentConfigs = {
 const treatmentDiseaseAliases = {
   "脓毒症": "脓毒症部位",
   "重症肺炎": "脓毒症部位",
+  "ARDS": "脓毒症部位",
   "心肺复苏后": "心源性休克/心脏骤停",
   "急性坏死性胰腺炎": "重症胰腺炎",
   "心源性休克/心衰": "心源性休克/心脏骤停",
   "脑卒中": "脑损伤",
   "颅脑损伤": "脑损伤",
+  "热射病": "脑损伤",
   "胸部损伤": "胸部创伤"
 };
 

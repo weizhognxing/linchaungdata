@@ -142,9 +142,36 @@ def ensure_runtime_schema_once():
                 "temperature_management_start_time",
                 "ALTER TABLE treatments ADD COLUMN `temperature_management_start_time` datetime DEFAULT NULL AFTER `temperature_management`",
             )
+            _ensure_disease_catalog(cur)
         conn.commit()
     finally:
         conn.close()
+
+
+def _ensure_disease_catalog(cur):
+    for index, name in enumerate(DISEASES, start=1):
+        cur.execute(
+            "INSERT IGNORE INTO diseases (name, sort_order) VALUES (%s,%s)",
+            (name, index),
+        )
+        cur.execute("UPDATE diseases SET sort_order=%s WHERE name=%s", (index, name))
+
+    disease_templates = {
+        "ARDS": "重症肺炎",
+        "热射病": "颅脑损伤",
+    }
+    for target_name, source_name in disease_templates.items():
+        cur.execute(
+            """
+            INSERT IGNORE INTO form_settings (disease_id, field_id, sort_order)
+            SELECT target.id, source_settings.field_id, source_settings.sort_order
+            FROM diseases target
+            JOIN diseases source ON source.name=%s
+            JOIN form_settings source_settings ON source_settings.disease_id=source.id
+            WHERE target.name=%s
+            """,
+            (source_name, target_name),
+        )
 
 
 def _ensure_column(cur, table_name, column_name, sql):
