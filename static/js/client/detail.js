@@ -43,6 +43,21 @@ const diagnosisSubcategoryOptions = {
   "颅脑损伤": ["大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "热射病"],
   "胸部损伤": ["连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"]
 };
+
+const patientDetailNotices = {
+  base: "当前病例为暂存记录，请于24小时内完成患者采血并记录号PAXgene管编号与血浆管编号。标本管于-80℃冻存。",
+  diagnosis: "当前病例为暂存记录，请继续补录诊断信息。所有基础信息均需真实填写。",
+  lab: "请在填报前提前完成下列检验，并收集好数据再填报。上传、识别时请耐心等待！",
+  assessment: "请在填报前提前了解下列字段，并收集好数据、计算出APACHEⅡ等相关评估分值再填报。",
+  treat: "请按照每个不同的治疗字段分别选择其实施的具体时间。血管活性物下面的药物需要填报使用24小时内主要的长时间维持浓度（单位为ug/kg/min）",
+  follow: "请提交入院28天内的患者预后数据。如果患者死亡（1），只需要提交入院后第几天死亡，其余不用填。如果患者28天内存活（0），默认填报均为28天；需要提前准备好其他填报数据：barthel评分；呼吸机支持天数；ICU天数；总住院费用；是否发生MODS（1表示发生；0未发生）。如果医生没有放弃，而家属确实因为没有钱治疗签字离院导致死亡的病例要删除记录。"
+};
+
+function updatePatientDetailNotice(tab, isCompleteCase) {
+  const message = isCompleteCase ? "当前病例为完整记录，提交后不能修改。" : (patientDetailNotices[tab || "base"] || patientDetailNotices.base);
+  setMsg("patientDetailMsg", message, false);
+}
+
 function showTreatSubTab(tab) {
   tab = tab || "list";
   document.querySelectorAll("#detailTreatTab .inner-tab").forEach(function (button) {
@@ -272,10 +287,11 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       );
       $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       const isCompleteCase = getCaseIntegrity(patient) === 'complete';
+      currentPatientIsComplete = isCompleteCase;
       $("#saveBaseInfoBtn, #saveDiagnosisBtn, #addAssessmentBtn, #addTreatBtn, #addFollowBtn").toggleClass("hidden", isCompleteCase);
       $("#detailLabTab .inner-tab[data-lab-tab=add], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add], #detailDiagnosisTab .inner-tab[data-diagnosis-tab=add]").toggleClass("hidden", isCompleteCase);
       $(".delete-diagnosis-btn").toggleClass("hidden", isCompleteCase);
-      setMsg("patientDetailMsg", isCompleteCase ? '当前病例为完整记录，提交后不能修改。' : '当前病例为暂存记录，可继续补录检验、评估和治疗。所有基础信息均需真实填写。', false);
+      updatePatientDetailNotice(activeTab, isCompleteCase);
 
       const baseFields = [
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },

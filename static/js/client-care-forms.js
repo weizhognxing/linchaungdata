@@ -174,7 +174,7 @@ const followupFieldsInternal = [
   ["tracheotomy", "28天内气管切开（是1/否0）", "number"],
   ["blood_purification", "28天内血液净化（1/0）", "number"],
   ["total_cost", "总费用", "number", "元"],
-  ["mods", "MODS", "number"]
+  ["mods", "MODS（是否发生1/0）", "number"]
 ];
 const followupFieldsNonInternal = [
   ["prognosis", "预后（死亡1/生存0）", "number"],
@@ -187,7 +187,7 @@ const followupFieldsNonInternal = [
   ["sepsis", "脓毒症（1/0）", "number"],
   ["pulmonary_infection", "肺部感染（1/0）", "number"],
   ["icu_days", "ICU天数", "number"],
-  ["mods", "MODS（1/0）", "number"]
+  ["mods", "MODS（是否发生1/0）", "number"]
 ];
 
 function renderFollowupFields(disease) {

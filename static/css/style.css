@@ -28,6 +28,9 @@ th { background: #eff6ee; }
 .message { min-height: 22px; color: var(--brand-dark); }
 .message.error { color: var(--danger); }
 .hint { color: var(--muted); font-size: 14px; }
+.research-notice-list { margin: 0 0 14px; padding-left: 0; list-style: none; counter-reset: research-notice; }
+.research-notice-list li { display: grid; grid-template-columns: 24px 1fr; gap: 6px; margin-bottom: 8px; line-height: 1.55; }
+.research-notice-list li::before { counter-increment: research-notice; content: counter(research-notice) "."; font-weight: 800; color: var(--brand-dark); }
 .eyebrow { color: var(--brand-dark); font-size: 12px; font-weight: 900; letter-spacing: .16em; margin: 0 0 8px; }
 .grid { display: grid; gap: 12px; }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }

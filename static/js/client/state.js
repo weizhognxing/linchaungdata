@@ -5,6 +5,7 @@ let uploadedPhotoPath = null;
 let selectedFile = null;
 let canReviewMembers = false;
 let currentPatientId = null;
+let currentPatientIsComplete = false;
 let currentUploadMode = "intake";
 let currentUploadPatientId = null;
 let currentRecordCategory = null;
@@ -226,6 +227,15 @@ function getCaseIntegrity(item) {
   return item.case_status === 'submitted' ? 'complete' : 'draft';
 }
 
+function renderNewCaseResearchNotice() {
+  return '<ol class="research-notice-list">' +
+    '<li>尊敬的教授：该PICCO平台为西南医科大学附属医院急诊联盟内部科研合作共享平台。平台内数据填报要求真实、可以溯源。填报数据未完成提交前只能自己看见患者个人信息，后续平台对于下载数据要对患者个人信息脱敏处理。联盟内部数据严格保密，不得买卖、不得泄露。如有疑问或建议请与胡迎春（15228232720）联系。</li>' +
+    '<li>本平台专注于急诊EICU常见危重病；为多中心、前瞻性、真实世界队列研究，非干预性研究。主要采集入院24小时内的临床信息与血液标本、28天预后。基因测序样本需要统一采用PAXgene管收集；血浆样本需要离心后只保存血浆；并请本院保存于-80℃</li>' +
+    '<li>各种疾病纳入标准诊断依据临床医学客观事实。入组时需要排除诊断：肿瘤患者、HIV患者、怀孕患者、免疫性疾病患者；因为各种因素签字退出研究的患者。</li>' +
+    '<li>请PI自行提前按照国家要求完成临床IIT研究的相关流程。</li>' +
+    '</ol>';
+}
+
 function openNewCaseForm() {
   currentUploadMode = "intake";
   currentUploadPatientId = null;
@@ -238,7 +248,7 @@ function openNewCaseForm() {
   localStorage.removeItem("selectedDiseaseId");
   resetRecordForm();
   $("#recordPanelTitle").text("新建病例");
-  $("#recordPanelHint").text("请填写姓名、性别、年龄。系统会根据姓名、性别、年龄判断是否重复添加病例。");
+  $("#recordPanelHint").html(renderNewCaseResearchNotice());
   $("#labFieldsSection").addClass("hidden");
   $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
   $("#saveRecordBtn").text("保存信息");

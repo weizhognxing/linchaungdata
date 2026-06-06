@@ -545,6 +545,7 @@ function updateTreatmentExtraPlaceholder(input) {
 
 $(document).on("click", ".detail-tab", function () {
   const tab = this.getAttribute("data-detail-tab");
+  updatePatientDetailNotice(tab, currentPatientIsComplete);
   $(".detail-tab").removeClass("active");
   $(this).addClass("active");
   $(".detail-tab-page").addClass("hidden");
