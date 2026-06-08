@@ -142,6 +142,19 @@ def ensure_runtime_schema_once():
                 "temperature_management_start_time",
                 "ALTER TABLE treatments ADD COLUMN `temperature_management_start_time` datetime DEFAULT NULL AFTER `temperature_management`",
             )
+            if _table_exists(cur, "assessments"):
+                _ensure_column(
+                    cur,
+                    "assessments",
+                    "gbs_score",
+                    "ALTER TABLE assessments ADD COLUMN `gbs_score` decimal(8,2) DEFAULT NULL AFTER `gcs_score`",
+                )
+                _ensure_column(
+                    cur,
+                    "assessments",
+                    "killip_score",
+                    "ALTER TABLE assessments ADD COLUMN `killip_score` decimal(8,2) DEFAULT NULL AFTER `gbs_score`",
+                )
             _ensure_disease_catalog(cur)
         conn.commit()
     finally:
@@ -172,6 +185,11 @@ def _ensure_disease_catalog(cur):
             """,
             (source_name, target_name),
         )
+
+
+def _table_exists(cur, table_name):
+    cur.execute("SHOW TABLES LIKE %s", (table_name,))
+    return cur.fetchone() is not None
 
 
 def _ensure_column(cur, table_name, column_name, sql):

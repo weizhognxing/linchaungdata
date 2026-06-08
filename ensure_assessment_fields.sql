@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS assessments (
   barthel_score decimal(8,2) DEFAULT NULL,
   mods_score decimal(8,2) DEFAULT NULL,
   gcs_score decimal(8,2) DEFAULT NULL,
+  gbs_score decimal(8,2) DEFAULT NULL,
+  killip_score decimal(8,2) DEFAULT NULL,
   nihss_score decimal(8,2) DEFAULT NULL,
   cerebral_hernia tinyint(1) DEFAULT NULL,
   oxygen_saturation decimal(8,2) DEFAULT NULL,

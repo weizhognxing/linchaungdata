@@ -301,6 +301,8 @@ def add_assessment(patient_id):
                 "barthel_score": _optional_decimal(payload.get("barthel_score")),
                 "mods_score": _optional_decimal(payload.get("mods_score")),
                 "gcs_score": _optional_decimal(payload.get("gcs_score")),
+                "gbs_score": _optional_decimal(payload.get("gbs_score")),
+                "killip_score": _optional_decimal(payload.get("killip_score")),
                 "nihss_score": _optional_decimal(payload.get("nihss_score")),
                 "cerebral_hernia": _optional_number(payload.get("cerebral_hernia")),
                 "oxygen_saturation": _optional_decimal(payload.get("oxygen_saturation")),

@@ -22,7 +22,6 @@ const assessmentMedicalFields = assessmentCommonFields.concat([
   ["sofa_score", "SOFA评分", "number"],
   ["apache_ii_score", "APACHEⅡ评分", "number"],
   ["barthel_score", "barthel评分", "number"],
-  ["mods_score", "MODS评分", "number"],
   ["gcs_score", "GCS评分", "number"]
 ]);
 const assessmentFieldsByDisease = {
@@ -31,22 +30,23 @@ const assessmentFieldsByDisease = {
   "ARDS": assessmentMedicalFields,
   "心肺复苏后": assessmentMedicalFields,
   "急性坏死性胰腺炎": assessmentMedicalFields,
-  "消化道出血": assessmentMedicalFields,
-  "心源性休克/心衰": assessmentMedicalFields,
+  "消化道出血": assessmentMedicalFields.concat([
+    ["gbs_score", "GBS评分", "number"]
+  ]),
+  "心源性休克/心衰": assessmentMedicalFields.concat([
+    ["killip_score", "KILLIP评分", "number"]
+  ]),
   "中毒": assessmentMedicalFields,
   "热射病": assessmentMedicalFields,
-  "脑卒中": assessmentMedicalFields.concat([
-    ["nihss_score", "NIHSS评分", "number"],
-    ["cerebral_hernia", "脑疝", "number"]
-  ]),
+  "脑卒中": assessmentMedicalFields,
   "颅脑损伤": assessmentMedicalFields.concat([
-    ["nihss_score", "NIHSS评分", "number"],
-    ["cerebral_hernia", "脑疝", "number"]
+    ["killip_score", "KILLIP评分", "number"],
+    ["cerebral_hernia", "脑疝（是1/否0）", "number"]
   ]),
   "胸部损伤": assessmentCommonFields.concat([
     ["oxygen_saturation", "氧饱和度", "number"],
     ["ais_score", "AIS评分", "number"],
-    ["pain_score", "疼痛评分", "number"]
+    ["pain_score", "疼痛评分（0-10）", "number"]
   ]),
   "多发伤": assessmentMultipleTraumaFields.concat([
     ["oxygen_saturation", "氧饱和度", "number"],
