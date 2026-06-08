@@ -140,7 +140,7 @@ function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
   initPhotoPanel();
   initPhotoButtons();
   $("#photoPanelTitle").text("上传检验单");
-  setMsg("photoMsg", "选择图片后点击确定，系统会提取图片上的实际检验名称和检验指标，不会强制归到七类检验。", false);
+  setMsg("photoMsg", "选择图片后点击确定，系统会提取图片上的实际检验名称和检验指标，不会强制归到固定检验类别。", false);
   showPanel("photoPanel");
 }
 
@@ -151,16 +151,33 @@ function triggerPhotoChooser() {
 }
 
 function normalizeLabCategoryName(value) {
-  value = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
-  if (!value) return "";
-  if (value.indexOf("血细胞分析") > -1 || value.indexOf("血" + "常规") > -1 || value === "blood_routine") return "blood_routine";
-  if (value.indexOf("生化") > -1 || value.indexOf("电解质") > -1 || value === "biochemistry") return "biochemistry";
-  if (value.indexOf("血气") > -1 || value === "blood_gas") return "blood_gas";
-  if (value.indexOf("dic") > -1 || value.indexOf("凝血") > -1 || value === "dic7") return "dic7";
-  if (value.indexOf("bnp") > -1 || value.indexOf("b型钠尿肽") > -1 || value.indexOf("nt-pro") > -1) return "bnp";
-  if (value.indexOf("乳酸") > -1 || value === "lactate" || value === "lac") return "lactate";
-  if (value.indexOf("pct") > -1 || value.indexOf("降钙素原") > -1) return "pct";
-  return "";
+  const keys = normalizeLabCategoryKeys(value);
+  return keys[0] || "";
+}
+
+function normalizeLabCategoryKeys(value) {
+  const rawValue = String(value || "").trim();
+  value = rawValue.toLowerCase().replace(/[\s\-_]+/g, "");
+  if (!value) return [];
+  const keys = [];
+  const addKey = function (key) {
+    if (keys.indexOf(key) === -1) keys.push(key);
+  };
+  if (rawValue === "blood_crp" || rawValue === "blood_routine" || value.indexOf("血细胞分析") > -1 || value.indexOf("血" + "常规") > -1) addKey("blood_crp");
+  if (rawValue === "dic" || rawValue === "dic7" || value.indexOf("dic") > -1 || value.indexOf("凝血") > -1) addKey("dic");
+  if (rawValue === "biochemistry" || value.indexOf("生化") > -1) addKey("biochemistry");
+  if (rawValue === "electrolytes" || rawValue === "biochemistry" || value.indexOf("电解质") > -1) addKey("electrolytes");
+  if (rawValue === "blood_gas" || value.indexOf("血气") > -1) addKey("blood_gas");
+  if (rawValue === "pct" || value.indexOf("pct") > -1 || value.indexOf("降钙素原") > -1) addKey("pct");
+  if (rawValue === "lactate" || value.indexOf("乳酸") > -1 || value === "lac" || value === "la") addKey("lactate");
+  if (rawValue === "bnp" || value.indexOf("bnp") > -1 || value.indexOf("b型钠尿肽") > -1 || value.indexOf("ntpro") > -1 || value.indexOf("脑钠肽") > -1) addKey("bnp");
+  if (rawValue === "myocardial_injury" || value.indexOf("心肌损伤") > -1 || value.indexOf("肌钙蛋白") > -1 || value.indexOf("肌红蛋白") > -1 || value.indexOf("ckmb") > -1 || value.indexOf("ctnt") > -1 || value.indexOf("ctni") > -1) addKey("myocardial_injury");
+  if (rawValue === "cytokine_12" || value.indexOf("细胞因子") > -1) addKey("cytokine_12");
+  if (rawValue === "pathogen" || value.indexOf("病原") > -1 || value.indexOf("培养") > -1 || value.indexOf("病原学") > -1) addKey("pathogen");
+  if (rawValue === "amylase" || value.indexOf("淀粉酶") > -1 || value.indexOf("amy") > -1) addKey("amylase");
+  if (rawValue === "cholinesterase" || value.indexOf("胆碱酯酶") > -1) addKey("cholinesterase");
+  if (rawValue === "toxin_identification" || value.indexOf("毒物") > -1 || value.indexOf("毒检") > -1 || value.indexOf("毒理") > -1) addKey("toxin_identification");
+  return keys;
 }
 
 function getUploadedLabCategoryKeys(records) {
@@ -168,22 +185,48 @@ function getUploadedLabCategoryKeys(records) {
   (records || []).forEach(function (record) {
     const candidates = [record.record_category, record.lab_test_name];
     candidates.forEach(function (candidate) {
-      const key = normalizeLabCategoryName(candidate);
-      if (key && keys.indexOf(key) === -1) keys.push(key);
+      normalizeLabCategoryKeys(candidate).forEach(function (key) {
+        if (key && keys.indexOf(key) === -1) keys.push(key);
+      });
     });
   });
   return keys;
 }
 
-function renderLabCategoryActions(patient, records) {
+function getRequiredLabCategoriesForDiagnoses(diagnosisRecords) {
+  const requiredKeys = [];
+  (diagnosisRecords || []).forEach(function (record) {
+    const disease = String(record.diagnosis_disease || "").trim();
+    const keys = diseaseRequiredLabKeys[disease] || [];
+    keys.forEach(function (key) {
+      if (requiredKeys.indexOf(key) === -1) requiredKeys.push(key);
+    });
+    if (disease === "中毒" && String(record.preliminary_diagnosis || "").indexOf("有机磷中毒") > -1 && requiredKeys.indexOf("cholinesterase") === -1) {
+      requiredKeys.push("cholinesterase");
+    }
+  });
+  return labCategories.filter(function (category) {
+    return requiredKeys.indexOf(category.key) > -1;
+  });
+}
+
+function renderLabCategoryActions(patient, records, diagnosisRecords) {
   const uploadedKeys = getUploadedLabCategoryKeys(records);
-  const missingCategories = labCategories.filter(function (category) {
+  const requiredCategories = getRequiredLabCategoriesForDiagnoses(diagnosisRecords);
+  if (!requiredCategories.length) {
+    const noDiagnosisSummary = '请先添加诊断记录，系统会按诊断疾病显示必需检验项目。';
+    $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + noDiagnosisSummary + '</div>');
+    const noDiagnosisHtml = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验">上传检验单</button>';
+    $("#labCategoryActions").html(noDiagnosisHtml);
+    return;
+  }
+  const missingCategories = requiredCategories.filter(function (category) {
     return uploadedKeys.indexOf(category.key) === -1;
   });
-  const uploadedCount = labCategories.length - missingCategories.length;
+  const uploadedCount = requiredCategories.length - missingCategories.length;
   const summary = missingCategories.length
-    ? '已上传 ' + uploadedCount + '/' + labCategories.length + ' 类检验类别，还缺 ' + missingCategories.length + ' 类：' + missingCategories.map(function (category) { return category.label; }).join('、')
-    : '7类检验类别已全部上传。';
+    ? '已上传 ' + uploadedCount + '/' + requiredCategories.length + ' 项必需检验，还缺 ' + missingCategories.length + ' 项：' + missingCategories.map(function (category) { return category.label; }).join('、')
+    : '当前诊断要求的必需检验已全部上传。';
   $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + summary + '</div>');
   const html = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验">上传检验单</button>';
   $("#labCategoryActions").html(html);

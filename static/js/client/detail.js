@@ -320,7 +320,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
-      renderLabCategoryActions(patient, res.data.lab_records || []);
+      renderLabCategoryActions(patient, res.data.lab_records || [], res.data.diagnosis_records || []);
 
       const treatHtml = (res.data.treatments || []).map(function (r) {
         const details = [];

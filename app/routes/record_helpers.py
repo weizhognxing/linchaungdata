@@ -8,7 +8,7 @@ from openpyxl import Workbook
 
 from app.common import required
 from app.db import db
-from app.services.core import ask_ai_yes_no, get_fields_for_disease
+from app.services.core import get_fields_for_disease
 
 
 # Shared constants and helper functions for app.routes.records.
@@ -64,6 +64,13 @@ DIAGNOSIS_SUBCATEGORY_OPTIONS = {
 }
 
 LAB_CATEGORY_DEFINITIONS = {
+    "blood_crp": {
+        "label": "血细胞分析+CRP",
+        "fields": [
+            "wbc", "neu", "lym", "mono", "eos", "baso", "neu_r", "lym_r", "mono_r", "eos_r", "baso_r",
+            "rbc", "hgb", "hct", "mcv", "mch", "mchc", "rdw_sd", "rdw_cv", "plt", "mpv", "pdw", "p_lcr", "hscrp",
+        ],
+    },
     "blood_routine": {
         "label": "血细胞分析",
         "fields": [
@@ -72,10 +79,16 @@ LAB_CATEGORY_DEFINITIONS = {
         ],
     },
     "biochemistry": {
-        "label": "生化电解质",
+        "label": "生化",
         "fields": [
             "alt", "ast", "ast_alt", "tp", "alb", "glo", "a_g", "tbil", "dbil", "ibil", "tba", "ggt", "alp", "pa",
-            "urea", "ua", "crea", "k", "na", "cl", "ca", "co2", "p", "mg", "fe", "gfr", "ag", "hemo", "icte", "lipe",
+            "urea", "ua", "crea", "gfr", "hemo", "icte", "lipe",
+        ],
+    },
+    "electrolytes": {
+        "label": "电解质",
+        "fields": [
+            "k", "na", "cl", "ca", "co2", "p", "mg", "fe", "ag",
         ],
     },
     "blood_gas": {
@@ -84,6 +97,10 @@ LAB_CATEGORY_DEFINITIONS = {
     },
     "dic7": {
         "label": "DIC7项",
+        "fields": ["pt", "pt_inr", "pta", "pt_ratio", "aptt", "aptt_r", "tt", "fib", "d_di", "fdp", "at3"],
+    },
+    "dic": {
+        "label": "DIC",
         "fields": ["pt", "pt_inr", "pta", "pt_ratio", "aptt", "aptt_r", "tt", "fib", "d_di", "fdp", "at3"],
     },
     "bnp": {
@@ -98,6 +115,69 @@ LAB_CATEGORY_DEFINITIONS = {
         "label": "PCT",
         "fields": ["pct"],
     },
+    "myocardial_injury": {
+        "label": "心肌损伤标志物",
+        "fields": ["hs_ctnt_stat", "myo_stat", "ck_mb_stat"],
+    },
+    "cytokine_12": {
+        "label": "细胞因子12",
+        "fields": [],
+    },
+    "pathogen": {
+        "label": "病原学检查",
+        "fields": [],
+    },
+    "amylase": {
+        "label": "血淀粉酶",
+        "fields": [],
+    },
+    "cholinesterase": {
+        "label": "血清胆碱酯酶",
+        "fields": [],
+    },
+    "toxin_identification": {
+        "label": "毒物鉴定",
+        "fields": [],
+    },
+}
+
+COMMON_REQUIRED_LAB_KEYS = {
+    "blood_crp", "dic", "biochemistry", "electrolytes", "blood_gas", "pct", "lactate"
+}
+
+DISEASE_REQUIRED_LAB_KEYS = {
+    "脓毒症": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
+    "重症肺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
+    "ARDS": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
+    "心肺复苏后": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "bnp"},
+    "急性坏死性胰腺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "amylase"},
+    "急性重症胰腺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "amylase"},
+    "消化道出血": COMMON_REQUIRED_LAB_KEYS,
+    "中毒": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "toxin_identification"},
+    "心源性休克/心衰": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "bnp"},
+    "心源性休克/心力衰竭": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "bnp"},
+    "脑卒中": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
+    "多发伤": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
+    "颅脑损伤": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
+    "胸部损伤": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
+    "热射病": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12"},
+}
+
+LAB_CATEGORY_ALIASES = {
+    "blood_crp": {"blood_crp", "blood_routine"},
+    "dic": {"dic", "dic7"},
+    "biochemistry": {"biochemistry"},
+    "electrolytes": {"electrolytes", "biochemistry"},
+    "blood_gas": {"blood_gas"},
+    "pct": {"pct"},
+    "lactate": {"lactate"},
+    "bnp": {"bnp"},
+    "myocardial_injury": {"myocardial_injury"},
+    "cytokine_12": {"cytokine_12"},
+    "pathogen": {"pathogen"},
+    "amylase": {"amylase"},
+    "cholinesterase": {"cholinesterase"},
+    "toxin_identification": {"toxin_identification"},
 }
 
 INTAKE_PROMPT = """请识别这张检验图片或病历图片中的患者基础信息，仅返回基础信息，不要提取检验指标。
@@ -334,7 +414,79 @@ def _missing_case_completion_items(cur, patient_id):
     return missing
 
 
+def _required_lab_keys_for_diagnosis(disease, preliminary_diagnosis=""):
+    disease = str(disease or "").strip()
+    keys = set(DISEASE_REQUIRED_LAB_KEYS.get(disease, set()))
+    if disease == "中毒" and "有机磷中毒" in str(preliminary_diagnosis or ""):
+        keys.add("cholinesterase")
+    return keys
+
+
+def _normalize_lab_category_keys(value):
+    raw_value = str(value or "").strip()
+    value = raw_value.lower().replace(" ", "").replace("-", "").replace("_", "")
+    if not value:
+        return set()
+
+    keys = set()
+    for standard_key, aliases in LAB_CATEGORY_ALIASES.items():
+        if raw_value in aliases:
+            keys.add(standard_key)
+
+    if "血细胞分析" in value or "血常规" in value or raw_value in {"blood_crp", "blood_routine"}:
+        keys.add("blood_crp")
+    if "dic" in value or "凝血" in value:
+        keys.add("dic")
+    if "生化" in value:
+        keys.add("biochemistry")
+    if "电解质" in value or raw_value == "biochemistry":
+        keys.add("electrolytes")
+    if "血气" in value:
+        keys.add("blood_gas")
+    if "pct" in value or "降钙素原" in value:
+        keys.add("pct")
+    if "乳酸" in value or value in {"lactate", "lac", "la"}:
+        keys.add("lactate")
+    if "bnp" in value or "b型钠尿肽" in value or "ntprobnp" in value or "脑钠肽" in value:
+        keys.add("bnp")
+    if "心肌损伤" in value or "肌钙蛋白" in value or "肌红蛋白" in value or "ckmb" in value or "ctnt" in value or "ctni" in value:
+        keys.add("myocardial_injury")
+    if "细胞因子" in value:
+        keys.add("cytokine_12")
+    if "病原" in value or "培养" in value or "病原学" in value:
+        keys.add("pathogen")
+    if "淀粉酶" in value or "amy" in value:
+        keys.add("amylase")
+    if "胆碱酯酶" in value or "cholinesterase" in value:
+        keys.add("cholinesterase")
+    if "毒物" in value or "毒检" in value or "毒理" in value:
+        keys.add("toxin_identification")
+    return keys
+
+
+def _required_lab_keys_for_patient(cur, patient_id):
+    if not _table_exists(cur, "diagnosis_records"):
+        return set()
+    cur.execute(
+        """
+        SELECT diagnosis_disease, preliminary_diagnosis
+        FROM diagnosis_records
+        WHERE patient_id=%s
+        """,
+        (patient_id,),
+    )
+    required_keys = set()
+    for row in cur.fetchall():
+        required_keys.update(
+            _required_lab_keys_for_diagnosis(row.get("diagnosis_disease"), row.get("preliminary_diagnosis"))
+        )
+    return required_keys
+
+
 def _required_lab_tests_completed(cur, patient_id):
+    required_keys = _required_lab_keys_for_patient(cur, patient_id)
+    if not required_keys:
+        return False
     if not _table_exists(cur, "lab_records"):
         return False
     cur.execute("SHOW COLUMNS FROM lab_records")
@@ -351,35 +503,16 @@ def _required_lab_tests_completed(cur, patient_id):
         f"SELECT {','.join(select_parts)} FROM lab_records WHERE patient_id=%s ORDER BY created_at, id",
         (patient_id,),
     )
-    names = []
+    uploaded_keys = set()
     for row in cur.fetchall():
         lab_test_name = str(row.get("lab_test_name") or "").strip()
         record_category = str(row.get("record_category") or "").strip()
         category_label = (LAB_CATEGORY_DEFINITIONS.get(record_category) or {}).get("label", "")
-        if lab_test_name:
-            names.append(lab_test_name)
+        uploaded_keys.update(_normalize_lab_category_keys(record_category))
+        uploaded_keys.update(_normalize_lab_category_keys(lab_test_name))
         if category_label and category_label != lab_test_name:
-            names.append(category_label)
-    if not names:
-        return False
-
-    prompt = """你是临床检验类别判断助手。请判断下面“已完成的检验类别”中，是否已经覆盖全部七类必需检验类别：血细胞分析、生化电解质、血气分析、DIC7项、BNP、乳酸、PCT。
-判断规则：
-1. 名称可能带有编码或前缀，例如“JY2625.B型钠尿肽”，应理解为 BNP。
-2. BNP 的同义名称包括：BNP、B型钠尿肽、N端B型钠尿肽、NT-proBNP、NT-pro BNP。
-3. PCT 的同义名称包括：PCT、降钙素原。
-4. 乳酸的同义名称包括：乳酸、LAC、LA。
-5. DIC7项可写作：DIC7项、DIC 7项、凝血、凝血功能、凝血七项。
-6. 只有七类都已覆盖，才返回“是”；只要缺少任意一类，就返回“否”。
-7. 只能返回一个字：是 或 否，不要解释。
-
-已完成的检验名称：
-""" + "\n".join(f"- {name}" for name in names)
-    try:
-        return ask_ai_yes_no(prompt, timeout=60)
-    except Exception as e:
-        print(f"Lab completion AI check error: {e}")
-        return False
+            uploaded_keys.update(_normalize_lab_category_keys(category_label))
+    return required_keys.issubset(uploaded_keys)
 
 
 def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
