@@ -123,7 +123,9 @@ th { background: #eff6ee; }
 .progress-text { color: var(--muted); font-size: 14px; text-align: center; margin: 0; }
 .form-field { margin-bottom: 12px; }
 .form-field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
-.form-field input { width: 100%; border-radius: 12px; border: 1px solid var(--line); padding: 10px 12px; font: inherit; }
+.form-field input, .form-field select { width: 100%; border-radius: 12px; border: 1px solid var(--line); padding: 10px 12px; font: inherit; background: #fff; }
+.form-field input:disabled, .form-field select:disabled, .followup-disabled-field { background: #eef1ef; color: #8a9690; cursor: not-allowed; }
+.followup-disabled-field label { color: #9aa39e; }
 .input-with-unit { display: flex; align-items: center; gap: 8px; }
 .input-with-unit input { flex: 1; min-width: 0; }
 .input-with-unit span { color: var(--muted); font-size: 13px; white-space: nowrap; }

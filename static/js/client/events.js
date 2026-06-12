@@ -459,7 +459,7 @@ $(document).on("input", "#assessmentDynamicFields .assessment-input[data-field=o
   updateAssessmentOxygenFromMmhg();
 });
 
-$(document).on("input", "#followDynamicFields .followup-input[data-field=prognosis]", function () {
+$(document).on("input change", "#followDynamicFields .followup-input[data-field=prognosis]", function () {
   updateFollowupPrognosisState();
 });
 
