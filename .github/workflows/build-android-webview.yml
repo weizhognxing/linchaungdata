@@ -1,5 +1,6 @@
 name: Build Android WebView APK
 # Manual trigger for on-demand app packaging
+# trigger rebuild
 
 on:
   workflow_dispatch:
