@@ -1,129 +1,8 @@
-﻿// Shared client state, navigation, disease selection, and small utilities.
-// Loaded as a plain browser script; globals are shared across client scripts.
-let selectedDiseaseId = null;
-let uploadedPhotoPath = null;
-let selectedFile = null;
-let canReviewMembers = false;
-let currentPatientId = null;
-let currentPatientIsComplete = false;
-let currentUploadMode = "intake";
-let currentUploadPatientId = null;
-let currentRecordCategory = null;
-let currentCategoryLabel = "";
-let pendingLabUploadPatientId = null;
-let pendingLabUploadCategory = "";
-let pendingLabUploadLabel = "";
-let diseaseSelectionPurpose = "";
-const saveRecordButtonText = "保存信息";
-const photoTargetBytes = 200 * 1024;
-const photoTargetMaxBytes = 230 * 1024;
-let fileSelectToken = 0;
+// Case/disease state management: lab upload context, disease/case loading,
+// new case form, diagnosis record list rendering and navigation helpers.
+// Loaded as plain browser script; globals shared across client scripts.
 
-const labCategories = [
-  { key: "blood_crp", label: "血细胞分析+CRP" },
-  { key: "dic", label: "DIC" },
-  { key: "biochemistry", label: "生化" },
-  { key: "electrolytes", label: "电解质" },
-  { key: "blood_gas", label: "血气分析" },
-  { key: "pct", label: "PCT" },
-  { key: "lactate", label: "乳酸" },
-  { key: "myocardial_injury", label: "心肌损伤标志物" },
-  { key: "cytokine_12", label: "细胞因子12" },
-  { key: "pathogen", label: "病原学检查" },
-  { key: "bnp", label: "BNP" },
-  { key: "amylase", label: "血淀粉酶" },
-  { key: "cholinesterase", label: "血清胆碱酯酶" },
-  { key: "toxin_identification", label: "毒物鉴定" }
-];
-
-const commonRequiredLabKeys = ["blood_crp", "dic", "biochemistry", "electrolytes", "blood_gas", "pct", "lactate"];
-const diseaseRequiredLabKeys = {
-  "脓毒症": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
-  "重症肺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
-  "ARDS": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
-  "心肺复苏后": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "bnp"]),
-  "急性坏死性胰腺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "amylase"]),
-  "急性重症胰腺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "amylase"]),
-  "消化道出血": commonRequiredLabKeys,
-  "中毒": commonRequiredLabKeys.concat(["myocardial_injury", "toxin_identification"]),
-  "心源性休克/心衰": commonRequiredLabKeys.concat(["myocardial_injury", "bnp"]),
-  "心源性休克/心力衰竭": commonRequiredLabKeys.concat(["myocardial_injury", "bnp"]),
-  "脑卒中": commonRequiredLabKeys.concat(["myocardial_injury"]),
-  "多发伤": commonRequiredLabKeys.concat(["myocardial_injury"]),
-  "颅脑损伤": commonRequiredLabKeys.concat(["myocardial_injury"]),
-  "胸部损伤": commonRequiredLabKeys.concat(["myocardial_injury"]),
-  "热射病": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12"])
-};
-
-// 检测是否为移动设备
-function isMobile() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-// 初始化拍照面板按钮
-function initPhotoButtons() {
-  if (isMobile()) {
-    $("#photoPanelTitle").text("拍照上传");
-    $("#takePhotoBtn").removeClass("hidden");
-    $("#uploadBtn").removeClass("hidden");
-    $("#photoActions").removeClass("single-btn");
-  } else {
-    $("#photoPanelTitle").text("上传检验图片");
-    $("#takePhotoBtn").addClass("hidden");
-    $("#uploadBtn").removeClass("hidden");
-    $("#photoActions").addClass("single-btn");
-  }
-}
-
-var authPanels = ["loginPanel", "registerPanel", "resetPanel"];
-var topPanels = ["diseasePanel", "caseListPanel", "memberReviewPanel"];
-var currentPanelId = "";
-
-function showPanel(id) {
-  $(".panel").addClass("hidden");
-  $("#" + id).removeClass("hidden");
-  currentPanelId = id;
-  localStorage.setItem("clientPanel", id);
-  const isAuthPanel = authPanels.indexOf(id) > -1;
-  const isTopPanel = topPanels.indexOf(id) > -1;
-  $("#clientHero").toggleClass("hidden", !isAuthPanel && !isTopPanel);
-  $("#innerBackBtn").toggleClass("hidden", isAuthPanel || isTopPanel);
-  // 登录后的页面显示底部导航
-  if (!isAuthPanel) {
-    $("#bottomNav").removeClass("hidden");
-    $(".nav-item").removeClass("active");
-    $(".nav-item[data-nav='" + id + "']").addClass("active");
-    if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode === "intake") {
-      $(".nav-item[data-nav='newCase']").addClass("active");
-    }
-    if ((id === "recordPanel" || id === "photoPanel") && currentUploadMode !== "intake") {
-      $(".nav-item[data-nav='caseListPanel']").addClass("active");
-    }
-    if (id === "diseasePanel" && isDiseasePanelLabMode()) {
-      $(".nav-item[data-nav='caseListPanel']").addClass("active");
-    }
-    if (id === "patientDetailPanel" || id === "labReportPanel") {
-      $(".nav-item[data-nav='caseListPanel']").addClass("active");
-    }
-  } else {
-    $("#bottomNav").addClass("hidden");
-  }
-
-  if (id === "memberReviewPanel") {
-    loadMemberReviews();
-  }
-  if (id === "diseasePanel") {
-    loadDiseases();
-  }
-  if (id === "caseListPanel") {
-    loadCaseList();
-  }
-}
-
-function setMsg(id, text, error) {
-  $("#" + id).text(text).toggleClass("error", !!error);
-}
-
+// --- Lab upload context ---
 function saveLabUploadContext(patientId, categoryKey, categoryLabel) {
   localStorage.setItem("labUploadContext", JSON.stringify({
     patientId: patientId || "",
@@ -199,12 +78,7 @@ function finishLabDiseaseSelection(diseaseId, labContext) {
   return true;
 }
 
-function formDataFrom(panel) {
-  const data = {};
-  $(panel).find("input").each(function () { data[this.name] = $(this).val(); });
-  return data;
-}
-
+// --- Disease selection ---
 function loadDiseases() {
   $.getJSON("/api/diseases", function (res) {
     if (!res.success) return;
@@ -229,6 +103,7 @@ function loadDiseases() {
   });
 }
 
+// --- Case list ---
 function loadCaseList() {
   setMsg("caseListMsg", "", false);
   $.getJSON("/api/cases")
@@ -304,6 +179,7 @@ function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel)
   showPanel("diseasePanel");
 }
 
+// --- Diagnosis record list & helpers ---
 function resetNewCaseForm() {
   ["newCaseName", "newCaseGender", "newCaseAge", "newCasePhone", "newCaseIdNumber"].forEach(function (id) {
     $("#" + id).val("");
