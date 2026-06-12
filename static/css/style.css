@@ -124,7 +124,8 @@ th { background: #eff6ee; }
 .form-field { margin-bottom: 12px; }
 .form-field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
 .form-field input, .form-field select { width: 100%; border-radius: 12px; border: 1px solid var(--line); padding: 10px 12px; font: inherit; background: #fff; }
-.form-field input:disabled, .form-field select:disabled, .followup-disabled-field { background: #eef1ef; color: #8a9690; cursor: not-allowed; }
+.form-field input:disabled, .form-field select:disabled, .followup-disabled-input, .followup-disabled-field .followup-input { background: #eef1ef; color: #8a9690; cursor: not-allowed; }
+.followup-disabled-field { opacity: 0.78; }
 .followup-disabled-field label { color: #9aa39e; }
 .input-with-unit { display: flex; align-items: center; gap: 8px; }
 .input-with-unit input { flex: 1; min-width: 0; }

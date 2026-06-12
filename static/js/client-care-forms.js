@@ -201,7 +201,7 @@ function renderFollowupFields(disease) {
   const html = fields.map(function (field) {
     const hint = field[0] === "death_days" ? '<div class="hint">预后为1时填写距离入院时天数；预后为0时系统默认28天。</div>' : '';
     const input = field[2] === "select"
-      ? '<select class="followup-input" data-field="' + field[0] + '"><option value="">请选择</option><option value="1">死亡</option><option value="0">生存</option></select>'
+      ? '<select class="followup-input" data-field="' + field[0] + '" onchange="updateFollowupPrognosisState()"><option value="">请选择</option><option value="1">死亡</option><option value="0">生存</option></select>'
       : '<input class="followup-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '">';
     const control = field[3] ? '<div class="input-with-unit">' + input + '<span>' + field[3] + '</span></div>' : input;
     return '<div class="form-field"><label>' + field[1] + ' *</label>' + control + hint + '</div>';
@@ -365,7 +365,8 @@ function updateFollowupPrognosisState() {
   const deathDays = $("#followDynamicFields .followup-input[data-field=death_days]");
   if (!deathDays.length) return;
   const disabledFields = $("#followDynamicFields .followup-input").not("[data-field=prognosis], [data-field=death_days]");
-  disabledFields.prop("disabled", prognosis === "1");
+  disabledFields.prop("disabled", prognosis === "1").attr("disabled", prognosis === "1" ? "disabled" : null);
+  disabledFields.toggleClass("followup-disabled-input", prognosis === "1");
   disabledFields.closest(".form-field").toggleClass("followup-disabled-field", prognosis === "1");
   if (prognosis === "1") {
     disabledFields.val("");
