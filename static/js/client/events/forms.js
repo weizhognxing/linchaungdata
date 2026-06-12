@@ -168,10 +168,11 @@ $("#addFollowBtn").on("click", function () {
     const data = res && res.responseJSON ? res.responseJSON : res;
     const missingSteps = ((data || {}).data || {}).missing || [];
     const beforeFollowMissing = missingSteps.filter(function (item) { return item !== "随访"; });
-    const message = beforeFollowMissing.length
-      ? "该记录还有以下步骤未完成：" + beforeFollowMissing.join("、") + "。随访提交后不能修改，是否继续提交？"
-      : "前置步骤已完成。随访提交后不能修改，提交后符合完整条件会进入完整记录，是否继续提交？";
-    if (!confirm(message)) return;
+    if (beforeFollowMissing.length) {
+      setMsg("followMsg", "请先完善以下信息，再提交随访记录：" + beforeFollowMissing.join("、"), true);
+      return;
+    }
+    if (!confirm("前置步骤已完成。随访提交后会进入完整记录且不能修改，是否提交？")) return;
     $.post("/api/patients/" + currentPatientId + "/followups", payload).done(function (saveRes) {
       setMsg("followMsg", saveRes.message || "已保存");
       $("#followDynamicFields").html("");

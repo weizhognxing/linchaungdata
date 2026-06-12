@@ -211,6 +211,13 @@ def add_followup(patient_id):
             if _patient_is_complete(cur, patient_id):
                 return fail("完整记录已提交，不能修改")
 
+            missing_before_followup = [
+                item for item in _missing_case_completion_items(cur, patient_id)
+                if item != "随访"
+            ]
+            if missing_before_followup:
+                return fail("请先完善以下信息，再提交随访记录：" + "、".join(missing_before_followup))
+
             if _table_exists(cur, "diagnosis_records"):
                 cur.execute(
                     "SELECT diagnosis_disease FROM diagnosis_records WHERE id=%s AND patient_id=%s LIMIT 1",
