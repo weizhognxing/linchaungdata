@@ -266,10 +266,9 @@ def add_followup(patient_id):
 @require_user
 def add_assessment(patient_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
-    assessment_time = (payload.get("assessment_time") or "").strip()
     diagnosis_record_id = payload.get("diagnosis_record_id")
-    if not assessment_time or not diagnosis_record_id:
-        return fail("请选择诊断记录并填写评估时间")
+    if not diagnosis_record_id:
+        return fail("请选择诊断记录")
 
     conn = db()
     try:
@@ -295,7 +294,6 @@ def add_assessment(patient_id):
                 "patient_id": patient_id,
                 "user_id": session.get("user_id"),
                 "diagnosis_record_id": diagnosis_record_id,
-                "assessment_time": _optional_datetime(assessment_time),
                 "temperature": _optional_decimal(payload.get("temperature")),
                 "respiration": _optional_decimal(payload.get("respiration")),
                 "systolic_bp": _optional_decimal(payload.get("systolic_bp")),

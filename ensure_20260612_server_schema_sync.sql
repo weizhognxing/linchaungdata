@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS assessments (
   patient_id int(11) NOT NULL,
   user_id int(11) DEFAULT NULL,
   diagnosis_record_id int(11) DEFAULT NULL,
-  assessment_time datetime NOT NULL,
   temperature decimal(6,2) DEFAULT NULL,
   respiration decimal(6,2) DEFAULT NULL,
   systolic_bp decimal(6,2) DEFAULT NULL,

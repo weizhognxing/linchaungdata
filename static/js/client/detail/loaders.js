@@ -85,7 +85,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       }).join('') || '<div class="detail-item">暂无随访记录</div>';
       $("#followList").html(followHtml);
       const assessmentHtml = (res.data.assessments || []).map(function (r) {
-        return '<div class="detail-item">' + (r.assessment_time || '-') + '<br>' + (r.diagnosis_disease || '-') + ' ｜ 休克指数：' + (r.shock_index || '-') + '</div>';
+        return '<div class="detail-item">' + (r.diagnosis_disease || '-') + ' ｜ 休克指数：' + (r.shock_index || '-') + '</div>';
       }).join('') || '<div class="detail-item">暂无评估记录</div>';
       $("#assessmentList").html(assessmentHtml);
       $("#treatDynamicFields").html("");

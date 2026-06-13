@@ -338,7 +338,7 @@ def patient_detail(patient_id):
                     FROM assessments a
                     LEFT JOIN diagnosis_records dr ON dr.id=a.diagnosis_record_id
                     WHERE a.patient_id=%s
-                    ORDER BY a.assessment_time DESC, a.id DESC
+                    ORDER BY a.created_at DESC, a.id DESC
                     """,
                     (patient_id,),
                 )

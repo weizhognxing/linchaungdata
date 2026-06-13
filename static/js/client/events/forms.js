@@ -194,10 +194,7 @@ $("#addAssessmentBtn").on("click", function () {
   updateAssessmentShockIndex();
   if ($("#assessmentDynamicFields .assessment-kpa-input").val()) updateAssessmentOxygenFromKpa();
   else updateAssessmentOxygenFromMmhg();
-  const payload = {
-    diagnosis_record_id: selectedDiagnosis.value,
-    assessment_time: $("#assessmentTime").val() || new Date().toISOString().slice(0, 16)
-  };
+  const payload = { diagnosis_record_id: selectedDiagnosis.value };
   let assessmentMissing = [];
   $("#assessmentDynamicFields .assessment-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
@@ -213,7 +210,6 @@ $("#addAssessmentBtn").on("click", function () {
   }
   $.post("/api/patients/" + currentPatientId + "/assessments", payload).done(function (res) {
     setMsg("assessmentMsg", res.message || "已保存");
-    $("#assessmentTime").val("");
     $("#assessmentDynamicFields").html("");
     loadPatientDetail(currentPatientId, "assessment");
   }).fail(function (xhr) {
