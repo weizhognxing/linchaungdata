@@ -369,11 +369,16 @@ def patient_detail(patient_id):
             for field in cur.fetchall():
                 field_name = field["field_name"]
                 if field_name in patient_columns and field_name not in base_fields:
+                    value = patient.get(field_name)
+                    if str(value or "").startswith("0000-00-00"):
+                        value = ""
+                    elif field.get("data_type") in {"datetime", "date"}:
+                        value = _xlsx_value(value)
                     patient_meta.append({
                         "field_name": field_name,
                         "data_type": field.get("data_type"),
                         "form_label": field["form_label"],
-                        "value": patient.get(field_name),
+                        "value": value,
                     })
 
             return ok({
