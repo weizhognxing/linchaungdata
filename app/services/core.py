@@ -374,19 +374,54 @@ def parse_ai_result(ai_text, fields):
 
     items = ai_data.get("items", [])
     field_map = {f["field_name"].lower(): f for f in fields}
+    normalized_field_map = {
+        _normalize_lab_code(field_name): field_name
+        for field_name in field_map
+        if _normalize_lab_code(field_name)
+    }
 
     result = {}
     for item in items:
         code = item.get("code", "").lower()
+        normalized_code = _normalize_lab_code(code)
+        alias_field = _alias_field_for_code(normalized_code, field_map)
         value = item.get("value", "")
         if code in field_map:
             result[code] = value
+        elif alias_field:
+            result[alias_field] = value
+        elif normalized_code in normalized_field_map:
+            result[normalized_field_map[normalized_code]] = value
         else:
             for field_name in field_map:
-                if code in field_name or field_name in code:
+                normalized_field = _normalize_lab_code(field_name)
+                if len(normalized_code) >= 3 and len(normalized_field) >= 3 and normalized_code in normalized_field:
                     result[field_name] = value
                     break
     return result
+
+
+LAB_CODE_ALIASES = {
+    "ckmb": ["ck_mb_stat", "ckmb"],
+    "ckmbmass": ["ck_mb_stat", "ckmb"],
+    "myo": ["myo_stat", "myo"],
+    "hsctnt": ["hs_ctnt_stat", "hs_ctni_stat"],
+    "ctnt": ["hs_ctnt_stat", "hs_ctni_stat"],
+    "hstni": ["hs_ctni_stat", "hs_ctnt_stat"],
+    "ctni": ["hs_ctni_stat", "hs_ctnt_stat"],
+    "tni": ["hs_ctni_stat", "hs_ctnt_stat"],
+}
+
+
+def _alias_field_for_code(normalized_code, field_map):
+    for field_name in LAB_CODE_ALIASES.get(normalized_code, []):
+        if field_name in field_map:
+            return field_name
+    return ""
+
+
+def _normalize_lab_code(value):
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
 
 def parse_lab_test_name(ai_text):
