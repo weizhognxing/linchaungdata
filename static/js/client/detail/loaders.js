@@ -181,16 +181,22 @@ function findCareRecord(type, recordId) {
   return (records || []).filter(function (row) { return String(row.id || "") === recordId; })[0] || null;
 }
 
+function shouldShowCareValue(key, value, hidden) {
+  if (hidden[key] || /_details$/.test(key)) return false;
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value) || typeof value === "object") return false;
+  return String(value).trim() !== "";
+}
+
 function renderCareItems(row, labels) {
   const values = Object.assign({}, row || {}, parseDetailJson(row));
   const hidden = { id: true, patient_id: true, user_id: true, diagnosis_record_id: true, detail_json: true, diagnosis_disease: true, preliminary_diagnosis: true, treatment_method: true };
   const keys = [];
-  Object.keys(labels).forEach(function (key) { if (Object.prototype.hasOwnProperty.call(values, key)) keys.push(key); });
+  Object.keys(labels).forEach(function (key) { if (Object.prototype.hasOwnProperty.call(values, key) && shouldShowCareValue(key, values[key], hidden)) keys.push(key); });
   Object.keys(values).forEach(function (key) {
-    if (!labels[key] && !hidden[key] && keys.indexOf(key) === -1) keys.push(key);
+    if (!labels[key] && shouldShowCareValue(key, values[key], hidden) && keys.indexOf(key) === -1) keys.push(key);
   });
   return keys.map(function (key) {
-    if (hidden[key]) return "";
     const value = formatDisplayValue(values[key]);
     if (value === "-") return "";
     return '<div class="report-item"><div class="report-item-head"><span>' + (labels[key] || key) + '</span><span class="report-value">' + value + '</span></div></div>';
