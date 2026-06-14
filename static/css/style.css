@@ -103,7 +103,7 @@ th { background: #eff6ee; }
 .radio-grid label { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-weight: 700; }
 .radio-grid input { width: auto; margin: 0; }
 #treatDynamicFields input[type="datetime-local"], #treatDynamicFields .treatment-option-extras input { width: 100%; min-width: 0; }
-.lab-record-item { cursor: pointer; }
+.lab-record-item, .treat-record-item, .follow-record-item, .assessment-record-item { cursor: pointer; }
 .report-topbar { display: grid; align-items: center; gap: 10px; margin-bottom: 14px; }
 .report-topbar h2 { margin: 0; text-align: left; }
 .report-list { display: grid; gap: 10px; }

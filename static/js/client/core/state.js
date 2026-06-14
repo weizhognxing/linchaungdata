@@ -6,6 +6,10 @@ let selectedFile = null;
 let canReviewMembers = false;
 let currentPatientId = null;
 let currentPatientIsComplete = false;
+let currentCareDetailTab = "";
+let currentTreatmentRecords = [];
+let currentFollowupRecords = [];
+let currentAssessmentRecords = [];
 let currentUploadMode = "intake";
 let currentUploadPatientId = null;
 let currentRecordCategory = null;
@@ -63,7 +67,7 @@ function showPanel(id) {
     if (id === "diseasePanel" && isDiseasePanelLabMode()) {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
-    if (id === "patientDetailPanel" || id === "labReportPanel") {
+    if (id === "patientDetailPanel" || id === "labReportPanel" || id === "careReportPanel") {
       $(".nav-item[data-nav='caseListPanel']").addClass("active");
     }
   } else {

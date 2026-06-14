@@ -227,8 +227,8 @@ function parseTreatmentDetailJson(row) {
 }
 
 function backFromInnerPage() {
-  if (currentPanelId === "labReportPanel") {
-    if (currentPatientId) loadPatientDetail(currentPatientId, "lab");
+  if (currentPanelId === "labReportPanel" || currentPanelId === "careReportPanel") {
+    if (currentPatientId) loadPatientDetail(currentPatientId, currentPanelId === "careReportPanel" ? (currentCareDetailTab || "treat") : "lab");
     else showPanel("caseListPanel");
     return;
   }

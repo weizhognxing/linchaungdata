@@ -177,3 +177,15 @@ $(document).on("click", ".lab-category-upload-btn", function (event) {
 $(document).on("click", ".lab-record-item", function () {
   loadLabRecordDetail(this.getAttribute("data-record-id"));
 });
+
+$(document).on("click", ".treat-record-item", function () {
+  loadCareRecordDetail("treat", this.getAttribute("data-record-id"));
+});
+
+$(document).on("click", ".follow-record-item", function () {
+  loadCareRecordDetail("follow", this.getAttribute("data-record-id"));
+});
+
+$(document).on("click", ".assessment-record-item", function () {
+  loadCareRecordDetail("assessment", this.getAttribute("data-record-id"));
+});

@@ -10,6 +10,9 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       }
       const patient = res.data.patient || {};
       currentPatientId = patientId;
+      currentTreatmentRecords = res.data.treatments || [];
+      currentFollowupRecords = res.data.followups || [];
+      currentAssessmentRecords = res.data.assessments || [];
       if (patient.last_disease_id) {
         selectedDiseaseId = patient.last_disease_id;
         localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
@@ -56,7 +59,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       $("#labRecordList").html(labHtml);
       renderLabCategoryActions(patient, res.data.lab_records || [], res.data.diagnosis_records || []);
 
-      const treatHtml = (res.data.treatments || []).map(function (r) {
+      const treatHtml = (currentTreatmentRecords || []).map(function (r) {
         const details = [];
         if (r.diagnosis_disease) details.push('疾病：' + r.diagnosis_disease);
         if (r.antibiotics) details.push('抗生素：' + formatTreatmentDetail(r, 'antibiotics', r.antibiotics));
@@ -75,17 +78,18 @@ function loadPatientDetail(patientId, activeTab, subTab) {
         if (r.chest_fixation) details.push('胸部固定：' + r.chest_fixation);
         if (r.airway_control) details.push('气道控制：' + r.airway_control);
         if (r.blood_transfusion) details.push('输血：' + r.blood_transfusion);
-        return '<div class="detail-item">' + (r.treat_time || '-') + '<br>' + (r.treatment_method || '-') +
-          (details.length ? '<div class="case-meta">' + details.join(' ｜ ') + '</div>' : '') + '</div>';
+        return '<div class="detail-item treat-record-item" data-record-id="' + r.id + '">' + formatDisplayValue(r.treat_time) + '<br>' + (r.treatment_method || '-') +
+          (details.length ? '<div class="case-meta">' + details.join(' ｜ ') + '</div>' : '') +
+          '<div class="case-meta">点击查看治疗详情</div></div>';
       }).join('') || '<div class="detail-item">暂无治疗记录</div>';
       $("#treatList").html(treatHtml);
 
-      const followHtml = (res.data.followups || []).map(function (r) {
-        return '<div class="detail-item">' + (r.follow_time || '-') + '<br>' + (r.follow_result || '-') + '</div>';
+      const followHtml = (currentFollowupRecords || []).map(function (r) {
+        return '<div class="detail-item follow-record-item" data-record-id="' + r.id + '">' + formatDisplayValue(r.follow_time) + '<br>' + (r.follow_result || '-') + '<div class="case-meta">点击查看随访详情</div></div>';
       }).join('') || '<div class="detail-item">暂无随访记录</div>';
       $("#followList").html(followHtml);
-      const assessmentHtml = (res.data.assessments || []).map(function (r) {
-        return '<div class="detail-item">' + (r.diagnosis_disease || '-') + ' ｜ 休克指数：' + (r.shock_index || '-') + '</div>';
+      const assessmentHtml = (currentAssessmentRecords || []).map(function (r) {
+        return '<div class="detail-item assessment-record-item" data-record-id="' + r.id + '">' + (r.diagnosis_disease || '-') + ' ｜ 休克指数：' + (r.shock_index || '-') + '<div class="case-meta">点击查看评估详情</div></div>';
       }).join('') || '<div class="detail-item">暂无评估记录</div>';
       $("#assessmentList").html(assessmentHtml);
       $("#treatDynamicFields").html("");
@@ -116,6 +120,102 @@ function loadPatientDetail(patientId, activeTab, subTab) {
     .fail(function (xhr) {
       alert(xhr.responseJSON?.message || "加载病人详情失败");
     });
+}
+
+function formatDisplayValue(value) {
+  value = String(value || "").trim();
+  if (!value || value.indexOf("0000-00-00") === 0) return "-";
+  if (/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}/.test(value)) return value.replace("T", " ").slice(0, 16);
+  if (/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}/.test(value)) return value.slice(0, 16);
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime()) && /GMT|UTC|^[A-Z][a-z]{2},/.test(value)) {
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0") + " " + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  }
+  return value;
+}
+
+function parseDetailJson(row) {
+  if (!row || !row.detail_json) return {};
+  try {
+    return JSON.parse(row.detail_json) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function labelFromConfigs(configs) {
+  const labels = {};
+  (configs || []).forEach(function (config) {
+    (config || []).forEach(function (field) {
+      if (field && field[0] && field[1]) labels[field[0]] = field[1];
+    });
+  });
+  return labels;
+}
+
+function getTreatmentLabels() {
+  const configs = [];
+  Object.keys(treatmentConfigs || {}).forEach(function (key) { configs.push(treatmentConfigs[key]); });
+  const labels = labelFromConfigs(configs);
+  labels.treat_time = "治疗时间";
+  return labels;
+}
+
+function getAssessmentLabels() {
+  const configs = [];
+  Object.keys(assessmentFieldsByDisease || {}).forEach(function (key) { configs.push(assessmentFieldsByDisease[key]); });
+  const labels = labelFromConfigs(configs);
+  labels.created_at = "评估录入时间";
+  return labels;
+}
+
+function getFollowupLabels() {
+  const labels = labelFromConfigs([followupFieldsInternal, followupFieldsNonInternal]);
+  labels.follow_time = "随访时间";
+  return labels;
+}
+
+function findCareRecord(type, recordId) {
+  const records = type === "treat" ? currentTreatmentRecords : (type === "follow" ? currentFollowupRecords : currentAssessmentRecords);
+  recordId = String(recordId || "");
+  return (records || []).filter(function (row) { return String(row.id || "") === recordId; })[0] || null;
+}
+
+function renderCareItems(row, labels) {
+  const values = Object.assign({}, row || {}, parseDetailJson(row));
+  const hidden = { id: true, patient_id: true, user_id: true, diagnosis_record_id: true, detail_json: true, diagnosis_disease: true, preliminary_diagnosis: true, treatment_method: true };
+  const keys = [];
+  Object.keys(labels).forEach(function (key) { if (Object.prototype.hasOwnProperty.call(values, key)) keys.push(key); });
+  Object.keys(values).forEach(function (key) {
+    if (!labels[key] && !hidden[key] && keys.indexOf(key) === -1) keys.push(key);
+  });
+  return keys.map(function (key) {
+    if (hidden[key]) return "";
+    const value = formatDisplayValue(values[key]);
+    if (value === "-") return "";
+    return '<div class="report-item"><div class="report-item-head"><span>' + (labels[key] || key) + '</span><span class="report-value">' + value + '</span></div></div>';
+  }).join('') || '<div class="detail-item">暂无详情数据</div>';
+}
+
+function loadCareRecordDetail(type, recordId) {
+  const row = findCareRecord(type, recordId);
+  const titles = { treat: "治疗详情", follow: "随访详情", assessment: "评估详情" };
+  const labels = type === "treat" ? getTreatmentLabels() : (type === "follow" ? getFollowupLabels() : getAssessmentLabels());
+  currentCareDetailTab = type;
+  setMsg("careReportMsg", "", false);
+  $("#careReportTitle").text(titles[type] || "记录详情");
+  if (!row) {
+    $("#careReportMeta").html("");
+    $("#careReportItems").html('<div class="detail-item">记录不存在，请返回刷新后重试</div>');
+    showPanel("careReportPanel");
+    return;
+  }
+  $("#careReportMeta").html(
+    '<div><strong>' + (row.diagnosis_disease || '-') + '</strong></div>' +
+    '<div class="case-meta">初步诊断：' + (row.preliminary_diagnosis || '-') + '</div>'
+  );
+  $("#careReportItems").html(renderCareItems(row, labels));
+  showPanel("careReportPanel");
 }
 
 function loadLabRecordDetail(recordId) {
