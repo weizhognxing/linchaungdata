@@ -419,10 +419,13 @@ def update_patient(patient_id):
                 return fail("完整记录已提交，不能修改")
 
             allowed_fields = {"name", "gender", "age", "phone", "id_number"}
-            cur.execute("SELECT field_name FROM patient_field_settings WHERE enabled=1")
-            allowed_fields.update(
-                row["field_name"] for row in cur.fetchall() if row["field_name"] in patient_columns
-            )
+            dynamic_field_types = {}
+            cur.execute("SELECT field_name, data_type FROM patient_field_settings WHERE enabled=1")
+            for row in cur.fetchall():
+                field_name = row["field_name"]
+                if field_name in patient_columns:
+                    allowed_fields.add(field_name)
+                    dynamic_field_types[field_name] = str(row.get("data_type") or "").lower()
             allowed_fields = [field for field in allowed_fields if field in patient_columns]
 
             if "diagnosis_disease" in data:
@@ -446,7 +449,14 @@ def update_patient(patient_id):
                 if field not in data:
                     continue
                 value = data.get(field)
-                if field == "age":
+                field_type = dynamic_field_types.get(field, "")
+                if field_type == "datetime":
+                    value = _optional_datetime(value)
+                elif field_type == "date":
+                    value = str(value or "").strip() or None
+                elif field_type in {"int", "decimal", "number"}:
+                    value = _optional_decimal(value)
+                elif field == "age":
                     value = value or None
                 updates.append(f"`{field.replace('`', '``')}`=%s")
                 params.append(value)
