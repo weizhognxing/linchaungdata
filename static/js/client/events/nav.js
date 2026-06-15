@@ -20,17 +20,57 @@ $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
 });
 
-$(document).on("click", "#exportCasesBtn", function () {
+async function downloadCaseExportWithPicker(filename) {
+  let handle = null;
+  if (window.showSaveFilePicker) {
+    handle = await window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{ description: "ZIP压缩包", accept: { "application/zip": [".zip"] } }]
+    });
+  }
+  const response = await fetch("/api/cases/export");
+  if (!response.ok) {
+    let message = "导出失败";
+    try {
+      const errorBody = await response.json();
+      message = errorBody.message || message;
+    } catch (e) {}
+    throw new Error(message);
+  }
+  const blob = await response.blob();
+  if (handle) {
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return "picked";
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  return "downloaded";
+}
+
+$(document).on("click", "#exportCasesBtn", async function () {
   const button = this;
   button.disabled = true;
   button.textContent = "导出中";
-  setMsg("caseListMsg", "正在准备导出文件，请稍候...", false);
-  window.location.href = "/api/cases/export";
-  setTimeout(function () {
+  const filename = "case_export_" + Date.now() + ".zip";
+  const supportsPicker = !!window.showSaveFilePicker;
+  setMsg("caseListMsg", supportsPicker ? "请选择导出文件保存位置..." : "正在准备导出文件，当前浏览器不支持网页内选择目录，将使用浏览器默认下载位置。", false);
+  try {
+    const mode = await downloadCaseExportWithPicker(filename);
+    setMsg("caseListMsg", mode === "picked" ? "完整记录数据已导出到选择的位置。" : "完整记录数据已开始下载。", false);
+  } catch (e) {
+    setMsg("caseListMsg", e.message || "导出失败", true);
+  } finally {
     button.disabled = false;
     button.textContent = "导出数据";
-    setMsg("caseListMsg", "", false);
-  }, 3000);
+  }
 });
 
 $(document).on("click", "#caseListPanel .inner-tab", function () {

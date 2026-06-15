@@ -248,8 +248,9 @@ function loadLabRecordDetail(recordId) {
         const extras = [];
         if (item.reference_range) extras.push('参考区间：' + item.reference_range);
         if (item.test_method) extras.push('实验方法：' + item.test_method);
+        const label = getLabDisplayLabel(item.form_label, item.field_name);
         return '<div class="report-item">' +
-          '<div class="report-item-head"><span>' + (item.form_label || item.field_name) + '</span><span class="report-value">' + value + unit + '</span></div>' +
+          '<div class="report-item-head"><span>' + label + '</span><span class="report-value">' + value + unit + '</span></div>' +
           (extras.length ? '<div class="report-extra">' + extras.join(' ｜ ') + '</div>' : '') +
           '</div>';
       }).join('') || '<div class="detail-item">暂无检验指标</div>';

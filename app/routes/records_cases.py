@@ -37,6 +37,14 @@ def export_cases():
                     multiplier = 1
 
             patient_columns = _patient_columns(cur)
+            complete_conditions = []
+            if "case_integrity" in patient_columns:
+                complete_conditions.append("p.case_integrity IN ('complete','submitted')")
+            if "case_status" in patient_columns:
+                complete_conditions.append("p.case_status='submitted'")
+            if not complete_conditions:
+                return fail("当前数据库缺少完整记录状态字段，无法导出完整记录", 400)
+            complete_sql = "(" + " OR ".join(complete_conditions) + ")"
             own_conditions = ["r.user_id=%s"]
             own_params = [current_user["id"]]
             if "user_id" in patient_columns:
@@ -48,7 +56,7 @@ def export_cases():
                 SELECT DISTINCT p.id
                 FROM patients p
                 LEFT JOIN lab_records r ON r.patient_id=p.id
-                WHERE {' OR '.join(own_conditions)}
+                WHERE ({' OR '.join(own_conditions)}) AND {complete_sql}
                 """,
                 own_params,
             )
@@ -69,7 +77,7 @@ def export_cases():
                     SELECT DISTINCT p.id
                     FROM patients p
                     LEFT JOIN lab_records r ON r.patient_id=p.id
-                    WHERE ({' OR '.join(other_conditions)}) {exclude_sql}
+                    WHERE ({' OR '.join(other_conditions)}) AND {complete_sql} {exclude_sql}
                     ORDER BY RAND()
                     LIMIT {int(other_limit)}
                     """,
@@ -78,6 +86,8 @@ def export_cases():
                 other_patient_ids = [row["id"] for row in cur.fetchall()]
 
             patient_ids = own_patient_ids + other_patient_ids
+            if not patient_ids:
+                return fail("暂无完整记录可导出", 404)
             export_tables = [
                 ("01_病患信息.xlsx", "病患信息", "patients", "id"),
                 ("02_诊断记录.xlsx", "诊断记录", "diagnosis_records", "patient_id"),

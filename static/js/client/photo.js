@@ -321,7 +321,8 @@ function autoRecognize() {
       });
       var html = recognizedFields.map(function(f) {
         var value = recognizedValues[f.field_name];
-        return '<div class="form-field"><label>' + f.form_label + '</label><input name="' + f.field_name + '" value="' + value + '" placeholder="' + f.form_label + '"></div>';
+        var label = getLabDisplayLabel(f.form_label, f.field_name);
+        return '<div class="form-field"><label>' + label + '</label><input name="' + f.field_name + '" value="' + value + '" placeholder="' + label + '"></div>';
       }).join("");
       $("#dynamicFields").html(html || '<div class="detail-item">未识别到检验指标</div>');
 
