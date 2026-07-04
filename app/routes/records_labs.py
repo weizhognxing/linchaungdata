@@ -2,6 +2,7 @@
 # Routes in this file register on the shared records_bp blueprint.
 import json
 import os
+import re
 import time
 import zipfile
 from io import BytesIO
@@ -14,7 +15,20 @@ from app.db import db
 from app.decorators import require_user
 from app.routes.record_blueprint import records_bp
 from app.routes.record_helpers import *  # noqa: F403 - shared route helpers
-from app.services.core import AIRecognitionError, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
+from app.services.core import AIRecognitionError, HIDDEN_LAB_FIELD_NAMES, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
+
+
+def _normalize_lab_field_value(value, data_type):
+    raw_value = str(value or "").strip()
+    if raw_value == "":
+        return None
+    if data_type == "decimal":
+        number = re.search(r"[-+]?\d+(?:,\d{3})*(?:\.\d+)?|[-+]?\.\d+", raw_value)
+        return number.group(0).replace(",", "") if number else None
+    if data_type == "int":
+        number = re.search(r"[-+]?\d+", raw_value.replace(",", ""))
+        return number.group(0) if number else None
+    return raw_value
 
 
 @records_bp.post("/api/records")
@@ -32,14 +46,17 @@ def save_record():
     }
     values = data.get("values") or {}
     disease_id = data.get("disease_id")
-    record_category = (data.get("record_category") or "").strip() or None
-    lab_test_name = (data.get("lab_test_name") or "").strip() or None
+    record_category = _standard_lab_category_key(data.get("record_category")) or None
+    if not record_category or record_category not in LAB_CATEGORY_DEFINITIONS:
+        return fail("请选择检验类别")
+    lab_test_name = _lab_category_label(record_category) or None
     if not disease_id:
         return fail("请先选择疾病")
     if not patient_id and required(patient, ["name"]):
         return fail("请填写病患姓名")
 
-    allowed_fields = {field["field_name"] for field in get_fields_for_disease(int(disease_id))}
+    field_types = {field["field_name"]: field.get("data_type") for field in get_fields_for_disease(int(disease_id))}
+    allowed_fields = set(field_types.keys())
 
     conn = db()
     try:
@@ -59,9 +76,9 @@ def save_record():
             )
 
             record_values = {
-                key: value
+                key: _normalize_lab_field_value(value, field_types.get(key))
                 for key, value in values.items()
-                if key in allowed_fields and key in existing_columns
+                if key in allowed_fields and key in existing_columns and key not in HIDDEN_LAB_FIELD_NAMES
             }
 
             if patient_id:
@@ -221,7 +238,7 @@ def record_detail(record_id):
             items = []
             for field in cur.fetchall():
                 field_name = field["field_name"]
-                if field_name not in record_columns or field_name in system_fields:
+                if field_name not in record_columns or field_name in system_fields or field_name in HIDDEN_LAB_FIELD_NAMES:
                     continue
                 value = record.get(field_name)
                 if value is None or str(value).strip() == "":
@@ -238,5 +255,3 @@ def record_detail(record_id):
             return ok({"record": record, "items": items})
     finally:
         conn.close()
-
-

@@ -16,6 +16,15 @@ $(document).on("click", ".nav-item", function () {
   }
 });
 
+document.addEventListener("click", function (event) {
+  const newCaseNav = event.target && event.target.closest ? event.target.closest(".nav-item[data-nav='newCase']") : null;
+  if (!newCaseNav) return;
+  event.preventDefault();
+  if (typeof openNewCaseForm === "function") {
+    openNewCaseForm();
+  }
+});
+
 $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
 });

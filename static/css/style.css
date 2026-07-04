@@ -169,6 +169,9 @@ th { background: #eff6ee; }
 .status-pending { background: #fff3cd; color: #856404; }
 .status-approved { background: #d4edda; color: #155724; }
 .status-disabled { background: #f8d7da; color: #721c24; }
+.gender-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.gender-option { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
+.gender-option input { width: auto; margin: 0; }
 .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .photo-actions.single-btn { grid-template-columns: 1fr; }
 .photo-btn { padding: 16px; font-size: 16px; border-radius: 16px; background: var(--brand); color: #fff; font-weight: 700; box-shadow: 0 10px 22px rgba(31, 122, 90, 0.18); }

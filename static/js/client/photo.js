@@ -106,18 +106,33 @@ async function compressImageToTarget(file) {
 }
 
 function resetRecordForm() {
-  $("[name=patient_name], [name=patient_gender], [name=patient_age], [name=patient_phone], [name=patient_id_number]").val("");
+  $("[name=patient_name], [name=patient_age], [name=patient_phone], [name=patient_id_number]").val("");
+  document.querySelectorAll("[name=patient_gender]").forEach(function (input) {
+    input.checked = false;
+  });
   $("#dynamicFields").html("");
+  populateLabCategorySelect();
   $("#recordPanelHint").text("");
   setMsg("recordMsg", "", false);
   setSaveRecordButtonSaving(false);
+}
+
+function populateLabCategorySelect(selectedKey) {
+  const select = document.getElementById("labTestName");
+  if (!select) return;
+  const html = '<option value="">请选择检验类别</option>' + (labCategories || []).map(function (category) {
+    return '<option value="' + escapeHtml(category.key) + '">' + escapeHtml(category.label) + '</option>';
+  }).join("");
+  select.innerHTML = html;
+  const target = selectedKey || currentRecordCategory || normalizeLabCategoryName(currentCategoryLabel) || "";
+  if (target) select.value = target;
 }
 
 function setSaveRecordButtonSaving(saving) {
   const button = document.getElementById("saveRecordBtn");
   if (!button) return;
   button.disabled = !!saving;
-  button.textContent = saving ? "保存中" : saveRecordButtonText;
+  button.textContent = saving ? "保存中" : (typeof saveRecordButtonText === "undefined" ? "保存信息" : saveRecordButtonText);
 }
 
 function openPhotoPanelForIntake() {
@@ -173,10 +188,7 @@ function normalizeLabCategoryKeys(value) {
   if (rawValue === "bnp" || value.indexOf("bnp") > -1 || value.indexOf("b型钠尿肽") > -1 || value.indexOf("ntpro") > -1 || value.indexOf("脑钠肽") > -1) addKey("bnp");
   if (rawValue === "myocardial_injury" || value.indexOf("心肌损伤") > -1 || value.indexOf("肌钙蛋白") > -1 || value.indexOf("肌红蛋白") > -1 || value.indexOf("ckmb") > -1 || value.indexOf("ctnt") > -1 || value.indexOf("ctni") > -1) addKey("myocardial_injury");
   if (rawValue === "cytokine_12" || value.indexOf("细胞因子") > -1) addKey("cytokine_12");
-  if (rawValue === "pathogen" || value.indexOf("病原") > -1 || value.indexOf("培养") > -1 || value.indexOf("病原学") > -1) addKey("pathogen");
   if (rawValue === "amylase" || value.indexOf("淀粉酶") > -1 || value.indexOf("amy") > -1) addKey("amylase");
-  if (rawValue === "cholinesterase" || value.indexOf("胆碱酯酶") > -1) addKey("cholinesterase");
-  if (rawValue === "toxin_identification" || value.indexOf("毒物") > -1 || value.indexOf("毒检") > -1 || value.indexOf("毒理") > -1) addKey("toxin_identification");
   return keys;
 }
 
@@ -201,9 +213,6 @@ function getRequiredLabCategoriesForDiagnoses(diagnosisRecords) {
     keys.forEach(function (key) {
       if (requiredKeys.indexOf(key) === -1) requiredKeys.push(key);
     });
-    if (disease === "中毒" && String(record.preliminary_diagnosis || "").indexOf("有机磷中毒") > -1 && requiredKeys.indexOf("cholinesterase") === -1) {
-      requiredKeys.push("cholinesterase");
-    }
   });
   return labCategories.filter(function (category) {
     return requiredKeys.indexOf(category.key) > -1;
@@ -211,12 +220,14 @@ function getRequiredLabCategoriesForDiagnoses(diagnosisRecords) {
 }
 
 function renderLabCategoryActions(patient, records, diagnosisRecords) {
+  const primaryDiagnosisDisease = (diagnosisRecords && diagnosisRecords[0] && diagnosisRecords[0].diagnosis_disease) || patient.diagnosis_disease || "";
+  const uploadDiseaseAttrs = ' data-disease-id="' + attrValue(patient.last_disease_id || '') + '" data-diagnosis-disease="' + attrValue(primaryDiagnosisDisease) + '"';
   const uploadedKeys = getUploadedLabCategoryKeys(records);
   const requiredCategories = getRequiredLabCategoriesForDiagnoses(diagnosisRecords);
   if (!requiredCategories.length) {
     const noDiagnosisSummary = '请先添加诊断记录，系统会按诊断疾病显示必需检验项目。';
     $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + noDiagnosisSummary + '</div>');
-    const noDiagnosisHtml = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验">上传检验单</button>';
+    const noDiagnosisHtml = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验"' + uploadDiseaseAttrs + '>上传检验单</button>';
     $("#labCategoryActions").html(noDiagnosisHtml);
     return;
   }
@@ -228,7 +239,7 @@ function renderLabCategoryActions(patient, records, diagnosisRecords) {
     ? '已上传 ' + uploadedCount + '/' + requiredCategories.length + ' 项必需检验，还缺 ' + missingCategories.length + ' 项：' + missingCategories.map(function (category) { return category.label; }).join('、')
     : '当前诊断要求的必需检验已全部上传。';
   $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + summary + '</div>');
-  const html = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验">上传检验单</button>';
+  const html = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验"' + uploadDiseaseAttrs + '>上传检验单</button>';
   $("#labCategoryActions").html(html);
 }
 
@@ -255,9 +266,26 @@ function fillPatientForm(patient) {
   Object.keys(map).forEach(function (fieldName) {
     const value = map[fieldName];
     if (value !== undefined && value !== null && String(value).trim() !== "") {
-      $("[name=" + fieldName + "]").val(value);
+      var inputs = document.querySelectorAll("[name=" + fieldName + "]");
+      if (inputs.length && inputs[0].type === "radio") {
+        inputs.forEach(function (input) {
+          input.checked = input.value === String(value);
+        });
+      } else {
+        $("[name=" + fieldName + "]").val(value);
+      }
     }
   });
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // 显示识别进度
@@ -309,41 +337,65 @@ function autoRecognize() {
 
   $.ajax({ url: "/api/recognize", method: "POST", data, processData: false, contentType: false, timeout: 420000 })
     .done(function (res) {
-      showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
-      uploadedPhotoPath = res.data.photo_path;
-      resetRecordForm();
-      fillPatientForm(res.data.patient);
+      var fillStep = "准备填充";
+      try {
+        showRecognizeProgress(3, 3, "识别完成，正在填充表单...");
+        fillStep = "读取接口数据";
+        var data = res && res.data ? res.data : {};
+        uploadedPhotoPath = data.photo_path || null;
+        fillStep = "重置表单";
+        resetRecordForm();
+        fillStep = "填充病患信息";
+        fillPatientForm(data.patient || {});
 
-      var recognizedValues = res.data.values || {};
-      var recognizedFields = (res.data.fields || []).filter(function (f) {
-        var value = recognizedValues[f.field_name];
-        return value !== null && value !== undefined && String(value).trim() !== "";
-      });
-      var html = recognizedFields.map(function(f) {
-        var value = recognizedValues[f.field_name];
-        var label = getLabDisplayLabel(f.form_label, f.field_name);
-        return '<div class="form-field"><label>' + label + '</label><input name="' + f.field_name + '" value="' + value + '" placeholder="' + label + '"></div>';
-      }).join("");
-      $("#dynamicFields").html(html || '<div class="detail-item">未识别到检验指标</div>');
+        fillStep = "生成检验字段";
+        var recognizedValues = data.values && typeof data.values === "object" ? data.values : {};
+        var responseFields = Array.isArray(data.fields) ? data.fields : [];
+        var recognizedFields = responseFields.filter(function (f) {
+          if (!f || !f.field_name) return false;
+          var value = recognizedValues[f.field_name];
+          return value !== null && value !== undefined && String(value).trim() !== "";
+        });
+        var html = recognizedFields.map(function(f) {
+          var fieldName = String(f.field_name || "");
+          var value = recognizedValues[fieldName];
+          var label = typeof getLabDisplayLabel === "function" ? getLabDisplayLabel(f.form_label, fieldName) : (f.form_label || fieldName);
+          return '<div class="form-field"><label>' + escapeHtml(label) + '</label><input name="' + escapeHtml(fieldName) + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(label) + '"></div>';
+        }).join("");
+        $("#dynamicFields").html(html || '<div class="detail-item">未识别到检验指标</div>');
 
-      if (currentUploadMode === "intake") {
-        $("#recordPanelTitle").text("确认基础信息");
-        $("#recordPanelHint").text("当前步骤仅提取姓名、性别、年龄，确认后会创建暂存病例。后续请在病例中继续补录基础信息、诊断、检验、评估、治疗和随访。");
-        $("#labFieldsSection").addClass("hidden");
-        $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
-        $("#saveRecordBtn").text("保存信息");
-      } else {
-        $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
-        $("#labTestName").val(res.data.lab_test_name || res.data.category_label || currentCategoryLabel || "");
-        $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
-        $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。")
-        $("#labFieldsSection").removeClass("hidden");
-        $("#saveRecordBtn").text("保存信息");
+        fillStep = "设置页面状态";
+        if (currentUploadMode === "intake") {
+          $("#recordPanelTitle").text("确认基础信息");
+          $("#recordPanelHint").text("当前步骤仅提取姓名、性别、年龄，确认后会创建暂存病例。后续请在病例中继续补录基础信息、诊断、检验、评估、治疗和随访。");
+          $("#labFieldsSection").addClass("hidden");
+          $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
+          $("#saveRecordBtn").text("保存信息");
+        } else {
+          $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
+          var recognizedCategory = normalizeLabCategoryName(currentRecordCategory || data.record_category || data.lab_test_name || data.category_label || currentCategoryLabel);
+          populateLabCategorySelect(recognizedCategory);
+          currentRecordCategory = $("#labTestName").val() || currentRecordCategory || recognizedCategory;
+          currentCategoryLabel = getLabCategoryLabel(currentRecordCategory) || currentCategoryLabel;
+          $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
+          $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。");
+          $("#labFieldsSection").removeClass("hidden");
+          $("#saveRecordBtn").text("保存信息");
+        }
+
+        fillStep = "跳转校对页";
+        setTimeout(function() {
+          showPanel("recordPanel");
+        }, 500);
+      } catch (err) {
+        console.error("Recognition form fill failed", err, res);
+        $("#recognizeProgress").addClass("hidden");
+        $("#photoActions").removeClass("hidden");
+        $("#previewContainer").removeClass("hidden");
+        $("#retryBtn").removeClass("hidden");
+        var detail = err && err.message ? "（" + fillStep + "：" + err.message + "）" : "";
+        setMsg("photoMsg", "识别已返回，但填充表单失败" + detail + "，请刷新后重试。", true);
       }
-
-      setTimeout(function() {
-        showPanel("recordPanel");
-      }, 500);
     })
     .fail(function (xhr) {
       setMsg("photoMsg", xhr.responseJSON?.message || "识别超时或失败，请重新上传识别", true);

@@ -78,12 +78,62 @@ function finishLabDiseaseSelection(diseaseId, labContext) {
   return true;
 }
 
+function setSelectedDiseaseForUpload(diseaseId) {
+  selectedDiseaseId = diseaseId ? String(diseaseId) : null;
+  if (selectedDiseaseId) {
+    localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
+  } else {
+    localStorage.removeItem("selectedDiseaseId");
+  }
+}
+
+function findDiseaseIdByName(name) {
+  const normalizedName = String(name || "").trim();
+  if (!normalizedName) return "";
+  const found = (diseaseCatalog || []).find(function (d) {
+    return String(d.name || "").trim() === normalizedName;
+  });
+  return found ? found.id : "";
+}
+
+function ensureDiseaseCatalog(callback) {
+  if ((diseaseCatalog || []).length) {
+    callback(diseaseCatalog);
+    return;
+  }
+  $.getJSON("/api/diseases")
+    .done(function (res) {
+      const payload = res.data || {};
+      diseaseCatalog = payload.diseases || [];
+      callback(diseaseCatalog);
+    })
+    .fail(function () {
+      callback([]);
+    });
+}
+
+function resolveLabUploadDiseaseId(defaultDiseaseId, diagnosisDisease, callback) {
+  if (defaultDiseaseId) {
+    callback(defaultDiseaseId);
+    return;
+  }
+  ensureDiseaseCatalog(function (diseases) {
+    const matchedDiseaseId = findDiseaseIdByName(diagnosisDisease);
+    if (matchedDiseaseId) {
+      callback(matchedDiseaseId);
+      return;
+    }
+    callback(diseases.length ? diseases[0].id : "");
+  });
+}
+
 // --- Disease selection ---
 function loadDiseases() {
   $.getJSON("/api/diseases", function (res) {
     if (!res.success) return;
     const payload = res.data || {};
     const diseases = payload.diseases || [];
+    diseaseCatalog = diseases;
     const total = Number(payload.total_patients || 0);
     const labContext = loadLabUploadContext();
     const isLabUploadSelection = isDiseasePanelLabMode();
@@ -123,9 +173,17 @@ function loadCaseList() {
 
 function getCaseIntegrity(item) {
   if (!item) return 'draft';
-  if (item.case_integrity === 'complete' || item.case_integrity === 'submitted') return 'complete';
+  if (["complete", "submitted", "approved", "rejected"].indexOf(item.case_integrity) > -1) return 'complete';
   if (item.case_integrity) return 'draft';
-  return item.case_status === 'submitted' ? 'complete' : 'draft';
+  return ["submitted", "approved", "rejected"].indexOf(item.case_status) > -1 ? 'complete' : 'draft';
+}
+
+function getCaseStatusLabel(item) {
+  const status = String((item && item.case_status) || "draft");
+  if (status === "approved") return "审核通过";
+  if (status === "rejected") return "驳回";
+  if (status === "submitted") return "完整记录";
+  return "暂存记录";
 }
 
 function renderNewCaseResearchNotice() {
@@ -151,9 +209,24 @@ function openNewCaseForm() {
   $("#recordPanelTitle").text("新建病例");
   $("#recordPanelHint").html(renderNewCaseResearchNotice());
   $("#labFieldsSection").addClass("hidden");
-  $("[name=patient_phone], [name=patient_id_number]").addClass("hidden");
+  $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
   $("#saveRecordBtn").text("保存信息");
   showPanel("recordPanel");
+}
+
+function openNewCaseDiseaseSelection() {
+  currentUploadMode = "intake";
+  currentUploadPatientId = null;
+  currentRecordCategory = null;
+  currentCategoryLabel = "";
+  uploadedPhotoPath = null;
+  selectedFile = null;
+  selectedDiseaseId = null;
+  localStorage.removeItem("selectedDiseaseId");
+  clearDiseaseSelectionContext();
+  $("#diseasePanel h2").html('选择疾病 <span id="diseaseTotalCount" class="disease-total">总共录入0人</span>');
+  $("#diseasePanel .hint").text("选择后先拍照提取患者基础信息，病例会进入暂存记录。");
+  showPanel("diseasePanel");
 }
 
 function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel) {
@@ -172,10 +245,9 @@ function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel)
   currentUploadPatientId = patientId;
   currentRecordCategory = categoryKey || "";
   currentCategoryLabel = pendingLabUploadLabel;
-  selectedDiseaseId = null;
-  localStorage.removeItem("selectedDiseaseId");
+  setSelectedDiseaseForUpload(null);
   $("#diseasePanel h2").html('选择疾病 <span id="diseaseTotalCount" class="disease-total">总共录入0人</span>');
-  $("#diseasePanel .hint").text("请选择本次检验对应的疾病，系统会按所选疾病表单展示识别结果。选择后再拍照或上传图片。");
+  $("#diseasePanel .hint").text("请选择本次检验对应的疾病；不同疾病会匹配不同的必需检验项目。");
   showPanel("diseasePanel");
 }
 

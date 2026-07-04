@@ -67,7 +67,7 @@ $(document).on("click", "#saveDiagnosisBtn", function () {
 
 $(document).on("click", "#createCaseBtn", function () {
   if (!$("#newCaseName").val() || !$("#newCaseGender").val() || !$("#newCaseAge").val() || !$("#newCaseIdNumber").val()) {
-    setMsg("newCaseMsg", "请填写姓名、性别、年龄、登记号", true);
+    setMsg("newCaseMsg", "请填写姓名、性别、年龄、唯一识别号", true);
     return;
   }
   $.post("/api/patients", {

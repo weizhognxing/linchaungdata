@@ -30,6 +30,18 @@ def _list_fields(table_name, page, per_page, search):
         conn.close()
 
 
+def _table_exists(cur, table_name):
+    cur.execute("SHOW TABLES LIKE %s", (table_name,))
+    return cur.fetchone() is not None
+
+
+def _table_rows_for_patient(cur, table_name, patient_id):
+    if not _table_exists(cur, table_name):
+        return []
+    cur.execute(f"SELECT * FROM `{table_name}` WHERE patient_id=%s ORDER BY id DESC", (patient_id,))
+    return cur.fetchall()
+
+
 @admin_bp.get("/api/admin/users")
 @require_admin
 def admin_users():
@@ -64,6 +76,99 @@ def admin_user_status(user_id):
             cur.execute("UPDATE users SET status=%s WHERE id=%s", (status, user_id))
         conn.commit()
         return ok(message="状态已更新")
+    finally:
+        conn.close()
+
+
+@admin_bp.get("/api/admin/cases")
+@require_admin
+def admin_cases():
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT p.id, p.name, p.gender, p.age, p.phone, p.id_number,
+                       p.case_status, p.case_integrity, p.case_reject_reason,
+                       p.created_at, p.updated_at, d.name AS disease_name,
+                       h.name AS hospital_name, u.name AS owner_name,
+                       COUNT(r.id) AS lab_count, MAX(r.created_at) AS latest_lab_at
+                FROM patients p
+                LEFT JOIN diseases d ON d.id=p.last_disease_id
+                LEFT JOIN hospitals h ON h.id=p.hospital_id
+                LEFT JOIN users u ON u.id=p.user_id
+                LEFT JOIN lab_records r ON r.patient_id=p.id
+                GROUP BY p.id, p.name, p.gender, p.age, p.phone, p.id_number,
+                         p.case_status, p.case_integrity, p.case_reject_reason,
+                         p.created_at, p.updated_at, disease_name, hospital_name, owner_name
+                ORDER BY IFNULL(MAX(r.created_at), p.updated_at) DESC, p.id DESC
+                """
+            )
+            return ok(cur.fetchall())
+    finally:
+        conn.close()
+
+
+@admin_bp.get("/api/admin/cases/<int:patient_id>")
+@require_admin
+def admin_case_detail(patient_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT p.*, d.name AS disease_name, h.name AS hospital_name, u.name AS owner_name
+                FROM patients p
+                LEFT JOIN diseases d ON d.id=p.last_disease_id
+                LEFT JOIN hospitals h ON h.id=p.hospital_id
+                LEFT JOIN users u ON u.id=p.user_id
+                WHERE p.id=%s
+                LIMIT 1
+                """,
+                (patient_id,),
+            )
+            patient = cur.fetchone()
+            if not patient:
+                return fail("病例不存在", 404)
+            return ok({
+                "patient": patient,
+                "diagnosis_records": _table_rows_for_patient(cur, "diagnosis_records", patient_id),
+                "lab_records": _table_rows_for_patient(cur, "lab_records", patient_id),
+                "assessments": _table_rows_for_patient(cur, "assessments", patient_id),
+                "treatments": _table_rows_for_patient(cur, "treatments", patient_id),
+                "followups": _table_rows_for_patient(cur, "followups", patient_id),
+            })
+    finally:
+        conn.close()
+
+
+@admin_bp.post("/api/admin/cases/<int:patient_id>/review")
+@require_admin
+def admin_case_review(patient_id):
+    data = payload()
+    action = (data.get("action") or "").strip()
+    reason = (data.get("reason") or "").strip()
+    if action not in {"approve", "reject"}:
+        return fail("审核操作不合法")
+    if action == "reject" and not reason:
+        return fail("请填写驳回原因")
+    status = "approved" if action == "approve" else "rejected"
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+            if not cur.fetchone():
+                return fail("病例不存在", 404)
+            cur.execute(
+                """
+                UPDATE patients
+                SET case_status=%s, case_integrity='complete', case_reject_reason=%s, updated_at=NOW()
+                WHERE id=%s
+                """,
+                (status, None if action == "approve" else reason, patient_id),
+            )
+        conn.commit()
+        return ok(message="审核通过" if action == "approve" else "已驳回")
     finally:
         conn.close()
 
@@ -108,6 +213,25 @@ def admin_add_field():
             )
         conn.commit()
         return ok(message="字段已新增")
+    finally:
+        conn.close()
+
+
+@admin_bp.post("/api/admin/fields/<int:field_id>")
+@require_admin
+def admin_update_field(field_id):
+    form_label = (payload().get("form_label") or "").strip()
+    if not form_label:
+        return fail("请填写网页表单显示名称")
+
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE field_settings SET form_label=%s WHERE id=%s", (form_label, field_id))
+            if cur.rowcount == 0:
+                return fail("字段不存在", 404)
+        conn.commit()
+        return ok(message="表单名称已更新")
     finally:
         conn.close()
 

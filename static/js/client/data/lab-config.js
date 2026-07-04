@@ -10,23 +10,20 @@ const labCategories = [
   { key: "lactate", label: "乳酸" },
   { key: "myocardial_injury", label: "心肌损伤标志物" },
   { key: "cytokine_12", label: "细胞因子12" },
-  { key: "pathogen", label: "病原学检查" },
   { key: "bnp", label: "BNP" },
-  { key: "amylase", label: "血淀粉酶" },
-  { key: "cholinesterase", label: "血清胆碱酯酶" },
-  { key: "toxin_identification", label: "毒物鉴定" }
+  { key: "amylase", label: "血淀粉酶" }
 ];
 
 const commonRequiredLabKeys = ["blood_crp", "dic", "biochemistry", "electrolytes", "blood_gas", "pct", "lactate"];
 const diseaseRequiredLabKeys = {
-  "脓毒症": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
-  "重症肺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
-  "ARDS": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "pathogen"]),
+  "脓毒症": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12"]),
+  "重症肺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12"]),
+  "ARDS": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12"]),
   "心肺复苏后": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "bnp"]),
   "急性坏死性胰腺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "amylase"]),
   "急性重症胰腺炎": commonRequiredLabKeys.concat(["myocardial_injury", "cytokine_12", "amylase"]),
   "消化道出血": commonRequiredLabKeys,
-  "中毒": commonRequiredLabKeys.concat(["myocardial_injury", "toxin_identification"]),
+  "中毒": commonRequiredLabKeys.concat(["myocardial_injury"]),
   "心源性休克/心衰": commonRequiredLabKeys.concat(["myocardial_injury", "bnp"]),
   "心源性休克/心力衰竭": commonRequiredLabKeys.concat(["myocardial_injury", "bnp"]),
   "脑卒中": commonRequiredLabKeys.concat(["myocardial_injury"]),

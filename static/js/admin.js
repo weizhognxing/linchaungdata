@@ -1,5 +1,11 @@
 function adminMsg(id, text, error) { $("#" + id).text(text).toggleClass("error", !!error); }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, function (char) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+  });
+}
+
 function showAdminPanel() {
   $("#adminLogin").addClass("hidden");
   $("#adminContent").removeClass("hidden");
@@ -39,6 +45,49 @@ function loadUsers() {
   });
 }
 
+function adminCaseStatusLabel(status) {
+  return { draft: "暂存", submitted: "完整", approved: "审核通过", rejected: "驳回" }[status] || status || "暂存";
+}
+
+function loadAdminCases() {
+  $.getJSON("/api/admin/cases", function (res) {
+    const rows = (res.data || []).map(c => {
+      const actions = `<button class="viewAdminCaseBtn btn-sm" data-id="${c.id}">详情</button><button class="approveAdminCaseBtn btn-sm" data-id="${c.id}">通过</button><button class="rejectAdminCaseBtn secondary btn-sm" data-id="${c.id}">驳回</button>`;
+      return `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.gender || '-')}/${escapeHtml(c.age || '-')}</td><td>${escapeHtml(c.disease_name || '-')}</td><td>${escapeHtml(c.hospital_name || '-')}/${escapeHtml(c.owner_name || '-')}</td><td>${escapeHtml(adminCaseStatusLabel(c.case_status))}</td><td>${Number(c.lab_count || 0)}</td><td>${actions}</td></tr>`;
+    }).join("");
+    $("#adminCaseRows").html(rows || '<tr><td colspan="7">暂无病例</td></tr>');
+  });
+}
+
+function renderAdminTable(title, rows) {
+  rows = rows || [];
+  if (!rows.length) return `<h3>${escapeHtml(title)}</h3><div class="hint">暂无数据</div>`;
+  const keys = [];
+  rows.forEach(row => Object.keys(row || {}).forEach(key => { if (keys.indexOf(key) === -1) keys.push(key); }));
+  const head = keys.map(key => `<th>${escapeHtml(key)}</th>`).join("");
+  const body = rows.map(row => `<tr>${keys.map(key => `<td>${escapeHtml(row[key])}</td>`).join("")}</tr>`).join("");
+  return `<h3>${escapeHtml(title)}</h3><div class="table-scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function loadAdminCaseDetail(patientId) {
+  $.getJSON(`/api/admin/cases/${patientId}`, function (res) {
+    const data = res.data || {};
+    const patient = data.patient || {};
+    const patientRows = Object.keys(patient).map(key => ({ 字段: key, 值: patient[key] }));
+    const html = `<h3>病例详情：${escapeHtml(patient.name || '-')}</h3>` +
+      `<div class="case-actions"><button class="approveAdminCaseBtn btn-sm" data-id="${patient.id}">审核通过</button><button class="rejectAdminCaseBtn secondary btn-sm" data-id="${patient.id}">驳回</button></div>` +
+      renderAdminTable("病患信息", patientRows) +
+      renderAdminTable("诊断记录", data.diagnosis_records) +
+      renderAdminTable("检验记录", data.lab_records) +
+      renderAdminTable("评估记录", data.assessments) +
+      renderAdminTable("治疗记录", data.treatments) +
+      renderAdminTable("随访记录", data.followups);
+    $("#adminCaseDetail").html(html).removeClass("hidden");
+  }).fail(function (xhr) {
+    alert(xhr.responseJSON?.message || "病例详情加载失败");
+  });
+}
+
 var fieldPage = 1;
 var fieldSearch = "";
 var patientFieldPage = 1;
@@ -46,7 +95,7 @@ var patientFieldSearch = "";
 
 function loadFields() {
   $.getJSON("/api/admin/fields", { page: fieldPage, per_page: 8, search: fieldSearch }, function (res) {
-    const rows = res.data.list.map(f => `<tr><td>${f.form_label}</td><td>${f.field_name}</td><td>${f.data_type}</td><td>${f.unit || ''}</td><td>${f.reference_range || ''}</td><td>${f.test_method || ''}</td></tr>`).join("");
+    const rows = res.data.list.map(f => `<tr><td><input class="fieldLabelInput" data-id="${f.id}" value="${escapeHtml(f.form_label)}"><button class="saveFieldLabelBtn btn-sm" data-id="${f.id}">保存</button></td><td>${escapeHtml(f.field_name)}</td><td>${escapeHtml(f.data_type)}</td><td>${escapeHtml(f.unit)}</td><td>${escapeHtml(f.reference_range)}</td><td>${escapeHtml(f.test_method)}</td></tr>`).join("");
     $("#fieldRows").html(rows);
     renderPagination("fieldPagination", res.data.total, res.data.page, res.data.per_page, goFieldPage);
   });
@@ -150,7 +199,7 @@ function loadSettings() {
   });
 }
 
-function loadAll() { loadUsers(); loadFields(); loadPatientFields(); loadDiseases(); loadSettings(); }
+function loadAll() { loadUsers(); loadAdminCases(); loadFields(); loadPatientFields(); loadDiseases(); loadSettings(); }
 
 $("#adminLoginBtn").on("click", function () {
   $.post("/api/admin/login", { username: $("#adminUser").val(), password: $("#adminPass").val() })
@@ -171,10 +220,36 @@ $(document).on("click", ".statusBtn", function () {
   $.post(`/api/admin/users/${$(this).data("id")}/status`, { status: $(this).data("status") }).done(loadUsers);
 });
 
+$(document).on("click", ".viewAdminCaseBtn", function () {
+  loadAdminCaseDetail($(this).data("id"));
+});
+
+$(document).on("click", ".approveAdminCaseBtn", function () {
+  $.post(`/api/admin/cases/${$(this).data("id")}/review`, { action: "approve" })
+    .done(function (res) { alert(res.message || "审核通过"); loadAdminCases(); })
+    .fail(function (xhr) { alert(xhr.responseJSON?.message || "操作失败"); });
+});
+
+$(document).on("click", ".rejectAdminCaseBtn", function () {
+  const reason = prompt("请输入驳回原因");
+  if (reason === null) return;
+  $.post(`/api/admin/cases/${$(this).data("id")}/review`, { action: "reject", reason: reason })
+    .done(function (res) { alert(res.message || "已驳回"); loadAdminCases(); })
+    .fail(function (xhr) { alert(xhr.responseJSON?.message || "操作失败"); });
+});
+
 $("#addFieldBtn").on("click", function () {
   $.post("/api/admin/fields", { field_name: $("#fieldName").val(), data_type: $("#fieldType").val(), form_label: $("#fieldLabel").val(), unit: $("#fieldUnit").val(), reference_range: $("#fieldRefRange").val(), test_method: $("#fieldTestMethod").val() })
     .done(function () { loadFields(); loadFormSetting(); alert("字段已新增"); })
     .fail(function (xhr) { alert(xhr.responseJSON?.message || "新增失败"); });
+});
+
+$(document).on("click", ".saveFieldLabelBtn", function () {
+  var fieldId = $(this).data("id");
+  var formLabel = $(`.fieldLabelInput[data-id="${fieldId}"]`).val();
+  $.post(`/api/admin/fields/${fieldId}`, { form_label: formLabel })
+    .done(function () { loadFields(); loadFormSetting(); alert("表单名称已更新"); })
+    .fail(function (xhr) { alert(xhr.responseJSON?.message || "更新失败"); });
 });
 
 $("#addPatientFieldBtn").on("click", function () {

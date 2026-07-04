@@ -83,7 +83,7 @@ $("#saveRecordBtn").on("click", function () {
   if (this.disabled) return;
   const patient = {
     name: $("[name=patient_name]").val(),
-    gender: $("[name=patient_gender]").val(),
+    gender: $("[name=patient_gender]:checked").val(),
     age: $("[name=patient_age]").val(),
     phone: $("[name=patient_phone]").val(),
     id_number: $("[name=patient_id_number]").val()
@@ -128,6 +128,13 @@ $("#saveRecordBtn").on("click", function () {
   }
   const values = {};
   $("#dynamicFields input").each(function () { values[this.name] = $(this).val(); });
+  const selectedLabCategory = $("#labTestName").val() || "";
+  const selectedLabLabel = getLabCategoryLabel(selectedLabCategory);
+  if (!selectedLabCategory || !selectedLabLabel) {
+    setMsg("recordMsg", "请选择检验类别", true);
+    setSaveRecordButtonSaving(false);
+    return;
+  }
   $.ajax({
     url: "/api/records",
     method: "POST",
@@ -138,11 +145,12 @@ $("#saveRecordBtn").on("click", function () {
       patient,
       values,
       photo_path: uploadedPhotoPath,
-      record_category: currentRecordCategory,
-      lab_test_name: $("#labTestName").val()
+      record_category: selectedLabCategory,
+      lab_test_name: selectedLabLabel
     })
   }).done(function (res) {
-    setMsg("recordMsg", ($("#labTestName").val() || currentCategoryLabel || "检验") + "上传成功");
+    setMsg("recordMsg", selectedLabLabel + "上传成功");
+    clearDiseaseSelectionContext();
     loadDiseases();
     loadCaseList();
     const savedPatientId = (res.data && res.data.patient_id) || currentUploadPatientId;
@@ -165,6 +173,20 @@ $(document).on("click", ".view-case-btn", function (event) {
   loadPatientDetail($(this).data("id"));
 });
 
+$(document).on("click", ".delete-case-btn", function (event) {
+  event.stopPropagation();
+  const patientId = $(this).data("id");
+  if (!patientId || !confirm("确定删除这个病例及其所有相关记录吗？此操作不可恢复。")) return;
+  $.ajax({ url: "/api/patients/" + patientId, method: "DELETE" })
+    .done(function (res) {
+      setMsg("caseListMsg", res.message || "病例已删除");
+      loadCaseList();
+    })
+    .fail(function (xhr) {
+      setMsg("caseListMsg", xhr.responseJSON?.message || "删除失败", true);
+    });
+});
+
 $(document).on("click", ".lab-category-upload-btn", function (event) {
   event.preventDefault();
   event.stopPropagation();
@@ -172,6 +194,11 @@ $(document).on("click", ".lab-category-upload-btn", function (event) {
   const category = this.getAttribute("data-category") || "";
   const label = this.getAttribute("data-label") || "检验";
   openDiseaseSelectionForLabUpload(patientId, category, label);
+});
+
+$(document).on("change", "#labTestName", function () {
+  currentRecordCategory = this.value || "";
+  currentCategoryLabel = getLabCategoryLabel(currentRecordCategory) || "";
 });
 
 $(document).on("click", ".lab-record-item", function () {

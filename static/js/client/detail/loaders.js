@@ -22,7 +22,7 @@ function loadPatientDetail(patientId, activeTab, subTab) {
       fillDiagnosisForm(patient);
       $("#patientProfile").html(
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 登记号：' + (patient.id_number || '-') + ' ｜ 记录完整性：' + (getCaseIntegrity(patient) === 'complete' ? '完整记录' : '暂存记录') + '</div>'
+        '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 唯一识别号：' + (patient.id_number || '-') + ' ｜ 状态：' + getCaseStatusLabel(patient) + '</div>'
       );
       $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       const isCompleteCase = getCaseIntegrity(patient) === 'complete';
@@ -34,14 +34,23 @@ function loadPatientDetail(patientId, activeTab, subTab) {
 
       const baseFields = [
         { field_name: 'name', form_label: '姓名', value: patient.name, required: true },
-        { field_name: 'gender', form_label: '性别', value: patient.gender, required: true },
+        { field_name: 'gender', form_label: '性别', value: patient.gender, required: true, type: 'select' },
         { field_name: 'age', form_label: '年龄', value: patient.age, required: true, type: 'number' },
-        { field_name: 'id_number', form_label: '登记号', value: patient.id_number, required: false }
+        { field_name: 'id_number', form_label: '唯一识别号', value: patient.id_number, required: false }
       ].concat(patientFields.filter(function (f) {
-        const duplicateLabels = ["登记号", "病历号", "联系电话", "电话", "手机号码"];
+        const duplicateLabels = ["唯一识别号", "病历号", "联系电话", "电话", "手机号码"];
         return diagnosisFieldNames.indexOf(f.field_name) === -1 && duplicateLabels.indexOf(f.form_label) === -1;
       }).map(function (f) { f.required = true; return f; }));
       const baseHtml = baseFields.map(function (f) {
+        if (f.field_name === 'gender') {
+          var selected = attrValue(resolveBaseInfoValue(f));
+          return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
+            '<select class="base-info-input" data-field="gender"' + (isCompleteCase ? ' disabled' : '') + '>' +
+            '<option value="">请选择</option>' +
+            '<option value="男"' + (selected === '男' ? ' selected' : '') + '>男</option>' +
+            '<option value="女"' + (selected === '女' ? ' selected' : '') + '>女</option>' +
+            '</select></div>';
+        }
         return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
           '<input class="base-info-input" data-field="' + f.field_name + '" type="' + resolveBaseInfoInputType(f) + '" value="' + attrValue(resolveBaseInfoValue(f)) + '" placeholder="' + f.form_label + '"' + (isCompleteCase ? ' disabled' : '') + '></div>';
       }).join('') || '<div class="detail-item">暂无基础信息</div>';
@@ -237,7 +246,7 @@ function loadLabRecordDetail(recordId) {
       currentPatientId = record.patient_id || currentPatientId;
       $("#labReportMeta").html(
         '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
-        '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 登记号：' + (record.id_number || '-') + '</div>' +
+        '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 唯一识别号：' + (record.id_number || '-') + '</div>' +
         '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验类别：' + (record.lab_test_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
         '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
       );

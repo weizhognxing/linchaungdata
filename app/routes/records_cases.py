@@ -17,6 +17,14 @@ from app.routes.record_helpers import *  # noqa: F403 - shared route helpers
 from app.services.core import AIRecognitionError, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
 
 
+def _delete_patient_related_records(cur, patient_id):
+    related_tables = ["lab_records", "assessments", "treatments", "followups", "diagnosis_records"]
+    for table_name in related_tables:
+        if _table_exists(cur, table_name):
+            cur.execute(f"DELETE FROM `{table_name}` WHERE patient_id=%s", (patient_id,))
+    cur.execute("DELETE FROM patients WHERE id=%s", (patient_id,))
+
+
 @records_bp.get("/api/cases/export")
 @require_user
 def export_cases():
@@ -41,7 +49,7 @@ def export_cases():
             if "case_integrity" in patient_columns:
                 complete_conditions.append("p.case_integrity IN ('complete','submitted')")
             if "case_status" in patient_columns:
-                complete_conditions.append("p.case_status='submitted'")
+                complete_conditions.append("p.case_status IN ('submitted','approved')")
             if not complete_conditions:
                 return fail("当前数据库缺少完整记录状态字段，无法导出完整记录", 400)
             complete_sql = "(" + " OR ".join(complete_conditions) + ")"
@@ -170,9 +178,28 @@ def cases():
                 )
             rows = cur.fetchall()
             return ok({
-                "draft": [row for row in rows if row.get("case_integrity") not in {"complete", "submitted"}],
-                "complete": [row for row in rows if row.get("case_integrity") in {"complete", "submitted"}],
+                "draft": [row for row in rows if row.get("case_status") == "draft" and row.get("case_integrity") not in {"complete", "submitted"}],
+                "complete": [row for row in rows if row.get("case_status") != "draft" or row.get("case_integrity") in {"complete", "submitted"}],
             })
+    finally:
+        conn.close()
+
+
+@records_bp.delete("/api/patients/<int:patient_id>")
+@require_user
+def delete_patient(patient_id):
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            current_user = _current_user_scope(cur)
+            if not current_user:
+                return fail("用户不存在", 404)
+            patient_columns = _patient_columns(cur)
+            if not _patient_is_accessible(cur, patient_id, current_user, patient_columns):
+                return fail("病人不存在", 404)
+            _delete_patient_related_records(cur, patient_id)
+        conn.commit()
+        return ok(message="病例已删除")
     finally:
         conn.close()
 
@@ -507,5 +534,3 @@ def update_patient(patient_id):
         return ok({"patient_id": patient_id, "completed_now": completed_now}, message)
     finally:
         conn.close()
-
-

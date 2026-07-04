@@ -36,6 +36,8 @@ __all__ = [
     "_lab_category_config",
     "_build_category_prompt",
     "_fields_for_category",
+    "_standard_lab_category_key",
+    "_lab_category_label",
     "_patient_is_accessible",
     "_patient_is_complete",
     "_missing_case_completion_items",
@@ -82,7 +84,7 @@ LAB_CATEGORY_DEFINITIONS = {
         "label": "生化",
         "fields": [
             "alt", "ast", "ast_alt", "tp", "alb", "glo", "a_g", "tbil", "dbil", "ibil", "tba", "ggt", "alp", "pa",
-            "urea", "ua", "crea", "gfr", "hemo", "icte", "lipe",
+            "urea", "ua", "crea", "gfr",
         ],
     },
     "electrolytes": {
@@ -123,20 +125,8 @@ LAB_CATEGORY_DEFINITIONS = {
         "label": "细胞因子12",
         "fields": [],
     },
-    "pathogen": {
-        "label": "病原学检查",
-        "fields": [],
-    },
     "amylase": {
         "label": "血淀粉酶",
-        "fields": [],
-    },
-    "cholinesterase": {
-        "label": "血清胆碱酯酶",
-        "fields": [],
-    },
-    "toxin_identification": {
-        "label": "毒物鉴定",
         "fields": [],
     },
 }
@@ -146,14 +136,14 @@ COMMON_REQUIRED_LAB_KEYS = {
 }
 
 DISEASE_REQUIRED_LAB_KEYS = {
-    "脓毒症": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
-    "重症肺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
-    "ARDS": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "pathogen"},
+    "脓毒症": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12"},
+    "重症肺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12"},
+    "ARDS": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12"},
     "心肺复苏后": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "bnp"},
     "急性坏死性胰腺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "amylase"},
     "急性重症胰腺炎": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "cytokine_12", "amylase"},
     "消化道出血": COMMON_REQUIRED_LAB_KEYS,
-    "中毒": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "toxin_identification"},
+    "中毒": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
     "心源性休克/心衰": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "bnp"},
     "心源性休克/心力衰竭": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury", "bnp"},
     "脑卒中": COMMON_REQUIRED_LAB_KEYS | {"myocardial_injury"},
@@ -174,10 +164,7 @@ LAB_CATEGORY_ALIASES = {
     "bnp": {"bnp"},
     "myocardial_injury": {"myocardial_injury"},
     "cytokine_12": {"cytokine_12"},
-    "pathogen": {"pathogen"},
     "amylase": {"amylase"},
-    "cholinesterase": {"cholinesterase"},
-    "toxin_identification": {"toxin_identification"},
 }
 
 INTAKE_PROMPT = """请识别这张检验图片或病历图片中的患者基础信息，仅返回基础信息，不要提取检验指标。
@@ -417,8 +404,6 @@ def _missing_case_completion_items(cur, patient_id):
 def _required_lab_keys_for_diagnosis(disease, preliminary_diagnosis=""):
     disease = str(disease or "").strip()
     keys = set(DISEASE_REQUIRED_LAB_KEYS.get(disease, set()))
-    if disease == "中毒" and "有机磷中毒" in str(preliminary_diagnosis or ""):
-        keys.add("cholinesterase")
     return keys
 
 
@@ -453,15 +438,18 @@ def _normalize_lab_category_keys(value):
         keys.add("myocardial_injury")
     if "细胞因子" in value:
         keys.add("cytokine_12")
-    if "病原" in value or "培养" in value or "病原学" in value:
-        keys.add("pathogen")
     if "淀粉酶" in value or "amy" in value:
         keys.add("amylase")
-    if "胆碱酯酶" in value or "cholinesterase" in value:
-        keys.add("cholinesterase")
-    if "毒物" in value or "毒检" in value or "毒理" in value:
-        keys.add("toxin_identification")
     return keys
+
+
+def _standard_lab_category_key(value):
+    keys = _normalize_lab_category_keys(value)
+    return next(iter(keys), "")
+
+
+def _lab_category_label(category_key):
+    return (LAB_CATEGORY_DEFINITIONS.get(category_key) or {}).get("label", "")
 
 
 def _required_lab_keys_for_patient(cur, patient_id):
@@ -530,7 +518,7 @@ def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
         (patient_id,),
     )
     patient = cur.fetchone() or {}
-    if patient.get("case_status") == "submitted" or patient.get("case_integrity") == "complete":
+    if patient.get("case_status") in {"submitted", "approved"} or patient.get("case_integrity") == "complete":
         return False
     if _missing_case_completion_items(cur, patient_id):
         return False
@@ -587,5 +575,3 @@ def _find_duplicate_lab_record(cur, patient_id, existing_columns, record_categor
     )
     row = cur.fetchone()
     return row["id"] if row else None
-
-

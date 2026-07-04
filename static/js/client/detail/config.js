@@ -18,7 +18,7 @@ const diagnosisSubcategoryOptions = {
 };
 
 const patientDetailNotices = {
-  base: "当前病例为暂存记录，请于24小时内完成患者采血并记录号PAXgene管编号与血浆管编号。标本管于-80℃冻存。",
+  base: "血浆管与PAXgene管为相同编号，因为两种管型不同，能区分基因与血浆。PAXgene管和血浆管编号后面写上说明：编号显示本医院的名称首写字母：举例西南医科大学附属医院第1号标本编号为XNYKDXFSYY001",
   diagnosis: "当前病例为暂存记录，请继续补录诊断信息。所有基础信息均需真实填写。",
   lab: "请在填报前提前完成下列检验，并收集好数据再填报。上传、识别时请耐心等待！",
   assessment: "请在填报前提前了解下列字段，并收集好数据、计算出APACHEⅡ等相关评估分值再填报。",

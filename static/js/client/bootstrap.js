@@ -21,7 +21,7 @@ $(function() {
           openNewCaseForm();
         } else if (saved === "labReportPanel") {
           showPanel("caseListPanel");
-        } else if (saved === "diseasePanel" && savedLabContext.patientId) {
+        } else if ((saved === "diseasePanel" || saved === "photoPanel") && savedLabContext.patientId) {
           openDiseaseSelectionForLabUpload(savedLabContext.patientId, savedLabContext.categoryKey, savedLabContext.categoryLabel);
         } else if (saved === "diseasePanel" || saved === "photoPanel" || saved === "recordPanel") {
           openNewCaseForm();

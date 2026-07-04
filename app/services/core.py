@@ -102,6 +102,12 @@ def ensure_runtime_schema_once():
             )
             _ensure_column(
                 cur,
+                "patients",
+                "case_reject_reason",
+                "ALTER TABLE patients ADD COLUMN `case_reject_reason` text DEFAULT NULL AFTER `case_status`",
+            )
+            _ensure_column(
+                cur,
                 "lab_records",
                 "record_category",
                 "ALTER TABLE lab_records ADD COLUMN `record_category` varchar(50) DEFAULT NULL AFTER `disease_id`",
@@ -286,19 +292,7 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
   ]
 }"""
 
-    payload = {
-        "model": ai_config.AI_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}},
-                ],
-            }
-        ],
-        "max_tokens": max(int(ai_config.AI_MAX_TOKENS or 0), 4000),
-    }
+    payload = _build_ai_payload(prompt, image_data=image_data, max_tokens=max(int(ai_config.AI_MAX_TOKENS or 0), 4000))
 
     last_error = "AI识别接口暂无返回"
     for attempt in range(3):
@@ -312,7 +306,7 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
         else:
             if response.status_code == 200:
                 try:
-                    content = str(response.json()["choices"][0]["message"].get("content") or "").strip()
+                    content = _extract_ai_content(response.json())
                 except (KeyError, IndexError, TypeError, ValueError) as e:
                     raise AIRecognitionError(f"AI识别接口返回格式异常：{e}")
                 if content:
@@ -332,8 +326,6 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
                 last_error = f"AI识别接口返回异常：HTTP {response.status_code}"
             if detail:
                 last_error += f"，{detail}"
-        if attempt < 2:
-            time.sleep(retry_delay)
     raise AIRecognitionError(last_error)
 
 
@@ -342,21 +334,55 @@ def ask_ai_yes_no(prompt_text, timeout=60):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {ai_config.AI_API_KEY}",
     }
-    payload = {
-        "model": ai_config.AI_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": [{"type": "text", "text": prompt_text}],
-            }
-        ],
-        "max_tokens": 10,
-    }
+    payload = _build_ai_payload(prompt_text, max_tokens=10)
     response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=timeout)
     if response.status_code != 200:
         return False
-    content = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+    content = _extract_ai_content(response.json())
     return content.startswith("是")
+
+
+def _uses_responses_api():
+    return str(ai_config.AI_API_URL or "").rstrip("/").endswith("/responses")
+
+
+def _build_ai_payload(prompt_text, image_data=None, max_tokens=2000):
+    if _uses_responses_api():
+        content = [{"type": "input_text", "text": prompt_text}]
+        if image_data:
+            content.append({"type": "input_image", "image_url": f"data:image/jpeg;base64,{image_data}"})
+        return {
+            "model": ai_config.AI_MODEL,
+            "input": [{"role": "user", "content": content}],
+            "max_output_tokens": max_tokens,
+        }
+
+    content = [{"type": "text", "text": prompt_text}]
+    if image_data:
+        content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}})
+    return {
+        "model": ai_config.AI_MODEL,
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": max_tokens,
+    }
+
+
+def _extract_ai_content(body):
+    if not _uses_responses_api():
+        return str(body["choices"][0]["message"].get("content") or "").strip()
+
+    output_text = body.get("output_text")
+    if output_text:
+        return str(output_text).strip()
+
+    text_parts = []
+    for item in body.get("output") or []:
+        for content in item.get("content") or []:
+            if content.get("type") in {"output_text", "text"}:
+                text = content.get("text")
+                if text:
+                    text_parts.append(str(text))
+    return "".join(text_parts).strip()
 
 
 def parse_ai_result(ai_text, fields):
@@ -379,26 +405,41 @@ def parse_ai_result(ai_text, fields):
         for field_name in field_map
         if _normalize_lab_code(field_name)
     }
+    label_field_map = _build_lab_label_field_map(fields)
 
     result = {}
     for item in items:
         code = item.get("code", "").lower()
+        name = item.get("name", "")
         normalized_code = _normalize_lab_code(code)
+        raw_code_alias = _alias_field_for_raw_code(code, normalized_code, field_map)
         alias_field = _alias_field_for_code(normalized_code, field_map)
+        label_field = _label_field_for_item(code, name, label_field_map)
         value = item.get("value", "")
         if code in field_map:
             result[code] = value
+        elif raw_code_alias:
+            result[raw_code_alias] = value
         elif alias_field:
             result[alias_field] = value
         elif normalized_code in normalized_field_map:
             result[normalized_field_map[normalized_code]] = value
+        elif label_field:
+            result[label_field] = value
         else:
             for field_name in field_map:
                 normalized_field = _normalize_lab_code(field_name)
                 if len(normalized_code) >= 3 and len(normalized_field) >= 3 and normalized_code in normalized_field:
                     result[field_name] = value
                     break
-    return result
+    return {
+        field_name: value
+        for field_name, value in result.items()
+        if field_name not in HIDDEN_LAB_FIELD_NAMES
+    }
+
+
+HIDDEN_LAB_FIELD_NAMES = {"hemo", "icte", "lipe"}
 
 
 LAB_CODE_ALIASES = {
@@ -412,6 +453,95 @@ LAB_CODE_ALIASES = {
     "tni": ["hs_ctni_stat", "hs_ctnt_stat"],
 }
 
+LAB_RAW_CODE_ALIASES = {
+    "pt%": ["pta"],
+    "pt-%": ["pta"],
+    "pt-%activity": ["pta"],
+    "ptactivity": ["pta"],
+}
+
+LAB_PERCENT_CODE_ALIASES = {
+    "neu": "neu_r",
+    "neut": "neu_r",
+    "gran": "neu_r",
+    "lym": "lym_r",
+    "lymph": "lym_r",
+    "mono": "mono_r",
+    "mon": "mono_r",
+    "eos": "eos_r",
+    "baso": "baso_r",
+    "bas": "baso_r",
+}
+
+LAB_NAME_ALIASES = {
+    "白细胞": ["wbc"],
+    "白细胞计数": ["wbc"],
+    "白细胞数": ["wbc"],
+    "中性粒细胞": ["neu"],
+    "中性粒细胞计数": ["neu"],
+    "中性粒细胞数": ["neu"],
+    "淋巴细胞": ["lym"],
+    "淋巴细胞计数": ["lym"],
+    "淋巴细胞数": ["lym"],
+    "单核细胞": ["mono"],
+    "单核细胞计数": ["mono"],
+    "单核细胞数": ["mono"],
+    "嗜酸性粒细胞": ["eos"],
+    "嗜酸性粒细胞计数": ["eos"],
+    "嗜酸性粒细胞数": ["eos"],
+    "嗜碱性粒细胞": ["baso"],
+    "嗜碱性粒细胞计数": ["baso"],
+    "嗜碱性粒细胞数": ["baso"],
+    "中性粒细胞百分比": ["neu_r"],
+    "中性粒细胞率": ["neu_r"],
+    "淋巴细胞百分比": ["lym_r"],
+    "淋巴细胞率": ["lym_r"],
+    "单核细胞百分比": ["mono_r"],
+    "单核细胞率": ["mono_r"],
+    "嗜酸性粒细胞百分比": ["eos_r"],
+    "嗜酸性粒细胞率": ["eos_r"],
+    "嗜碱性粒细胞百分比": ["baso_r"],
+    "嗜碱性粒细胞率": ["baso_r"],
+    "红细胞": ["rbc"],
+    "红细胞计数": ["rbc"],
+    "血红蛋白": ["hgb"],
+    "血小板": ["plt"],
+    "血小板计数": ["plt"],
+    "C反应蛋白": ["crp", "hscrp"],
+    "超敏C反应蛋白": ["hscrp", "crp"],
+    "高敏C反应蛋白": ["hscrp", "crp"],
+    "降钙素原": ["pct"],
+    "乳酸": ["lactate", "lac_la"],
+    "肌酐": ["crea", "creatinine"],
+    "谷丙转氨酶": ["alt"],
+    "丙氨酸氨基转移酶": ["alt"],
+    "谷草转氨酶": ["ast"],
+    "天门冬氨酸氨基转移酶": ["ast"],
+    "钾": ["k"],
+    "钠": ["na"],
+    "氯": ["cl"],
+    "钙": ["ca", "ca__"],
+    "葡萄糖": ["glu"],
+    "凝血酶原时间": ["pt"],
+    "国际标准化比值": ["pt_inr"],
+    "凝血酶原时间比率": ["pt_ratio"],
+    "凝血酶原时间活动度": ["pta"],
+    "凝血酶原活动度": ["pta"],
+    "活化部分凝血酶时间": ["aptt"],
+    "活化部分凝血活酶时间": ["aptt"],
+    "部分凝血活酶时间": ["aptt"],
+    "APTT比值": ["aptt_r"],
+    "凝血酶时间": ["tt"],
+    "纤维蛋白原": ["fib"],
+    "D二聚体": ["d_di"],
+    "D-二聚体": ["d_di"],
+    "纤维蛋白原降解产物": ["fdp"],
+    "抗凝血酶III": ["at3"],
+    "抗凝血活酶III": ["at3"],
+    "抗凝血酶-III": ["at3"],
+    "抗凝血活酶-III": ["at3"],
+}
+
 
 def _alias_field_for_code(normalized_code, field_map):
     for field_name in LAB_CODE_ALIASES.get(normalized_code, []):
@@ -420,8 +550,59 @@ def _alias_field_for_code(normalized_code, field_map):
     return ""
 
 
+def _alias_field_for_raw_code(code, normalized_code, field_map):
+    raw_code = _normalize_lab_raw_code(code)
+    for field_name in LAB_RAW_CODE_ALIASES.get(raw_code, []):
+        if field_name in field_map:
+            return field_name
+    if "%" in raw_code:
+        field_name = LAB_PERCENT_CODE_ALIASES.get(normalized_code)
+        if field_name in field_map:
+            return field_name
+    return ""
+
+
+def _build_lab_label_field_map(fields):
+    label_map = {}
+    for field in fields:
+        field_name = field.get("field_name")
+        if not field_name:
+            continue
+        for value in (field.get("form_label"), field.get("comment_text"), field_name):
+            normalized_label = _normalize_lab_label(value)
+            if normalized_label and normalized_label not in label_map:
+                label_map[normalized_label] = field_name
+    return label_map
+
+
+def _label_field_for_item(code, name, label_field_map):
+    for value in (code, name):
+        normalized_label = _normalize_lab_label(value)
+        if not normalized_label:
+            continue
+        field_name = label_field_map.get(normalized_label)
+        if field_name:
+            return field_name
+        for alias_label, alias_fields in LAB_NAME_ALIASES.items():
+            if normalized_label != _normalize_lab_label(alias_label):
+                continue
+            for alias_field in alias_fields:
+                if alias_field in label_field_map.values():
+                    return alias_field
+    return ""
+
+
 def _normalize_lab_code(value):
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def _normalize_lab_raw_code(value):
+    code = str(value or "").strip().lower().replace("％", "%")
+    return re.sub(r"[\s\u3000_]+", "", code)
+
+
+def _normalize_lab_label(value):
+    return re.sub(r"[\s\u3000（）()\[\]【】,，.。:：;；、/\\\-_+＋%％]+", "", str(value or "").strip().lower())
 
 
 def parse_lab_test_name(ai_text):

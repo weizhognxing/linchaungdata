@@ -175,7 +175,7 @@ const treatmentDiseaseAliases = {
 
 const followupFieldsInternal = [
   ["prognosis", "预后(死亡1/生存0)", "select"],
-  ["death_days", "死亡天数（距离入院时天数）", "number"],
+  ["death_days", "生存天数（距离入院时天数）", "number"],
   ["barthel_28d", "barthel评分（28天时）", "number"],
   ["ventilator_days", "28天内呼吸机天数", "number"],
   ["tracheotomy", "28天内气管切开（是1/否0）", "number"],
@@ -185,7 +185,7 @@ const followupFieldsInternal = [
 ];
 const followupFieldsNonInternal = [
   ["prognosis", "预后(死亡1/生存0)", "select"],
-  ["death_days", "死亡天数（距离入院时天数）", "number"],
+  ["death_days", "生存天数（距离入院时天数）", "number"],
   ["barthel_28d", "barthel评分（28天时）", "number"],
   ["ventilator_days", "28天内呼吸机天数", "number"],
   ["tracheotomy", "28天内气管切开（1/0）", "number"],

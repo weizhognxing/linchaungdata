@@ -92,13 +92,13 @@ function showDiagnosisSubTab(tab) {
 function renderCaseCards(items, emptyText) {
   return (items || []).map(function (item) {
     const disease = item.disease_name ? ' ｜ 疾病：' + item.disease_name : '';
+    const status = getCaseStatusLabel(item);
     const isComplete = getCaseIntegrity(item) === 'complete';
-    const status = isComplete ? '完整记录' : '暂存记录';
     const actionText = isComplete ? '查看' : '继续完善';
     const statusClass = isComplete ? 'case-badge-complete' : 'case-badge-draft';
     return '<div class="case-item" data-id="' + item.id + '">' +
-      '<div class="case-head"><strong>' + (item.name || '-') + '</strong><span class="case-badge ' + statusClass + '">' + status + '</span><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button></div>' +
-      '<div class="case-meta">性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 登记号：' + (item.id_number || '-') + disease + '</div>' +
+      '<div class="case-head"><strong>' + (item.name || '-') + '</strong><span class="case-badge ' + statusClass + '">' + status + '</span><button class="btn-sm view-case-btn" data-id="' + item.id + '">' + actionText + '</button><button class="btn-sm secondary delete-case-btn" data-id="' + item.id + '">删除</button></div>' +
+      '<div class="case-meta">性别：' + (item.gender || '-') + ' ｜ 年龄：' + (item.age || '-') + ' ｜ 唯一识别号：' + (item.id_number || '-') + disease + '</div>' +
       '<div class="case-meta">记录完整性：' + status + ' ｜ 已录入 ' + Number(item.record_count || 0) + ' 条检验记录</div>' +
       '</div>';
   }).join('') || '<div class="detail-item">' + emptyText + '</div>';

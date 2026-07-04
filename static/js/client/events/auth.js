@@ -5,7 +5,6 @@ $("#loginBtn").on("click", function () {
     .done(function (res) {
       canReviewMembers = Number(res?.data?.parent_id || 0) === 0;
       $("#memberReviewNav").toggleClass("hidden", !canReviewMembers);
-      loadDiseases();
       openNewCaseForm();
     })
     .fail(function (xhr) { setMsg("loginMsg", xhr.responseJSON?.message || "登录失败", true); });

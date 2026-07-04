@@ -18,6 +18,7 @@ let pendingLabUploadPatientId = null;
 let pendingLabUploadCategory = "";
 let pendingLabUploadLabel = "";
 let diseaseSelectionPurpose = "";
+let diseaseCatalog = [];
 const saveRecordButtonText = "保存信息";
 const photoTargetBytes = 200 * 1024;
 const photoTargetMaxBytes = 230 * 1024;

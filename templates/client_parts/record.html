@@ -4,15 +4,18 @@
   <div class="subhead">病患信息</div>
   <div class="grid two">
     <input name="patient_name" placeholder="病患姓名">
-    <input name="patient_gender" placeholder="性别">
+    <div class="gender-row">
+      <label class="gender-option"><input type="radio" name="patient_gender" value="男"> 男</label>
+      <label class="gender-option"><input type="radio" name="patient_gender" value="女"> 女</label>
+    </div>
     <input name="patient_age" type="number" placeholder="年龄">
     <input name="patient_phone" placeholder="联系电话">
-    <input name="patient_id_number" placeholder="登记号">
+    <input name="patient_id_number" placeholder="唯一识别号">
   </div>
   <div id="labFieldsSection">
     <div class="subhead">检验类别</div>
     <div class="grid two">
-      <input id="labTestName" placeholder="检验类别，例如血细胞分析">
+      <select id="labTestName"></select>
     </div>
     <div class="subhead">检验指标</div>
     <div id="dynamicFields" class="grid two"></div>
