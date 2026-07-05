@@ -95,7 +95,7 @@ var patientFieldSearch = "";
 
 function loadFields() {
   $.getJSON("/api/admin/fields", { page: fieldPage, per_page: 8, search: fieldSearch }, function (res) {
-    const rows = res.data.list.map(f => `<tr><td><input class="fieldLabelInput" data-id="${f.id}" value="${escapeHtml(f.form_label)}"><button class="saveFieldLabelBtn btn-sm" data-id="${f.id}">保存</button></td><td>${escapeHtml(f.field_name)}</td><td>${escapeHtml(f.data_type)}</td><td>${escapeHtml(f.unit)}</td><td>${escapeHtml(f.reference_range)}</td><td>${escapeHtml(f.test_method)}</td></tr>`).join("");
+    const rows = res.data.list.map(f => `<tr><td><input class="fieldLabelInput" data-id="${f.id}" value="${escapeHtml(f.form_label)}"><button class="saveFieldLabelBtn btn-sm" data-id="${f.id}">保存</button></td><td>${escapeHtml(f.field_name)}</td><td>${escapeHtml(f.data_type)}</td><td><input class="fieldUnitInput" data-id="${f.id}" value="${escapeHtml(f.unit)}" placeholder="单位"></td><td>${escapeHtml(f.reference_range)}</td><td>${escapeHtml(f.test_method)}</td></tr>`).join("");
     $("#fieldRows").html(rows);
     renderPagination("fieldPagination", res.data.total, res.data.page, res.data.per_page, goFieldPage);
   });
@@ -247,8 +247,9 @@ $("#addFieldBtn").on("click", function () {
 $(document).on("click", ".saveFieldLabelBtn", function () {
   var fieldId = $(this).data("id");
   var formLabel = $(`.fieldLabelInput[data-id="${fieldId}"]`).val();
-  $.post(`/api/admin/fields/${fieldId}`, { form_label: formLabel })
-    .done(function () { loadFields(); loadFormSetting(); alert("表单名称已更新"); })
+  var unit = $(`.fieldUnitInput[data-id="${fieldId}"]`).val();
+  $.post(`/api/admin/fields/${fieldId}`, { form_label: formLabel, unit: unit })
+    .done(function () { loadFields(); loadFormSetting(); alert("字段信息已更新"); })
     .fail(function (xhr) { alert(xhr.responseJSON?.message || "更新失败"); });
 });
 

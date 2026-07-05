@@ -220,18 +220,20 @@ def admin_add_field():
 @admin_bp.post("/api/admin/fields/<int:field_id>")
 @require_admin
 def admin_update_field(field_id):
-    form_label = (payload().get("form_label") or "").strip()
+    data = payload()
+    form_label = (data.get("form_label") or "").strip()
+    unit = (data.get("unit") or "").strip()
     if not form_label:
         return fail("请填写网页表单显示名称")
 
     conn = db()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE field_settings SET form_label=%s WHERE id=%s", (form_label, field_id))
+            cur.execute("UPDATE field_settings SET form_label=%s, unit=%s WHERE id=%s", (form_label, unit, field_id))
             if cur.rowcount == 0:
                 return fail("字段不存在", 404)
         conn.commit()
-        return ok(message="表单名称已更新")
+        return ok(message="字段信息已更新")
     finally:
         conn.close()
 

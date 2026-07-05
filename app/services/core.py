@@ -251,7 +251,8 @@ def get_fields_for_disease(disease_id):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT f.id, f.field_name, f.data_type, f.comment_text, f.form_label
+                SELECT f.id, f.field_name, f.data_type, f.comment_text, f.form_label,
+                       f.unit, f.reference_range, f.test_method
                 FROM form_settings s
                 JOIN field_settings f ON f.id=s.field_id
                 WHERE s.disease_id=%s AND f.enabled=1

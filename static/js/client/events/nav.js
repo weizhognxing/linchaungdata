@@ -29,14 +29,11 @@ $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
 });
 
-async function downloadCaseExportWithPicker(filename) {
-  let handle = null;
-  if (window.showSaveFilePicker) {
-    handle = await window.showSaveFilePicker({
-      suggestedName: filename,
-      types: [{ description: "ZIP压缩包", accept: { "application/zip": [".zip"] } }]
-    });
+async function downloadCaseExportToDirectory(filename) {
+  if (!window.showDirectoryPicker) {
+    throw new Error("当前浏览器不支持选择下载目录，请使用最新版 Chrome 或 Edge，并通过 HTTPS 访问系统。");
   }
+  const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
   const response = await fetch("/api/cases/export");
   if (!response.ok) {
     let message = "导出失败";
@@ -47,21 +44,32 @@ async function downloadCaseExportWithPicker(filename) {
     throw new Error(message);
   }
   const blob = await response.blob();
-  if (handle) {
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-    return "picked";
-  }
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  return "downloaded";
+  const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+function downloadCaseExportWithAndroid(filename) {
+  return new Promise(function (resolve, reject) {
+    if (!window.AndroidExport || typeof window.AndroidExport.saveExportFile !== "function") {
+      reject(new Error("安卓导出接口不可用"));
+      return;
+    }
+    window.onAndroidExportResult = function (success, message) {
+      window.onAndroidExportResult = null;
+      if (success) {
+        resolve(message || "完整记录数据已导出到选择的目录。");
+      } else if (message === "已取消导出") {
+        const error = new Error(message);
+        error.name = "AbortError";
+        reject(error);
+      } else {
+        reject(new Error(message || "导出失败"));
+      }
+    };
+    window.AndroidExport.saveExportFile("/api/cases/export", filename);
+  });
 }
 
 $(document).on("click", "#exportCasesBtn", async function () {
@@ -69,13 +77,18 @@ $(document).on("click", "#exportCasesBtn", async function () {
   button.disabled = true;
   button.textContent = "导出中";
   const filename = "case_export_" + Date.now() + ".zip";
-  const supportsPicker = !!window.showSaveFilePicker;
-  setMsg("caseListMsg", supportsPicker ? "请选择导出文件保存位置..." : "正在准备导出文件，当前浏览器不支持网页内选择目录，将使用浏览器默认下载位置。", false);
+  setMsg("caseListMsg", "请选择导出目录...", false);
   try {
-    const mode = await downloadCaseExportWithPicker(filename);
-    setMsg("caseListMsg", mode === "picked" ? "完整记录数据已导出到选择的位置。" : "完整记录数据已开始下载。", false);
+    const message = window.AndroidExport
+      ? await downloadCaseExportWithAndroid(filename)
+      : (await downloadCaseExportToDirectory(filename), "完整记录数据已导出到选择的目录。");
+    setMsg("caseListMsg", message, false);
   } catch (e) {
-    setMsg("caseListMsg", e.message || "导出失败", true);
+    if (e && e.name === "AbortError") {
+      setMsg("caseListMsg", "已取消导出。", false);
+    } else {
+      setMsg("caseListMsg", e.message || "导出失败", true);
+    }
   } finally {
     button.disabled = false;
     button.textContent = "导出数据";

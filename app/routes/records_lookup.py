@@ -133,7 +133,15 @@ def recognize():
         conn = db()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT id, field_name, data_type, comment_text, form_label FROM field_settings WHERE enabled=1 ORDER BY id")
+                cur.execute(
+                    """
+                    SELECT id, field_name, data_type, comment_text, form_label,
+                           unit, reference_range, test_method
+                    FROM field_settings
+                    WHERE enabled=1
+                    ORDER BY id
+                    """
+                )
                 fields = cur.fetchall()
         finally:
             conn.close()
