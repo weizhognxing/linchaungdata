@@ -180,14 +180,21 @@ class MainActivity : AppCompatActivity() {
                     setRequestProperty("User-Agent", userAgent)
                 }
 
+                val xlsxMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                if (connection.responseCode != HttpURLConnection.HTTP_OK ||
+                    !connection.contentType.orEmpty().startsWith(xlsxMime)) {
+                    throw IllegalStateException("导出失败：所选疾病暂无可导出数据或登录已失效")
+                }
+
+                val exportFilename = xlsxFilename(filename)
                 connection.inputStream.use { input ->
-                    val documentUri = createExportDocument(directoryUri, filename)
+                    val documentUri = createExportDocument(directoryUri, exportFilename, xlsxMime)
                         ?: throw IllegalStateException("无法在选择的目录创建文件")
                     contentResolver.openOutputStream(documentUri)?.use { output ->
                         input.copyTo(output)
                     } ?: throw IllegalStateException("无法写入导出文件")
                 }
-                notifyExportResult(true, "完整记录数据已导出到选择的目录")
+                notifyExportResult(true, "已导出 Excel 文件（.xlsx），请直接用 Excel/WPS 打开，不要解压")
             } catch (e: Exception) {
                 notifyExportResult(false, e.message ?: "导出失败")
             } finally {
@@ -196,16 +203,28 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun createExportDocument(directoryUri: Uri, filename: String): Uri? {
+    private fun createExportDocument(directoryUri: Uri, filename: String, mimeType: String): Uri? {
         val treeDocumentId = DocumentsContract.getTreeDocumentId(directoryUri)
         val parentDocumentUri = DocumentsContract.buildDocumentUriUsingTree(directoryUri, treeDocumentId)
-        return DocumentsContract.createDocument(contentResolver, parentDocumentUri, "application/zip", filename)
+        return DocumentsContract.createDocument(contentResolver, parentDocumentUri, mimeType, filename)
+    }
+
+    private fun xlsxFilename(filename: String): String {
+        val base = filename.trim().ifBlank { "case_export_${System.currentTimeMillis()}.xlsx" }
+        val withoutArchiveSuffix = base
+            .replace(Regex("(?i)\\.zip$"), "")
+            .replace(Regex("(?i)\\.xls$"), "")
+        return if (withoutArchiveSuffix.endsWith(".xlsx", true)) {
+            withoutArchiveSuffix
+        } else {
+            "$withoutArchiveSuffix.xlsx"
+        }
     }
 
     private fun sanitizeFilename(filename: String?): String {
-        val fallback = "case_export_${System.currentTimeMillis()}.zip"
+        val fallback = "case_export_${System.currentTimeMillis()}.xlsx"
         val clean = filename.orEmpty().replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
-        return clean.ifBlank { fallback }.let { if (it.endsWith(".zip", true)) it else "$it.zip" }
+        return xlsxFilename(clean.ifBlank { fallback })
     }
 
     private fun notifyExportResult(success: Boolean, message: String) {

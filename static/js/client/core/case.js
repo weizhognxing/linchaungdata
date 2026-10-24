@@ -134,6 +134,14 @@ function loadDiseases() {
     const payload = res.data || {};
     const diseases = payload.diseases || [];
     diseaseCatalog = diseases;
+    const exportSelect = document.getElementById("exportDiseaseSelect");
+    if (exportSelect) {
+      const previous = exportSelect.value;
+      exportSelect.innerHTML = '<option value="">全部疾病</option>' + diseases.map(function (d) {
+        return '<option value="' + Number(d.id) + '">' + escapeHtml(d.name) + '</option>';
+      }).join('');
+      exportSelect.value = previous;
+    }
     const total = Number(payload.total_patients || 0);
     const labContext = loadLabUploadContext();
     const isLabUploadSelection = isDiseasePanelLabMode();

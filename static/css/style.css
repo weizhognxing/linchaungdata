@@ -25,6 +25,12 @@ th { background: #eff6ee; }
 .panel { background: var(--panel); border: 1px solid rgba(255,255,255,0.8); border-radius: 24px; padding: 22px; box-shadow: 0 24px 60px rgba(52, 75, 59, 0.12); backdrop-filter: blur(8px); }
 .panel h2 { margin: 0 0 16px; }
 .panel input, .panel select { margin-bottom: 12px; background: #fff; }
+.lab-category-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.lab-category-choice { display: flex; align-items: center; justify-content: center; min-height: 42px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); padding: 9px 10px; font-weight: 700; cursor: pointer; box-shadow: none; }
+.lab-category-choice.active { border-color: var(--brand); background: #e8f3ec; color: var(--brand-dark); }
+.selected-lab-categories { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -4px 0 14px; color: var(--brand-dark); font-size: 14px; }
+.selected-lab-categories.empty { color: var(--muted); }
+.selected-lab-category-chip { display: inline-flex; align-items: center; border-radius: 999px; background: #e8f3ec; border: 1px solid #cce2d3; padding: 5px 10px; font-weight: 600; }
 .message { min-height: 22px; color: var(--brand-dark); }
 .message.error { color: var(--danger); }
 .hint { color: var(--muted); font-size: 14px; }
@@ -53,6 +59,18 @@ th { background: #eff6ee; }
 .case-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .case-title-row h2 { margin-bottom: 0; }
 .case-actions { display: flex; gap: 8px; }
+.export-case-header { flex-wrap: nowrap; gap: 8px; }
+.export-case-header h2 { flex: 0 0 auto; }
+.export-case-header .case-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.export-case-header .case-actions label { flex: 0 0 auto; white-space: nowrap; }
+#exportDiseaseSelect { flex: 1 1 auto; width: auto; min-width: 64px; max-width: 160px; }
+#exportCasesBtn { flex: 0 0 auto; }
 .wrap-actions { flex-wrap: wrap; }
 .case-actions .btn-sm { margin-right: 0; white-space: nowrap; }
 .lab-category-summary { margin-bottom: 10px; }
@@ -77,6 +95,7 @@ th { background: #eff6ee; }
 .inner-tabs { display: flex; align-items: flex-end; gap: 0; margin: 12px 0 0; border-bottom: 1px solid #8f9c93; }
 .inner-tab { width: auto; min-width: 112px; margin: 0 -1px -1px 0; border: 1px solid #8f9c93; border-bottom-color: #8f9c93; border-radius: 6px 6px 0 0; box-shadow: none; background: linear-gradient(#eef2ee, #d8dfd8); color: #223028; font-size: 14px; padding: 8px 18px; }
 .inner-tab.active { position: relative; z-index: 1; background: #f8faf7; color: #111; border-bottom-color: #f8faf7; box-shadow: inset 1px 1px 0 rgba(255,255,255,.9); }
+#detailLabTab > .inner-tabs .inner-tab { flex: 1; min-width: 0; padding: 8px 4px; font-size: clamp(11px, 2.7vw, 14px); white-space: nowrap; }
 .inner-tab-page { background: #f8faf7; border: 1px solid #8f9c93; border-top: 0; padding: 14px; margin-bottom: 12px; box-shadow: inset 1px 1px 0 #fff; }
 .inner-tab-page .panel { border-radius: 0; border-color: #bac6bb; box-shadow: none; background: #fff; }
 .inner-tab-page .detail-item, .inner-tab-page .diagnosis-record-option, .inner-tab-page .radio-grid label { border-radius: 4px; border-color: #c8d1c9; box-shadow: none; }
@@ -151,6 +170,10 @@ th { background: #eff6ee; }
 .admin-login { max-width: 420px; }
 .inline-form { display: grid; grid-template-columns: 1fr 1fr .7fr .5fr .8fr .8fr auto; gap: 8px; align-items: start; margin-bottom: 14px; }
 .patient-inline-form { grid-template-columns: 1fr 1fr .8fr auto; }
+.category-info-form { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr) minmax(0, .7fr) 160px; align-items: end; }
+.category-info-form label { display: block; min-width: 0; font-size: 14px; font-weight: 700; }
+.category-info-form label input, .category-info-form label select { display: block; margin-top: 6px; }
+#saveCategoryBtn { min-width: 160px; white-space: nowrap; }
 .inline-form input, .inline-form select { margin: 0; }
 .settings-form { max-width: 520px; }
 .settings-form label { display: block; margin-bottom: 8px; font-weight: 800; }
@@ -196,10 +219,19 @@ th { background: #eff6ee; }
 .listbox-actions button { width: 44px; height: 44px; border-radius: 50%; font-size: 20px; padding: 0; display: flex; align-items: center; justify-content: center; }
 
 @media (max-width: 760px) {
-  .grid.two, .admin-layout, .inline-form, .check-list { grid-template-columns: 1fr; }
+  .grid.two, .admin-layout, .inline-form, .check-list, .lab-category-picker { grid-template-columns: 1fr; }
   .treatment-option-row { grid-template-columns: 1fr; }
   .admin-shell { padding: 14px; }
   .sidebar { position: static; min-height: auto; }
   .dual-listbox { flex-direction: column; }
   .listbox-actions { flex-direction: row; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .export-case-header { gap: 6px; }
+  .export-case-header h2 { font-size: 18px; }
+  .export-case-header .case-actions { gap: 6px; }
+  .export-case-header .case-actions label { font-size: 12px; }
+  #exportDiseaseSelect { min-width: 56px; max-width: 110px; padding-left: 6px; padding-right: 6px; }
+  #exportCasesBtn { padding-left: 8px; padding-right: 8px; }
 }

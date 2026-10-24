@@ -29,12 +29,12 @@ $(document).on("click", "#innerBackBtn", function () {
   backFromInnerPage();
 });
 
-async function downloadCaseExportToDirectory(filename) {
+async function downloadCaseExportToDirectory(filename, url) {
   if (!window.showDirectoryPicker) {
     throw new Error("当前浏览器不支持选择下载目录，请使用最新版 Chrome 或 Edge，并通过 HTTPS 访问系统。");
   }
   const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-  const response = await fetch("/api/cases/export");
+  const response = await fetch(url);
   if (!response.ok) {
     let message = "导出失败";
     try {
@@ -50,7 +50,7 @@ async function downloadCaseExportToDirectory(filename) {
   await writable.close();
 }
 
-function downloadCaseExportWithAndroid(filename) {
+function downloadCaseExportWithAndroid(filename, url) {
   return new Promise(function (resolve, reject) {
     if (!window.AndroidExport || typeof window.AndroidExport.saveExportFile !== "function") {
       reject(new Error("安卓导出接口不可用"));
@@ -59,7 +59,7 @@ function downloadCaseExportWithAndroid(filename) {
     window.onAndroidExportResult = function (success, message) {
       window.onAndroidExportResult = null;
       if (success) {
-        resolve(message || "完整记录数据已导出到选择的目录。");
+        resolve(message || "已导出 Excel 文件（.xlsx），请直接打开，不要解压。");
       } else if (message === "已取消导出") {
         const error = new Error(message);
         error.name = "AbortError";
@@ -68,7 +68,7 @@ function downloadCaseExportWithAndroid(filename) {
         reject(new Error(message || "导出失败"));
       }
     };
-    window.AndroidExport.saveExportFile("/api/cases/export", filename);
+    window.AndroidExport.saveExportFile(url, filename);
   });
 }
 
@@ -76,12 +76,14 @@ $(document).on("click", "#exportCasesBtn", async function () {
   const button = this;
   button.disabled = true;
   button.textContent = "导出中";
-  const filename = "case_export_" + Date.now() + ".zip";
+  const filename = "case_export_" + Date.now() + ".xlsx";
+  const diseaseId = $("#exportDiseaseSelect").val();
+  const url = "/api/cases/export" + (diseaseId ? "?disease_id=" + encodeURIComponent(diseaseId) : "");
   setMsg("caseListMsg", "请选择导出目录...", false);
   try {
     const message = window.AndroidExport
-      ? await downloadCaseExportWithAndroid(filename)
-      : (await downloadCaseExportToDirectory(filename), "完整记录数据已导出到选择的目录。");
+      ? await downloadCaseExportWithAndroid(filename, url)
+      : (await downloadCaseExportToDirectory(filename, url), "已导出 Excel 文件（.xlsx），请直接打开，不要解压。");
     setMsg("caseListMsg", message, false);
   } catch (e) {
     if (e && e.name === "AbortError") {

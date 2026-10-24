@@ -82,6 +82,7 @@ function showPanel(id) {
     loadDiseases();
   }
   if (id === "caseListPanel") {
+    loadDiseases();
     loadCaseList();
   }
 }

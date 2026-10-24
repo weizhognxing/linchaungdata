@@ -1,6 +1,7 @@
 from flask import Flask
 
 from .routes.admin import admin_bp
+from .routes import admin_labs  # Register category configuration routes.
 from .routes.auth import auth_bp
 from .routes.records import records_bp
 from .routes.web import web_bp
@@ -17,11 +18,22 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = config.UPLOAD_FOLDER
 
     ensure_runtime_schema_once()
+    from .services.lab_catalog import migrate_lab_catalog, migrate_pct_single_field
+    migrate_lab_catalog()
+    migrate_pct_single_field()
 
     app.register_blueprint(web_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(records_bp)
     app.register_blueprint(admin_bp)
+
+    @app.after_request
+    def add_html_no_cache_headers(response):
+        if response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.cli.command("init-db")
     def init_db_command():

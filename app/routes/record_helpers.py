@@ -1,10 +1,12 @@
 ﻿import json
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
 
 from flask import session
 from openpyxl import Workbook
+from openpyxl.comments import Comment
 
 from app.common import required
 from app.db import db
@@ -38,11 +40,18 @@ __all__ = [
     "_fields_for_category",
     "_standard_lab_category_key",
     "_lab_category_label",
+    "_standard_lab_category_keys",
+    "_lab_category_labels",
     "_patient_is_accessible",
     "_patient_is_complete",
     "_missing_case_completion_items",
     "_required_lab_tests_completed",
     "_mark_case_complete_if_ready",
+    "_normalize_patient_identity",
+    "_patient_identity_missing",
+    "_patient_identity_after_update_missing",
+    "_find_existing_patient_identity",
+    "_patient_identity_conflicts",
     "_find_existing_patient_for_lab",
     "_find_duplicate_lab_record",
 ]
@@ -58,7 +67,7 @@ DIAGNOSIS_SUBCATEGORY_OPTIONS = {
     "消化道出血": set(),
     "中毒": {"有机磷中毒", "CO中毒", "蘑菇中毒", "其他农药", "药物中毒", "鼠药中毒", "蜂毒中毒"},
     "心源性休克/心衰": {"急性冠脉综合征", "心力衰竭", "心肌炎", "心脏瓣膜病变", "心律失常"},
-    "脑卒中": {"脑梗死", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑干出血"},
+    "脑卒中": {"脑梗死", "脑叶出血", "基底节出血", "小脑出血", "蛛网膜下腔出血", "脑干出血"},
     "多发伤": {"颅脑损伤", "胸部损伤", "腹部损伤", "四肢损伤", "脊柱损伤"},
     "颅脑损伤": {"大脑挫裂伤", "缺氧缺血性脑病", "弥漫性轴索损伤", "中毒性脑病"},
     "胸部损伤": {"连枷胸", "开放性气胸", "三根以上肋骨骨折", "开放性血气胸"},
@@ -106,7 +115,7 @@ LAB_CATEGORY_DEFINITIONS = {
         "fields": ["pt", "pt_inr", "pta", "pt_ratio", "aptt", "aptt_r", "tt", "fib", "d_di", "fdp", "at3"],
     },
     "bnp": {
-        "label": "BNP",
+        "label": "NT-proBNP",
         "fields": ["nt_probnp", "hs_ctnt_stat", "myo_stat", "ck_mb_stat"],
     },
     "lactate": {
@@ -132,7 +141,7 @@ LAB_CATEGORY_DEFINITIONS = {
 }
 
 COMMON_REQUIRED_LAB_KEYS = {
-    "blood_crp", "dic", "biochemistry", "electrolytes", "blood_gas", "pct", "lactate"
+    "blood_crp", "dic", "biochemistry", "electrolytes", "blood_gas", "lactate"
 }
 
 DISEASE_REQUIRED_LAB_KEYS = {
@@ -157,7 +166,7 @@ LAB_CATEGORY_ALIASES = {
     "blood_crp": {"blood_crp", "blood_routine"},
     "dic": {"dic", "dic7"},
     "biochemistry": {"biochemistry"},
-    "electrolytes": {"electrolytes", "biochemistry"},
+    "electrolytes": {"electrolytes"},
     "blood_gas": {"blood_gas"},
     "pct": {"pct"},
     "lactate": {"lactate"},
@@ -206,9 +215,14 @@ def _xlsx_value(value):
     return value
 
 
-def _write_sheet(workbook, title, rows, headers):
+def _write_sheet(workbook, title, rows, headers, header_comments=None):
     sheet = workbook.create_sheet(title=title)
     sheet.append(headers)
+    if header_comments:
+        for index, header in enumerate(headers, 1):
+            comment = header_comments.get(header)
+            if comment:
+                sheet.cell(row=1, column=index).comment = Comment(comment, "PICCO")
     for row in rows:
         sheet.append([_xlsx_value(row.get(header)) for header in headers])
     for column_cells in sheet.columns:
@@ -216,10 +230,10 @@ def _write_sheet(workbook, title, rows, headers):
         sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 36)
 
 
-def _build_single_sheet_workbook(sheet_title, rows, headers):
+def _build_single_sheet_workbook(sheet_title, rows, headers, header_comments=None):
     workbook = Workbook()
     workbook.remove(workbook.active)
-    _write_sheet(workbook, sheet_title, rows, headers)
+    _write_sheet(workbook, sheet_title, rows, headers, header_comments)
     output = BytesIO()
     workbook.save(output)
     output.seek(0)
@@ -408,7 +422,17 @@ def _required_lab_keys_for_diagnosis(disease, preliminary_diagnosis=""):
 
 
 def _normalize_lab_category_keys(value):
+    if isinstance(value, (list, tuple, set)):
+        keys = set()
+        for item in value:
+            keys.update(_normalize_lab_category_keys(item))
+        return keys
     raw_value = str(value or "").strip()
+    if any(separator in raw_value for separator in (",", "，", ";", "；", "|")):
+        keys = set()
+        for item in re.split(r"[,，;；|]+", raw_value):
+            keys.update(_normalize_lab_category_keys(item))
+        return keys
     value = raw_value.lower().replace(" ", "").replace("-", "").replace("_", "")
     if not value:
         return set()
@@ -424,7 +448,7 @@ def _normalize_lab_category_keys(value):
         keys.add("dic")
     if "生化" in value:
         keys.add("biochemistry")
-    if "电解质" in value or raw_value == "biochemistry":
+    if "电解质" in value:
         keys.add("electrolytes")
     if "血气" in value:
         keys.add("blood_gas")
@@ -448,8 +472,17 @@ def _standard_lab_category_key(value):
     return next(iter(keys), "")
 
 
+def _standard_lab_category_keys(value):
+    keys = _normalize_lab_category_keys(value)
+    return [key for key in LAB_CATEGORY_DEFINITIONS if key in keys]
+
+
 def _lab_category_label(category_key):
     return (LAB_CATEGORY_DEFINITIONS.get(category_key) or {}).get("label", "")
+
+
+def _lab_category_labels(category_keys):
+    return [_lab_category_label(key) for key in category_keys if _lab_category_label(key)]
 
 
 def _required_lab_keys_for_patient(cur, patient_id):
@@ -472,35 +505,8 @@ def _required_lab_keys_for_patient(cur, patient_id):
 
 
 def _required_lab_tests_completed(cur, patient_id):
-    required_keys = _required_lab_keys_for_patient(cur, patient_id)
-    if not required_keys:
-        return False
-    if not _table_exists(cur, "lab_records"):
-        return False
-    cur.execute("SHOW COLUMNS FROM lab_records")
-    columns = {row["Field"] for row in cur.fetchall()}
-    select_parts = []
-    if "lab_test_name" in columns:
-        select_parts.append("lab_test_name")
-    if "record_category" in columns:
-        select_parts.append("record_category")
-    if not select_parts:
-        return False
-
-    cur.execute(
-        f"SELECT {','.join(select_parts)} FROM lab_records WHERE patient_id=%s ORDER BY created_at, id",
-        (patient_id,),
-    )
-    uploaded_keys = set()
-    for row in cur.fetchall():
-        lab_test_name = str(row.get("lab_test_name") or "").strip()
-        record_category = str(row.get("record_category") or "").strip()
-        category_label = (LAB_CATEGORY_DEFINITIONS.get(record_category) or {}).get("label", "")
-        uploaded_keys.update(_normalize_lab_category_keys(record_category))
-        uploaded_keys.update(_normalize_lab_category_keys(lab_test_name))
-        if category_label and category_label != lab_test_name:
-            uploaded_keys.update(_normalize_lab_category_keys(category_label))
-    return required_keys.issubset(uploaded_keys)
+    from app.services.lab_catalog import patient_lab_progress
+    return patient_lab_progress(cur, patient_id)["complete"]
 
 
 def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
@@ -531,27 +537,80 @@ def _mark_case_complete_if_ready(cur, patient_id, patient_columns=None):
     if "updated_at" in patient_columns:
         updates.append("updated_at=NOW()")
     cur.execute(f"UPDATE patients SET {','.join(updates)} WHERE id=%s", (patient_id,))
+    from app.services.lab_catalog import snapshot_completion
+    snapshot_completion(cur, patient_id)
     return True
 
 
-def _find_existing_patient_for_lab(cur, current_user, patient, patient_columns):
-    conditions = ["name=%s", "IFNULL(gender,'')=%s", "IFNULL(age,'')=%s"]
-    params = [patient.get("name"), patient.get("gender", ""), patient.get("age") or ""]
-    if "hospital_id" in patient_columns:
-        conditions.insert(0, "hospital_id=%s")
-        params.insert(0, current_user["hospital_id"])
-    cur.execute(
-        f"SELECT id FROM patients WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1",
-        params,
-    )
+def _normalize_patient_identity(patient):
+    name = str((patient or {}).get("name") or "").strip()
+    gender = str((patient or {}).get("gender") or "").strip()
+    age_raw = (patient or {}).get("age")
+    age_text = str(age_raw or "").strip()
+    age_match = re.search(r"\d+", age_text)
+    age = int(age_match.group(0)) if age_match else None
+    return {"name": name, "gender": gender, "age": age}
+
+
+def _patient_identity_missing(patient):
+    identity = _normalize_patient_identity(patient)
+    return not identity["name"] or not identity["gender"] or identity["age"] is None
+
+
+def _find_existing_patient_identity(cur, patient, exclude_patient_id=None):
+    identity = _normalize_patient_identity(patient)
+    if _patient_identity_missing(identity):
+        return None
+    sql = """
+        SELECT id FROM patients
+        WHERE name=%s AND gender=%s AND age=%s
+    """
+    params = [identity["name"], identity["gender"], identity["age"]]
+    if exclude_patient_id:
+        sql += " AND id<>%s"
+        params.append(exclude_patient_id)
+    sql += " ORDER BY id LIMIT 1"
+    cur.execute(sql, params)
     row = cur.fetchone()
     return row["id"] if row else None
 
 
-def _find_duplicate_lab_record(cur, patient_id, existing_columns, record_category, lab_test_name, photo_path, record_values):
+def _patient_identity_conflicts(cur, patient_id, updates):
+    identity_fields = {"name", "gender", "age"}
+    if not identity_fields.intersection(updates.keys()):
+        return False
+    cur.execute("SELECT name, gender, age FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+    current = cur.fetchone() or {}
+    identity = {
+        "name": updates.get("name", current.get("name")),
+        "gender": updates.get("gender", current.get("gender")),
+        "age": updates.get("age", current.get("age")),
+    }
+    return _find_existing_patient_identity(cur, identity, exclude_patient_id=patient_id) is not None
+
+
+def _patient_identity_after_update_missing(cur, patient_id, updates):
+    identity_fields = {"name", "gender", "age"}
+    if not identity_fields.intersection(updates.keys()):
+        return False
+    cur.execute("SELECT name, gender, age FROM patients WHERE id=%s LIMIT 1", (patient_id,))
+    current = cur.fetchone() or {}
+    identity = {
+        "name": updates.get("name", current.get("name")),
+        "gender": updates.get("gender", current.get("gender")),
+        "age": updates.get("age", current.get("age")),
+    }
+    return _patient_identity_missing(identity)
+
+
+def _find_existing_patient_for_lab(cur, current_user, patient, patient_columns):
+    return _find_existing_patient_identity(cur, patient)
+
+
+def _find_duplicate_lab_record(cur, patient_id, existing_columns, record_category, lab_test_name, photo_path, record_values, record_table='lab_records'):
     if photo_path and "photo_path" in existing_columns:
         cur.execute(
-            "SELECT id FROM lab_records WHERE patient_id=%s AND photo_path=%s LIMIT 1",
+            f"SELECT id FROM {record_table} WHERE patient_id=%s AND photo_path=%s LIMIT 1",
             (patient_id, photo_path),
         )
         row = cur.fetchone()
@@ -570,7 +629,7 @@ def _find_duplicate_lab_record(cur, patient_id, existing_columns, record_categor
         conditions.append(f"IFNULL(`{field.replace('`', '``')}`,'')=%s")
         params.append(value or "")
     cur.execute(
-        f"SELECT id FROM lab_records WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1",
+        f"SELECT id FROM {record_table} WHERE {' AND '.join(conditions)} ORDER BY id LIMIT 1",
         params,
     )
     row = cur.fetchone()
