@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PICCO 管理后台</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=category-labels-1">
 </head>
 <body class="admin-shell">
   <main class="admin-layout login-mode" id="adminLayout">
@@ -14,9 +14,10 @@
       <h1>PICCO管理后台</h1>
       <button class="tab active" data-tab="members">会员管理</button>
       <button class="tab" data-tab="cases">病例审核</button>
-      <button class="tab" data-tab="fields">检验表字段管理</button>
+      <button class="tab" data-tab="fields">检验指标管理</button>
+      <button class="tab" data-tab="labCategoriesAdmin">检验类别管理</button>
       <button class="tab" data-tab="patientFields">病患表字段管理</button>
-      <button class="tab" data-tab="forms">表单显示配置</button>
+      <button class="tab" data-tab="forms">疾病必查类别配置</button>
       <button class="tab" data-tab="settings">系统设置</button>
     </aside>
 
@@ -41,7 +42,8 @@
       </div>
 
       <div id="fields" class="admin-tab-page hidden">
-        <h2>检验表字段管理</h2>
+        <h2>检验指标管理</h2>
+        <p class="hint">公共指标库：指标可被多个检验类别复用。请在“检验类别管理”中配置归属及必填项。</p>
         <div class="panel inline-form">
           <input id="fieldLabel" placeholder="网页表单显示名称">
           <input id="fieldName" placeholder="字段名，如 serum_na">
@@ -77,12 +79,37 @@
         <div class="pagination" id="patientFieldPagination"></div>
       </div>
 
+      <div id="labCategoriesAdmin" class="admin-tab-page hidden">
+        <h2>检验类别管理</h2>
+        <p class="hint">类别下至少配置一个必填指标。同一条检验记录填齐类别必填项才算完成，未填齐可暂存后补全。停用前需先解除疾病必查关联。</p>
+        <div class="panel inline-form">
+          <input id="newCategoryKey" placeholder="类别编码，如 liver_function">
+          <input id="newCategoryLabel" placeholder="类别名称">
+          <button id="createCategoryBtn">新增类别</button>
+        </div>
+        <label for="adminCategorySelect">选择类别</label>
+        <select id="adminCategorySelect"></select>
+        <div class="panel inline-form category-info-form">
+          <label for="editCategoryLabel">类别名称<input id="editCategoryLabel" placeholder="类别名称"></label>
+          <label for="editCategoryOrder">显示顺序<input id="editCategoryOrder" type="number" placeholder="显示顺序"></label>
+          <label for="editCategoryEnabled">类别状态<select id="editCategoryEnabled"><option value="1">启用</option><option value="0">停用</option></select></label>
+          <button id="saveCategoryBtn">保存类别信息</button>
+        </div>
+        <p class="message" id="categoryInfoMsg" role="status" aria-live="polite"></p>
+        <p id="categoryConfigHint" class="hint"></p>
+        <input id="categoryFieldSearch" placeholder="筛选指标名称或字段名">
+        <div class="table-scroll"><table><thead><tr><th>选用</th><th>必填</th><th>指标名称</th><th>字段名</th><th>单位</th><th>顺序</th></tr></thead><tbody id="categoryFieldRows"></tbody></table></div>
+        <button id="saveCategoryFieldsBtn">保存类别指标与必填设置</button>
+        <p class="message" id="categoryConfigMsg"></p>
+      </div>
+
       <div id="forms" class="admin-tab-page hidden">
-        <h2>表单显示配置</h2>
+        <h2>疾病必查类别配置</h2>
+        <p class="hint">为疾病选择必须完成的类别。允许额外录入其他类别；多个诊断取必查类别并集。清空配置后该疾病不能自动完成。调整配置仅影响未提交病例。</p>
         <select id="diseaseSelect"></select>
         <div class="dual-listbox">
           <div class="listbox-panel">
-            <h4>未选择字段</h4>
+            <h4>可选检验类别</h4>
             <select id="availableFields" multiple></select>
           </div>
           <div class="listbox-actions">
@@ -90,12 +117,13 @@
             <button id="moveToLeft" title="从表单移除">&laquo;</button>
           </div>
           <div class="listbox-panel">
-            <h4>已选择字段</h4>
+            <h4>必须完成的检验类别</h4>
             <select id="selectedFields" multiple></select>
           </div>
         </div>
         <button id="saveFormSettingBtn">保存配置</button>
         <p class="message" id="formSettingMsg"></p>
+        <div id="diseaseCategoryPreview" class="hint"></div>
       </div>
 
       <div id="settings" class="admin-tab-page hidden">
@@ -110,7 +138,8 @@
       </div>
     </section>
   </main>
-  <script src="/static/js/jquery.min.js"></script>
-  <script src="/static/js/admin.js"></script>
+  <script src="/static/js/jquery.min.js?v=jquery-3.7.1"></script>
+  <script src="/static/js/admin.js?v=lab-timepoints-1"></script>
+  <script src="/static/js/admin-labs.js?v=lab-categories-2"></script>
 </body>
 </html>

@@ -1,14 +1,14 @@
 import base64
 import json
+import mimetypes
 import os
 import re
 import time
 
 import requests
-from werkzeug.security import generate_password_hash
 
 import ai_config
-from app.common import DEFAULT_FIELDS, DISEASES
+from app.common import DISEASES
 from app.db import db
 
 
@@ -103,6 +103,20 @@ def ensure_runtime_schema_once():
             _ensure_column(
                 cur,
                 "patients",
+                "plasma_number_72h",
+                "ALTER TABLE patients ADD COLUMN `plasma_number_72h` varchar(1000) DEFAULT NULL AFTER `plasma_number`",
+            )
+            cur.execute(
+                "UPDATE patient_field_settings SET form_label=%s WHERE field_name=%s AND form_label=%s",
+                ("血浆编号(0h)", "plasma_number", "血浆编号"),
+            )
+            cur.execute(
+                "INSERT IGNORE INTO patient_field_settings (field_name,data_type,form_label) VALUES (%s,%s,%s)",
+                ("plasma_number_72h", "varchar", "血浆编号(72h)"),
+            )
+            _ensure_column(
+                cur,
+                "patients",
                 "case_reject_reason",
                 "ALTER TABLE patients ADD COLUMN `case_reject_reason` text DEFAULT NULL AFTER `case_status`",
             )
@@ -110,14 +124,19 @@ def ensure_runtime_schema_once():
                 cur,
                 "lab_records",
                 "record_category",
-                "ALTER TABLE lab_records ADD COLUMN `record_category` varchar(50) DEFAULT NULL AFTER `disease_id`",
+                "ALTER TABLE lab_records ADD COLUMN `record_category` varchar(255) DEFAULT NULL AFTER `disease_id`",
             )
+            cur.execute("SHOW COLUMNS FROM `lab_records` LIKE 'record_category'")
+            record_category_column = cur.fetchone() or {}
+            if "varchar(50)" in str(record_category_column.get("Type") or "").lower():
+                cur.execute("ALTER TABLE lab_records MODIFY COLUMN `record_category` varchar(255) DEFAULT NULL")
             _ensure_column(
                 cur,
                 "lab_records",
                 "lab_test_name",
                 "ALTER TABLE lab_records ADD COLUMN `lab_test_name` varchar(120) DEFAULT NULL AFTER `record_category`",
             )
+            cur.execute("CREATE TABLE IF NOT EXISTS lab_records_72h LIKE lab_records")
             _ensure_column(
                 cur,
                 "treatments",
@@ -161,10 +180,35 @@ def ensure_runtime_schema_once():
                     "killip_score",
                     "ALTER TABLE assessments ADD COLUMN `killip_score` decimal(8,2) DEFAULT NULL AFTER `gbs_score`",
                 )
+                _ensure_column(
+                    cur,
+                    "assessments",
+                    "procalcitonin",
+                    "ALTER TABLE assessments ADD COLUMN `procalcitonin` decimal(8,2) DEFAULT NULL AFTER `shock_index`",
+                )
+            _ensure_index(
+                cur,
+                "patients",
+                "uniq_patient_identity",
+                "ALTER TABLE patients ADD UNIQUE KEY `uniq_patient_identity` (`name`,`gender`,`age`)",
+            )
+            _ensure_system_settings(cur)
             _ensure_disease_catalog(cur)
         conn.commit()
     finally:
         conn.close()
+
+
+def _ensure_system_settings(cur):
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS system_settings (
+            id int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            doctor_download_multiplier int(11) NOT NULL DEFAULT 1
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"""
+    )
+    cur.execute("SELECT COUNT(*) AS total FROM system_settings")
+    if (cur.fetchone() or {}).get("total", 0) == 0:
+        cur.execute("INSERT INTO system_settings (doctor_download_multiplier) VALUES (1)")
 
 
 def _ensure_disease_catalog(cur):
@@ -203,46 +247,11 @@ def _ensure_column(cur, table_name, column_name, sql):
     if not cur.fetchone():
         cur.execute(sql)
 
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM admins WHERE username=%s", ("admin",))
-            if not cur.fetchone():
-                cur.execute(
-                    "INSERT INTO admins (username, password_hash) VALUES (%s,%s)",
-                    ("admin", generate_password_hash("admin123")),
-                )
 
-            for index, name in enumerate(DISEASES, start=1):
-                cur.execute(
-                    "INSERT IGNORE INTO diseases (name, sort_order) VALUES (%s,%s)",
-                    (name, index),
-                )
-
-            for index, item in enumerate(DEFAULT_FIELDS, start=1):
-                field_name, data_type, comment_text, form_label = item
-                cur.execute(
-                    """
-                    INSERT IGNORE INTO field_settings
-                    (field_name, data_type, comment_text, form_label)
-                    VALUES (%s,%s,%s,%s)
-                    """,
-                    (field_name, data_type, comment_text, form_label),
-                )
-                cur.execute("SELECT id FROM field_settings WHERE field_name=%s", (field_name,))
-                field = cur.fetchone()
-                cur.execute("SELECT id FROM diseases")
-                for disease in cur.fetchall():
-                    cur.execute(
-                        """
-                        INSERT IGNORE INTO form_settings (disease_id, field_id, sort_order)
-                        VALUES (%s,%s,%s)
-                        """,
-                        (disease["id"], field["id"], index),
-                    )
-        conn.commit()
-    finally:
-        conn.close()
+def _ensure_index(cur, table_name, index_name, sql):
+    cur.execute(f"SHOW INDEX FROM `{table_name}` WHERE Key_name=%s", (index_name,))
+    if not cur.fetchone():
+        cur.execute(sql)
 
 
 def get_fields_for_disease(disease_id):
@@ -253,10 +262,13 @@ def get_fields_for_disease(disease_id):
                 """
                 SELECT f.id, f.field_name, f.data_type, f.comment_text, f.form_label,
                        f.unit, f.reference_range, f.test_method
-                FROM form_settings s
+                FROM disease_lab_categories dc
+                JOIN lab_categories c ON c.id=dc.category_id AND c.enabled=1
+                JOIN lab_category_fields s ON s.category_id=c.id
                 JOIN field_settings f ON f.id=s.field_id
-                WHERE s.disease_id=%s AND f.enabled=1
-                ORDER BY s.sort_order, f.id
+                WHERE dc.disease_id=%s AND f.enabled=1
+                GROUP BY f.id
+                ORDER BY f.id
                 """,
                 (disease_id,),
             )
@@ -268,6 +280,7 @@ def get_fields_for_disease(disease_id):
 def recognize_image(image_path, prompt_text=None):
     with open(image_path, "rb") as f:
         image_data = base64.b64encode(f.read()).decode("utf-8")
+    image_mime_type = _guess_image_mime_type(image_path)
 
     headers = {
         "Content-Type": "application/json",
@@ -293,7 +306,12 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
   ]
 }"""
 
-    payload = _build_ai_payload(prompt, image_data=image_data, max_tokens=max(int(ai_config.AI_MAX_TOKENS or 0), 4000))
+    payload = _build_ai_payload(
+        prompt,
+        image_data=image_data,
+        image_mime_type=image_mime_type,
+        max_tokens=max(int(ai_config.AI_MAX_TOKENS or 0), 4000),
+    )
 
     last_error = "AI识别接口暂无返回"
     for attempt in range(3):
@@ -302,8 +320,10 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
             response = requests.post(ai_config.AI_API_URL, headers=headers, json=payload, timeout=360)
         except requests.Timeout:
             last_error = "AI识别接口超时，请稍后重试"
+            _log_ai_recognition_failure(last_error, attempt)
         except requests.RequestException as e:
             last_error = f"AI识别接口请求失败：{e}"
+            _log_ai_recognition_failure(last_error, attempt)
         else:
             if response.status_code == 200:
                 try:
@@ -327,7 +347,18 @@ lab_test_name 只能填写检验项目/报告名称本身，必须去掉前面�
                 last_error = f"AI识别接口返回异常：HTTP {response.status_code}"
             if detail:
                 last_error += f"，{detail}"
+            _log_ai_recognition_failure(last_error, attempt)
+        if attempt < 2:
+            time.sleep(retry_delay)
     raise AIRecognitionError(last_error)
+
+
+def _log_ai_recognition_failure(message, attempt):
+    print(
+        "AI recognition upstream failure: "
+        f"attempt={attempt + 1}, model={ai_config.AI_MODEL}, url={ai_config.AI_API_URL}, error={message}",
+        flush=True,
+    )
 
 
 def ask_ai_yes_no(prompt_text, timeout=60):
@@ -347,11 +378,18 @@ def _uses_responses_api():
     return str(ai_config.AI_API_URL or "").rstrip("/").endswith("/responses")
 
 
-def _build_ai_payload(prompt_text, image_data=None, max_tokens=2000):
+def _guess_image_mime_type(image_path):
+    mime_type = mimetypes.guess_type(image_path)[0]
+    if mime_type in {"image/jpeg", "image/png", "image/webp", "image/gif"}:
+        return mime_type
+    return "image/jpeg"
+
+
+def _build_ai_payload(prompt_text, image_data=None, image_mime_type="image/jpeg", max_tokens=2000):
     if _uses_responses_api():
         content = [{"type": "input_text", "text": prompt_text}]
         if image_data:
-            content.append({"type": "input_image", "image_url": f"data:image/jpeg;base64,{image_data}"})
+            content.append({"type": "input_image", "image_url": f"data:{image_mime_type};base64,{image_data}"})
         return {
             "model": ai_config.AI_MODEL,
             "input": [{"role": "user", "content": content}],
@@ -360,11 +398,13 @@ def _build_ai_payload(prompt_text, image_data=None, max_tokens=2000):
 
     content = [{"type": "text", "text": prompt_text}]
     if image_data:
-        content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}})
+        content.append({"type": "image_url", "image_url": {"url": f"data:{image_mime_type};base64,{image_data}"}})
     return {
         "model": ai_config.AI_MODEL,
         "messages": [{"role": "user", "content": content}],
+        "temperature": float(getattr(ai_config, "AI_TEMPERATURE", 0.7)),
         "max_tokens": max_tokens,
+        "stream": False,
     }
 
 

@@ -15,6 +15,7 @@ from app.decorators import require_user
 from app.routes.record_blueprint import records_bp
 from app.routes.record_helpers import *  # noqa: F403 - shared route helpers
 from app.services.core import AIRecognitionError, get_fields_for_disease, parse_ai_result, parse_lab_test_name, parse_patient_info, recognize_image, reorder_fields_by_values
+from app.services.lab_catalog import catalog, fields_for_categories, infer_categories
 
 
 @records_bp.get("/api/diseases")
@@ -108,6 +109,17 @@ def form_fields(disease_id):
     return ok(get_fields_for_disease(disease_id))
 
 
+@records_bp.get("/api/lab-catalog")
+@require_user
+def lab_catalog():
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            return ok({"categories": catalog(cur)})
+    finally:
+        conn.close()
+
+
 @records_bp.post("/api/recognize")
 @require_user
 def recognize():
@@ -128,32 +140,23 @@ def recognize():
         photo.save(path)
         photo_path = path.replace("\\", "/")
 
-    fields = get_fields_for_disease(disease_id)
-    if not fields:
-        conn = db()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT id, field_name, data_type, comment_text, form_label,
-                           unit, reference_range, test_method
-                    FROM field_settings
-                    WHERE enabled=1
-                    ORDER BY id
-                    """
-                )
-                fields = cur.fetchall()
-        finally:
-            conn.close()
-
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            categories = catalog(cur)
+    finally:
+        conn.close()
+    fields = fields_for_categories(categories)
     values = {}
     patient = {}
     lab_test_name = ""
     prompt_text = INTAKE_PROMPT if recognize_mode == "intake" else None
-    if recognize_mode == "lab" and record_category:
-        category_config = _lab_category_config(record_category)
-        if category_config:
-            prompt_text = _build_category_prompt(category_config)
+    if recognize_mode == "lab":
+        prompt_text = '''请逐行识别检验报告中的所有检验指标。不要根据报告标题或套餐名称推测指标，
+不要补造未印在报告上的指标或结果。指标名称可读而结果不清晰时，仍返回该指标，value 为 null。
+lab_test_name 仅抄录原报告标题，不能用标题代替实际指标。
+只返回 JSON：{"lab_test_name":"原报告标题","patient":{"name":"姓名","gender":"性别","age":"年龄"},
+"items":[{"name":"指标中文名称","code":"指标缩写","value":null,"unit":"单位","reference":"参考区间"}]}'''
     if photo_path:
         try:
             ai_text = recognize_image(photo_path, prompt_text=prompt_text)
@@ -163,18 +166,15 @@ def recognize():
             patient = parse_patient_info(ai_text)
             lab_test_name = parse_lab_test_name(ai_text)
             fields = reorder_fields_by_values(fields, values)
-            if recognize_mode == "lab":
-                fields = [
-                    field for field in fields
-                    if values.get(field.get("field_name")) is not None
-                    and str(values.get(field.get("field_name"))).strip() != ""
-                ]
         except AIRecognitionError as e:
             return fail(str(e), 502)
         except Exception as e:
             print(f"AI recognition error: {e}")
             return fail("AI识别处理失败，请稍后重试", 500)
 
+    inference = infer_categories(categories, values) if recognize_mode == "lab" else {'selected': [], 'ambiguous': [], 'matches': []}
+    selected_keys = inference['selected']
+    fields = fields_for_categories(categories, selected_keys) if recognize_mode == "lab" else []
     return ok(
         {
             "photo_path": photo_path,
@@ -182,8 +182,10 @@ def recognize():
             "values": values,
             "patient": patient,
             "mode": recognize_mode,
-            "record_category": record_category or None,
-            "category_label": (_lab_category_config(record_category) or {}).get("label") if record_category else None,
+            "record_category": ','.join(selected_keys),
+            "category_label": '+'.join(c['label'] for c in categories if c['key'] in selected_keys),
+            "category_inference": inference,
+            "lab_categories": categories,
             "lab_test_name": lab_test_name,
         },
         "识别完成",

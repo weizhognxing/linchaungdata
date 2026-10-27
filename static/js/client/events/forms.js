@@ -198,7 +198,7 @@ $("#addAssessmentBtn").on("click", function () {
   let assessmentMissing = [];
   $("#assessmentDynamicFields .assessment-input").each(function () {
     payload[this.getAttribute("data-field")] = $(this).val();
-    if (!$(this).val()) {
+    if (!this.getAttribute("data-optional") && !$(this).val()) {
       const field = this.closest(".form-field");
       const label = field ? field.querySelector("label") : null;
       assessmentMissing.push(label ? label.textContent.replace(" *", "") : this.getAttribute("data-field"));

@@ -300,6 +300,7 @@ def add_assessment(patient_id):
                 "diastolic_bp": _optional_decimal(payload.get("diastolic_bp")),
                 "heart_rate": _optional_decimal(payload.get("heart_rate")),
                 "shock_index": _optional_decimal(payload.get("shock_index")),
+                "procalcitonin": _optional_decimal(payload.get("procalcitonin")),
                 "oxygen_partial_pressure": _optional_decimal(payload.get("oxygen_partial_pressure")),
                 "oxygen_concentration": _optional_decimal(payload.get("oxygen_concentration")),
                 "sofa_score": _optional_decimal(payload.get("sofa_score")),
@@ -315,6 +316,7 @@ def add_assessment(patient_id):
                 "ais_score": _optional_decimal(payload.get("ais_score")),
                 "pain_score": _optional_decimal(payload.get("pain_score")),
                 "iss_score": _optional_decimal(payload.get("iss_score")),
+                "assessment_time": datetime.now(),
                 "created_at": datetime.now(),
             }
             columns = [column for column in values.keys() if column in assessment_columns]

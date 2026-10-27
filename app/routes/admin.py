@@ -134,6 +134,7 @@ def admin_case_detail(patient_id):
                 "patient": patient,
                 "diagnosis_records": _table_rows_for_patient(cur, "diagnosis_records", patient_id),
                 "lab_records": _table_rows_for_patient(cur, "lab_records", patient_id),
+                "lab_records_72h": _table_rows_for_patient(cur, "lab_records_72h", patient_id),
                 "assessments": _table_rows_for_patient(cur, "assessments", patient_id),
                 "treatments": _table_rows_for_patient(cur, "treatments", patient_id),
                 "followups": _table_rows_for_patient(cur, "followups", patient_id),
@@ -159,6 +160,11 @@ def admin_case_review(patient_id):
             cur.execute("SELECT id FROM patients WHERE id=%s LIMIT 1", (patient_id,))
             if not cur.fetchone():
                 return fail("病例不存在", 404)
+            if action == "approve":
+                from app.services.lab_catalog import patient_lab_progress, snapshot_completion
+                if not patient_lab_progress(cur, patient_id)["complete"]:
+                    return fail("必查检验类别的必填指标尚未齐全，不能审核通过")
+                snapshot_completion(cur, patient_id)
             cur.execute(
                 """
                 UPDATE patients
@@ -207,6 +213,7 @@ def admin_add_field():
                 return fail("检验记录表中已存在该字段")
             sql_type = ALLOWED_FIELD_TYPES[data_type]
             cur.execute(f"ALTER TABLE lab_records ADD COLUMN `{field_name}` {sql_type} COMMENT '{unit}'")
+            cur.execute(f"ALTER TABLE lab_records_72h ADD COLUMN `{field_name}` {sql_type} COMMENT '{unit}'")
             cur.execute(
                 "INSERT INTO field_settings (field_name,data_type,unit,reference_range,test_method,form_label) VALUES (%s,%s,%s,%s,%s,%s)",
                 (field_name, data_type, unit, reference_range, test_method, form_label),
@@ -295,36 +302,13 @@ def admin_diseases():
 @admin_bp.get("/api/admin/form-settings/<int:disease_id>")
 @require_admin
 def admin_form_setting(disease_id):
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM field_settings WHERE enabled=1 ORDER BY id")
-            fields = cur.fetchall()
-            cur.execute("SELECT field_id, sort_order FROM form_settings WHERE disease_id=%s", (disease_id,))
-            selected = {row["field_id"]: row["sort_order"] for row in cur.fetchall()}
-            return ok({"fields": fields, "selected": selected})
-    finally:
-        conn.close()
+    return fail("已改为疾病必查类别配置，请刷新管理员页面", 410)
 
 
 @admin_bp.post("/api/admin/form-settings/<int:disease_id>")
 @require_admin
 def admin_save_form_setting(disease_id):
-    data = request.get_json(silent=True) or {}
-    field_ids = data.get("field_ids") or []
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM form_settings WHERE disease_id=%s", (disease_id,))
-            for index, field_id in enumerate(field_ids, start=1):
-                cur.execute(
-                    "INSERT INTO form_settings (disease_id,field_id,sort_order) VALUES (%s,%s,%s)",
-                    (disease_id, int(field_id), index),
-                )
-        conn.commit()
-        return ok(message="表单配置已保存")
-    finally:
-        conn.close()
+    return fail("已改为疾病必查类别配置，请刷新管理员页面", 410)
 
 
 @admin_bp.get("/api/admin/settings")

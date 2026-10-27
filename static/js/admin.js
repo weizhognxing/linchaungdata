@@ -78,7 +78,8 @@ function loadAdminCaseDetail(patientId) {
       `<div class="case-actions"><button class="approveAdminCaseBtn btn-sm" data-id="${patient.id}">审核通过</button><button class="rejectAdminCaseBtn secondary btn-sm" data-id="${patient.id}">驳回</button></div>` +
       renderAdminTable("病患信息", patientRows) +
       renderAdminTable("诊断记录", data.diagnosis_records) +
-      renderAdminTable("检验记录", data.lab_records) +
+      renderAdminTable("检验记录(0h)", data.lab_records) +
+      renderAdminTable("检验记录(72h)", data.lab_records_72h) +
       renderAdminTable("评估记录", data.assessments) +
       renderAdminTable("治疗记录", data.treatments) +
       renderAdminTable("随访记录", data.followups);
@@ -173,21 +174,25 @@ function loadDiseases() {
 function loadFormSetting() {
   const diseaseId = $("#diseaseSelect").val();
   if (!diseaseId) return;
-  $.getJSON(`/api/admin/form-settings/${diseaseId}`, function (res) {
-    const selected = res.data.selected || {};
+  $.getJSON(`/api/admin/disease-lab-categories/${diseaseId}`, function (res) {
+    if (String(diseaseId) !== String($("#diseaseSelect").val())) return;
+    const selected = res.data.selected || [];
     const available = [];
     const chosen = [];
-    res.data.fields.forEach(f => {
-      if (selected[f.id]) {
-        chosen.push({ id: f.id, label: f.form_label, name: f.field_name, order: selected[f.id] });
-      } else {
-        available.push({ id: f.id, label: f.form_label, name: f.field_name });
+    res.data.categories.forEach(f => {
+      if (selected.indexOf(f.id) !== -1) {
+        chosen.push({ id: f.id, label: f.label, name: f.key, order: selected.indexOf(f.id) });
+      } else if (f.enabled) {
+        available.push({ id: f.id, label: f.label, name: f.key });
       }
     });
     chosen.sort((a, b) => a.order - b.order);
-    $("#availableFields").html(available.map(f => `<option value="${f.id}">${f.label} (${f.name})</option>`).join(""));
-    $("#selectedFields").html(chosen.map(f => `<option value="${f.id}">${f.label} (${f.name})</option>`).join(""));
-  });
+    $("#availableFields").html(available.map(f => `<option value="${f.id}">${escapeHtml(f.label)} (${escapeHtml(f.name)})</option>`).join(""));
+    $("#selectedFields").html(chosen.map(f => `<option value="${f.id}">${escapeHtml(f.label)} (${escapeHtml(f.name)})</option>`).join(""));
+    $("#diseaseCategoryPreview").html(res.data.categories.filter(c => selected.indexOf(c.id) !== -1).map(c =>
+      '<p><strong>' + escapeHtml(c.label) + '</strong>：' + (c.fields.length ? c.fields.map(f => escapeHtml(f.form_label) + (f.required ? '（必填）' : '')).join('、') : '尚未配置指标，无法完成') + '</p>'
+    ).join(''));
+  }).fail(function (xhr) { adminMsg('formSettingMsg', xhr.responseJSON?.message || '配置加载失败', true); });
 }
 
 function loadSettings() {
@@ -199,7 +204,7 @@ function loadSettings() {
   });
 }
 
-function loadAll() { loadUsers(); loadAdminCases(); loadFields(); loadPatientFields(); loadDiseases(); loadSettings(); }
+function loadAll() { loadUsers(); loadAdminCases(); loadFields(); loadPatientFields(); loadDiseases(); loadSettings(); loadAdminLabCategories(); }
 
 $("#adminLoginBtn").on("click", function () {
   $.post("/api/admin/login", { username: $("#adminUser").val(), password: $("#adminPass").val() })
@@ -240,7 +245,7 @@ $(document).on("click", ".rejectAdminCaseBtn", function () {
 
 $("#addFieldBtn").on("click", function () {
   $.post("/api/admin/fields", { field_name: $("#fieldName").val(), data_type: $("#fieldType").val(), form_label: $("#fieldLabel").val(), unit: $("#fieldUnit").val(), reference_range: $("#fieldRefRange").val(), test_method: $("#fieldTestMethod").val() })
-    .done(function () { loadFields(); loadFormSetting(); alert("字段已新增"); })
+    .done(function () { loadFields(); loadFormSetting(); loadAdminLabCategories(); alert("字段已新增，请在检验类别管理中关联指标"); })
     .fail(function (xhr) { alert(xhr.responseJSON?.message || "新增失败"); });
 });
 
@@ -249,7 +254,7 @@ $(document).on("click", ".saveFieldLabelBtn", function () {
   var formLabel = $(`.fieldLabelInput[data-id="${fieldId}"]`).val();
   var unit = $(`.fieldUnitInput[data-id="${fieldId}"]`).val();
   $.post(`/api/admin/fields/${fieldId}`, { form_label: formLabel, unit: unit })
-    .done(function () { loadFields(); loadFormSetting(); alert("字段信息已更新"); })
+    .done(function () { loadFields(); loadFormSetting(); loadAdminLabCategories(); alert("字段信息已更新"); })
     .fail(function (xhr) { alert(xhr.responseJSON?.message || "更新失败"); });
 });
 
@@ -287,8 +292,8 @@ $("#saveFormSettingBtn").on("click", function () {
   for (var i = 0; i < opts.length; i++) {
     ids.push(opts[i].value);
   }
-  $.ajax({ url: "/api/admin/form-settings/" + $("#diseaseSelect").val(), method: "POST", contentType: "application/json", data: JSON.stringify({ field_ids: ids }) })
-    .done(function (res) { adminMsg("formSettingMsg", res.message); })
+  $.ajax({ url: "/api/admin/disease-lab-categories/" + $("#diseaseSelect").val(), method: "POST", contentType: "application/json", data: JSON.stringify({ category_ids: ids }) })
+    .done(function (res) { adminMsg("formSettingMsg", res.message); loadFormSetting(); })
     .fail(function (xhr) { adminMsg("formSettingMsg", xhr.responseJSON?.message || "保存失败", true); });
 });
 

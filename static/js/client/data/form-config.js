@@ -9,7 +9,8 @@ const assessmentCommonFields = [
   ["systolic_bp", "收缩压", "number", false, "mmHg"],
   ["diastolic_bp", "舒张压", "number", false, "mmHg"],
   ["heart_rate", "心率", "number", false, "次/分"],
-  ["shock_index", "休克指数（自动计算心率/收缩压）", "number", true]
+  ["shock_index", "休克指数（自动计算心率/收缩压）", "number", true],
+  ["procalcitonin", "降钙素原", "number", false, "ng/ml", null, true]
 ];
 const assessmentMultipleTraumaFields = [
   ["temperature", "体温", "number", false, "℃"],
@@ -17,7 +18,8 @@ const assessmentMultipleTraumaFields = [
   ["systolic_bp", "收缩压", "number", false, "mmHg"],
   ["diastolic_bp", "舒张压", "number", false, "mmHg"],
   ["heart_rate", "心率", "number", false, "次/分"],
-  ["shock_index", "休克指数", "number"]
+  ["shock_index", "休克指数", "number"],
+  ["procalcitonin", "降钙素原", "number", false, "ng/ml", null, true]
 ];
 const assessmentMedicalFields = assessmentCommonFields.concat([
   ["oxygen_partial_pressure", "氧分压", "number", false, "mmHg", "oxygen_dual_unit"],

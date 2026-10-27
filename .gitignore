@@ -11,3 +11,11 @@ ai_config.py
 local.properties
 *.iml
 .idea/
+
+# Local runtime / sensitive / large files
+backups/
+venv/
+*.log
+opencode.jsonc
+FETCH_HEAD
+26.0.1

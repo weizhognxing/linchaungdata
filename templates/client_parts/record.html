@@ -14,10 +14,11 @@
   </div>
   <div id="labFieldsSection">
     <div class="subhead">检验类别</div>
-    <div class="grid two">
-      <select id="labTestName"></select>
-    </div>
+    <select id="labTestName" multiple class="hidden"></select>
+    <div id="labCategoryCheckboxes" class="lab-category-picker"></div>
+    <div id="labCategorySelectedSummary" class="selected-lab-categories">未选择检验类别</div>
     <div class="subhead">检验指标</div>
+    <p id="labUnassignedHint" class="hint"></p>
     <div id="dynamicFields" class="grid two"></div>
   </div>
   <button id="saveRecordBtn">保存信息</button>

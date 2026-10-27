@@ -3,11 +3,12 @@
 // Loaded as plain browser script; globals shared across client scripts.
 
 // --- Lab upload context ---
-function saveLabUploadContext(patientId, categoryKey, categoryLabel) {
+function saveLabUploadContext(patientId, categoryKey, categoryLabel, timepoint) {
   localStorage.setItem("labUploadContext", JSON.stringify({
     patientId: patientId || "",
     categoryKey: categoryKey || "",
-    categoryLabel: categoryLabel || "检验"
+    categoryLabel: categoryLabel || "检验",
+    timepoint: timepoint || '0h'
   }));
 }
 
@@ -40,18 +41,21 @@ function resolveLabUploadContextFromButton(btn) {
   const directContext = {
     patientId: btn.getAttribute("data-patient-id") || "",
     category: btn.getAttribute("data-category") || "",
-    label: btn.getAttribute("data-label") || "检验"
+    label: btn.getAttribute("data-label") || "检验",
+    timepoint: btn.getAttribute("data-timepoint") || ''
   };
   const labContext = loadLabUploadContext();
   const backupContext = {
     patientId: labContext.patientId || pendingLabUploadPatientId || currentUploadPatientId || "",
     category: labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "",
-    label: labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验"
+    label: labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验",
+    timepoint: labContext.timepoint || currentLabTimepoint || '0h'
   };
   return {
     patientId: directContext.patientId || backupContext.patientId,
     category: directContext.category || backupContext.category,
-    label: directContext.label || backupContext.label
+    label: directContext.label || backupContext.label,
+    timepoint: directContext.timepoint || backupContext.timepoint
   };
 }
 
@@ -63,7 +67,8 @@ function getActiveLabUploadContext() {
   return {
     patientId: patientId,
     category: labContext.categoryKey || pendingLabUploadCategory || currentRecordCategory || "",
-    label: labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验"
+    label: labContext.categoryLabel || pendingLabUploadLabel || currentCategoryLabel || "检验",
+    timepoint: labContext.timepoint || currentLabTimepoint || '0h'
   };
 }
 
@@ -74,7 +79,7 @@ function finishLabDiseaseSelection(diseaseId, labContext) {
   selectedDiseaseId = diseaseId;
   localStorage.setItem("selectedDiseaseId", selectedDiseaseId);
   clearDiseaseSelectionContext();
-  startLabCategoryUpload(labContext.patientId, labContext.category, labContext.label);
+  startLabCategoryUpload(labContext.patientId, labContext.category, labContext.label, labContext.timepoint);
   return true;
 }
 
@@ -237,7 +242,7 @@ function openNewCaseDiseaseSelection() {
   showPanel("diseasePanel");
 }
 
-function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel) {
+function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel, timepoint) {
   patientId = patientId || currentPatientId;
   if (!patientId) {
     setMsg("patientDetailMsg", "请先进入病例详情后再上传检验单。", true);
@@ -248,7 +253,8 @@ function openDiseaseSelectionForLabUpload(patientId, categoryKey, categoryLabel)
   pendingLabUploadPatientId = patientId;
   pendingLabUploadCategory = categoryKey || "";
   pendingLabUploadLabel = categoryLabel || "检验";
-  saveLabUploadContext(patientId, categoryKey, categoryLabel);
+  currentLabTimepoint = timepoint || '0h';
+  saveLabUploadContext(patientId, categoryKey, categoryLabel, currentLabTimepoint);
   currentUploadMode = "lab";
   currentUploadPatientId = patientId;
   currentRecordCategory = categoryKey || "";

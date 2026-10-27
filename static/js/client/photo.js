@@ -106,6 +106,7 @@ async function compressImageToTarget(file) {
 }
 
 function resetRecordForm() {
+  labDraftValues = {};
   $("[name=patient_name], [name=patient_age], [name=patient_phone], [name=patient_id_number]").val("");
   document.querySelectorAll("[name=patient_gender]").forEach(function (input) {
     input.checked = false;
@@ -120,12 +121,86 @@ function resetRecordForm() {
 function populateLabCategorySelect(selectedKey) {
   const select = document.getElementById("labTestName");
   if (!select) return;
-  const html = '<option value="">请选择检验类别</option>' + (labCategories || []).map(function (category) {
+  const html = (labCategories || []).filter(c => c.enabled).map(function (category) {
     return '<option value="' + escapeHtml(category.key) + '">' + escapeHtml(category.label) + '</option>';
   }).join("");
   select.innerHTML = html;
-  const target = selectedKey || currentRecordCategory || normalizeLabCategoryName(currentCategoryLabel) || "";
-  if (target) select.value = target;
+  const targets = normalizeLabCategoryKeys(selectedKey !== undefined ? selectedKey : (currentRecordCategory || currentCategoryLabel));
+  Array.prototype.forEach.call(select.options, function (option) {
+    option.selected = targets.indexOf(option.value) > -1;
+  });
+  renderLabCategoryPicker(targets);
+  updateSelectedLabCategorySummary();
+}
+
+function renderLabCategoryPicker(selectedKeys) {
+  const target = document.getElementById("labCategoryCheckboxes");
+  if (!target) return;
+  const selected = selectedKeys || [];
+  target.innerHTML = (labCategories || []).filter(c => c.enabled).map(function (category) {
+    const active = selected.indexOf(category.key) > -1;
+    return '<button type="button" class="lab-category-choice' + (active ? ' active' : '') + '" data-key="' + escapeHtml(category.key) + '" aria-pressed="' + (active ? 'true' : 'false') + '" onclick="toggleLabCategoryChoice(this)">' + escapeHtml(category.label) + '</button>';
+  }).join("");
+}
+
+function setLabCategoryButtonState(button, active) {
+  button.classList.toggle("active", active);
+  button.setAttribute("aria-pressed", active ? "true" : "false");
+}
+
+function refreshSelectedLabCategoryState() {
+  const selectedLabCategories = syncLabCategorySelectFromPicker();
+  currentRecordCategory = selectedLabCategories.join(",");
+  currentCategoryLabel = getLabCategoryLabels(selectedLabCategories).join("+");
+  updateSelectedLabCategorySummary(selectedLabCategories);
+  renderCategoryLabFields();
+  return selectedLabCategories;
+}
+
+document.addEventListener("click", function (event) {
+  const button = event.target && event.target.closest ? event.target.closest(".lab-category-choice") : null;
+  if (!button) return;
+  event.preventDefault();
+  toggleLabCategoryChoice(button);
+});
+
+function toggleLabCategoryChoice(button) {
+  if (!button || button.__labCategoryHandled) return;
+  button.__labCategoryHandled = true;
+  setLabCategoryButtonState(button, button.getAttribute("aria-pressed") !== "true");
+  refreshSelectedLabCategoryState();
+  setTimeout(function () { button.__labCategoryHandled = false; }, 0);
+}
+
+function syncLabCategorySelectFromPicker() {
+  const keys = [];
+  document.querySelectorAll(".lab-category-choice").forEach(function (button) {
+    if (button.getAttribute("aria-pressed") !== "true") return;
+    const key = button.getAttribute("data-key") || "";
+    if (key && keys.indexOf(key) === -1) keys.push(key);
+  });
+  const select = document.getElementById("labTestName");
+  if (select) {
+    Array.prototype.forEach.call(select.options, function (option) {
+      option.selected = keys.indexOf(option.value) > -1;
+    });
+  }
+  return keys;
+}
+
+function updateSelectedLabCategorySummary(selectedKeys) {
+  const target = document.getElementById("labCategorySelectedSummary");
+  if (!target) return;
+  const labels = getLabCategoryLabels(selectedKeys || getSelectedLabCategoryKeys());
+  if (!labels.length) {
+    target.innerHTML = '未选择检验类别';
+    target.classList.add("empty");
+    return;
+  }
+  target.classList.remove("empty");
+  target.innerHTML = '<span>已选择：</span>' + labels.map(function (label) {
+    return '<span class="selected-lab-category-chip">' + escapeHtml(label) + '</span>';
+  }).join("");
 }
 
 function setSaveRecordButtonSaving(saving) {
@@ -147,16 +222,23 @@ function openPhotoPanelForIntake() {
   showPanel("photoPanel");
 }
 
-function startLabCategoryUpload(patientId, categoryKey, categoryLabel) {
+function startLabCategoryUpload(patientId, categoryKey, categoryLabel, timepoint) {
+  currentEditingLabRecordId = null;
+  currentLabReportName = '';
+  labDraftValues = {};
   currentUploadMode = "lab";
+  currentLabTimepoint = timepoint || '0h';
   currentUploadPatientId = patientId;
   currentRecordCategory = categoryKey || "";
   currentCategoryLabel = categoryLabel || "检验";
   initPhotoPanel();
   initPhotoButtons();
-  $("#photoPanelTitle").text("上传检验单");
-  setMsg("photoMsg", "选择图片后点击确定，系统会提取图片上的实际检验名称和检验指标，不会强制归到固定检验类别。", false);
-  showPanel("photoPanel");
+  $("#photoPanelTitle").text("上传检验单(" + currentLabTimepoint + ")");
+  setMsg("photoMsg", "检验时间点：" + currentLabTimepoint + "；对应血浆编号：" + (currentPlasmaNumbers[currentLabTimepoint] || "未填写（可在基础信息补录）") + "。请选择图片，系统将按指标匹配类别，结果可人工补填和修改。", false);
+  $.getJSON('/api/lab-catalog').done(function (res) {
+    labCategories = res.data.categories || [];
+    showPanel("photoPanel");
+  }).fail(function () { alert('检验类别加载失败，请重试'); });
 }
 
 function triggerPhotoChooser() {
@@ -171,7 +253,27 @@ function normalizeLabCategoryName(value) {
 }
 
 function normalizeLabCategoryKeys(value) {
+  if (Array.isArray(value)) {
+    const listKeys = [];
+    value.forEach(function (item) {
+      normalizeLabCategoryKeys(item).forEach(function (key) {
+        if (listKeys.indexOf(key) === -1) listKeys.push(key);
+      });
+    });
+    return listKeys;
+  }
   const rawValue = String(value || "").trim();
+  const exact = labCategories.find(c => c.key === rawValue || c.label === rawValue);
+  if (exact) return [exact.key];
+  if (/[，,;；|]/.test(rawValue)) {
+    const splitKeys = [];
+    rawValue.split(/[，,;；|]+/).forEach(function (item) {
+      normalizeLabCategoryKeys(item).forEach(function (key) {
+        if (splitKeys.indexOf(key) === -1) splitKeys.push(key);
+      });
+    });
+    return splitKeys;
+  }
   value = rawValue.toLowerCase().replace(/[\s\-_]+/g, "");
   if (!value) return [];
   const keys = [];
@@ -181,15 +283,15 @@ function normalizeLabCategoryKeys(value) {
   if (rawValue === "blood_crp" || rawValue === "blood_routine" || value.indexOf("血细胞分析") > -1 || value.indexOf("血" + "常规") > -1) addKey("blood_crp");
   if (rawValue === "dic" || rawValue === "dic7" || value.indexOf("dic") > -1 || value.indexOf("凝血") > -1) addKey("dic");
   if (rawValue === "biochemistry" || value.indexOf("生化") > -1) addKey("biochemistry");
-  if (rawValue === "electrolytes" || rawValue === "biochemistry" || value.indexOf("电解质") > -1) addKey("electrolytes");
-  if (rawValue === "blood_gas" || value.indexOf("血气") > -1) addKey("blood_gas");
+  if (rawValue === "electrolytes" || value.indexOf("电解质") > -1) addKey("electrolytes");
+  if (rawValue === "blood_gas" || value.indexOf("血气") > -1 || value.indexOf("气血") > -1) addKey("blood_gas");
   if (rawValue === "pct" || value.indexOf("pct") > -1 || value.indexOf("降钙素原") > -1) addKey("pct");
   if (rawValue === "lactate" || value.indexOf("乳酸") > -1 || value === "lac" || value === "la") addKey("lactate");
   if (rawValue === "bnp" || value.indexOf("bnp") > -1 || value.indexOf("b型钠尿肽") > -1 || value.indexOf("ntpro") > -1 || value.indexOf("脑钠肽") > -1) addKey("bnp");
   if (rawValue === "myocardial_injury" || value.indexOf("心肌损伤") > -1 || value.indexOf("肌钙蛋白") > -1 || value.indexOf("肌红蛋白") > -1 || value.indexOf("ckmb") > -1 || value.indexOf("ctnt") > -1 || value.indexOf("ctni") > -1) addKey("myocardial_injury");
   if (rawValue === "cytokine_12" || value.indexOf("细胞因子") > -1) addKey("cytokine_12");
   if (rawValue === "amylase" || value.indexOf("淀粉酶") > -1 || value.indexOf("amy") > -1) addKey("amylase");
-  return keys;
+  return keys.filter(key => labCategories.some(c => c.key === key));
 }
 
 function getUploadedLabCategoryKeys(records) {
@@ -205,47 +307,51 @@ function getUploadedLabCategoryKeys(records) {
   return keys;
 }
 
-function getRequiredLabCategoriesForDiagnoses(diagnosisRecords) {
-  const requiredKeys = [];
-  (diagnosisRecords || []).forEach(function (record) {
-    const disease = String(record.diagnosis_disease || "").trim();
-    const keys = diseaseRequiredLabKeys[disease] || [];
-    keys.forEach(function (key) {
-      if (requiredKeys.indexOf(key) === -1) requiredKeys.push(key);
-    });
-  });
-  return labCategories.filter(function (category) {
-    return requiredKeys.indexOf(category.key) > -1;
-  });
-}
-
-function renderLabCategoryActions(patient, records, diagnosisRecords) {
+function renderLabCategoryActions(patient, progress, diagnosisRecords, timepoint) {
+  const suffix = timepoint === '72h' ? '72h' : '0h';
   const primaryDiagnosisDisease = (diagnosisRecords && diagnosisRecords[0] && diagnosisRecords[0].diagnosis_disease) || patient.diagnosis_disease || "";
   const uploadDiseaseAttrs = ' data-disease-id="' + attrValue(patient.last_disease_id || '') + '" data-diagnosis-disease="' + attrValue(primaryDiagnosisDisease) + '"';
-  const uploadedKeys = getUploadedLabCategoryKeys(records);
-  const requiredCategories = getRequiredLabCategoriesForDiagnoses(diagnosisRecords);
-  if (!requiredCategories.length) {
-    const noDiagnosisSummary = '请先添加诊断记录，系统会按诊断疾病显示必需检验项目。';
-    $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + noDiagnosisSummary + '</div>');
-    const noDiagnosisHtml = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验"' + uploadDiseaseAttrs + '>上传检验单</button>';
-    $("#labCategoryActions").html(noDiagnosisHtml);
-    return;
-  }
-  const missingCategories = requiredCategories.filter(function (category) {
-    return uploadedKeys.indexOf(category.key) === -1;
-  });
-  const uploadedCount = requiredCategories.length - missingCategories.length;
-  const summary = missingCategories.length
-    ? '已上传 ' + uploadedCount + '/' + requiredCategories.length + ' 项必需检验，还缺 ' + missingCategories.length + ' 项：' + missingCategories.map(function (category) { return category.label; }).join('、')
-    : '当前诊断要求的必需检验已全部上传。';
-  $("#labCategorySummary").html('<div class="detail-item lab-missing-summary">' + summary + '</div>');
-  const html = '<button class="btn-sm lab-category-upload-btn" data-patient-id="' + patient.id + '" data-category="" data-label="检验"' + uploadDiseaseAttrs + '>上传检验单</button>';
-  $("#labCategoryActions").html(html);
+  const statuses = progress.categories || [];
+  const required = statuses.filter(c => c.required);
+  let summary = '已完成 ' + required.filter(c => c.complete).length + '/' + required.length + ' 个必查类别（必填项填齐才计入）。';
+  if (progress.legacy) summary = '历史已提交病例：保留原完成状态，未按新规则重新判定。';
+  else if (progress.frozen) summary += ' 当前显示提交时的完成快照。';
+  else if (!progress.has_diagnosis) summary = '请先添加诊断，系统将显示疾病必查类别。';
+  if ((progress.unconfigured_diseases || []).length) summary += ' 尚未配置必查类别：' + progress.unconfigured_diseases.join('、');
+  const plasmaNumber = patient[timepoint === '72h' ? 'plasma_number_72h' : 'plasma_number'];
+  $("#labCategorySummary" + suffix).html('<div class="detail-item">对应血浆编号(' + suffix + ')：' + escapeHtml(plasmaNumber || '未填写，请到基础信息页填写') + '</div><div class="detail-item">' + escapeHtml(summary) + '</div>' + statuses.map(c => {
+    const state = c.complete ? '已完成' : (!c.configured ? '待管理员配置必填指标' : '待补全：' + c.missing.map(f => f.label).join('、'));
+    const edit = !progress.frozen && !c.complete && c.record_id ? '<button class="btn-sm edit-lab-record-btn" data-id="' + c.record_id + '" data-timepoint="' + suffix + '">补全这条记录</button>' : '';
+    return '<div class="detail-item"><strong>' + escapeHtml(c.label) + (c.required ? '（必查）' : '（额外）') + '</strong><p>' + escapeHtml(state) + '</p>' + edit + '</div>';
+  }).join(''));
+  const buttons = labCategories.filter(c => c.enabled).map(c => '<button class="btn-sm lab-category-upload-btn" data-timepoint="' + suffix + '" data-patient-id="' + patient.id + '" data-category="' + escapeHtml(c.key) + '" data-label="' + escapeHtml(c.label) + '"' + uploadDiseaseAttrs + '>录入' + escapeHtml(c.label) + '</button>').join('');
+  $("#labCategoryActions" + suffix).html('<button class="btn-sm lab-category-upload-btn" data-timepoint="' + suffix + '" data-patient-id="' + patient.id + '" data-category="" data-label="检验"' + uploadDiseaseAttrs + '>上传其他／多类别报告</button>' + buttons);
 }
 
 function getLabCategoryLabel(categoryKey) {
   const found = labCategories.find(function (item) { return item.key === categoryKey; });
   return found ? found.label : categoryKey;
+}
+
+function getLabCategoryLabels(categoryKeys) {
+  return normalizeLabCategoryKeys(categoryKeys).map(function (key) {
+    return getLabCategoryLabel(key);
+  }).filter(Boolean);
+}
+
+function getLabCategoryDisplayName(record) {
+  const labels = getLabCategoryLabels(record && record.record_category);
+  if (labels.length) return labels.join("+");
+  return (record && record.lab_test_name) || "-";
+}
+
+function getSelectedLabCategoryKeys() {
+  const pickerButtons = document.querySelectorAll(".lab-category-choice");
+  if (pickerButtons.length) {
+    return syncLabCategorySelectFromPicker();
+  }
+  const value = $("#labTestName").val() || [];
+  return normalizeLabCategoryKeys(Array.isArray(value) ? value : [value]);
 }
 
 function fillPatientForm(patient) {
@@ -277,6 +383,66 @@ function fillPatientForm(patient) {
     }
   });
 }
+
+function renderCategoryLabFields() {
+  $('#dynamicFields input').each(function () { labDraftValues[this.name] = this.value; });
+  const keys = getSelectedLabCategoryKeys();
+  const fields = new Map();
+  labCategories.filter(c => c.enabled && keys.includes(c.key)).forEach(c => {
+    c.fields.filter(f => f.available).forEach(f => {
+      if (!fields.has(f.field_name)) fields.set(f.field_name, Object.assign({}, f));
+      else if (f.required) fields.get(f.field_name).required = true;
+    });
+  });
+  $('#dynamicFields').html(Array.from(fields.values()).map(f => {
+    const label = f.form_label || f.field_name;
+    const value = labDraftValues[f.field_name] ?? '';
+    const type = f.data_type === 'date' ? 'date' : (f.data_type === 'datetime' ? 'datetime-local' : 'text');
+    const numeric = ['int', 'decimal'].includes(f.data_type) ? ' inputmode="decimal"' : '';
+    return '<div class="form-field"><label>' + escapeHtml(label) + (f.required ? ' *' : '') + (f.unit ? '（' + escapeHtml(f.unit) + '）' : '') + '</label>' +
+      '<input name="' + escapeHtml(f.field_name) + '" type="' + type + '"' + numeric + ' data-required="' + (f.required ? '1' : '0') + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(label) + '"></div>';
+  }).join('') || '<div class="detail-item">请选择已配置指标的类别；未配置的类别请联系管理员。</div>');
+  const outside = Object.keys(labDraftValues).filter(name => !fields.has(name) && labDraftValues[name] !== null && String(labDraftValues[name]).trim() !== '');
+  const names = new Map();
+  labCategories.forEach(c => c.fields.forEach(f => names.set(f.field_name, f.form_label)));
+  $('#labUnassignedHint').text(outside.length ? '以下已识别／暂存指标不属于当前所选类别，本次不会提交；请补选类别后核对：' + outside.map(name => names.get(name) || name).join('、') : '');
+}
+
+function editLabRecord(recordId, timepoint) {
+  timepoint = timepoint || '0h';
+  $.getJSON('/api/lab-catalog').done(function (catalogResponse) {
+    labCategories = catalogResponse.data.categories || [];
+    $.getJSON('/api/records/' + recordId, { timepoint: timepoint }).done(function (res) {
+      if (!res.data.editable) { alert('已提交病例不能修改'); return; }
+      const record = res.data.record;
+      const keys = normalizeLabCategoryKeys(record.record_category);
+      if (keys.some(key => !labCategories.find(c => c.key === key && c.enabled))) {
+        alert('记录含已停用类别，请联系管理员恢复类别后补全'); return;
+      }
+      currentUploadMode = 'lab';
+      currentUploadPatientId = record.patient_id;
+      currentPatientId = record.patient_id;
+      selectedDiseaseId = record.disease_id;
+      currentRecordCategory = keys.join(',');
+      currentEditingLabRecordId = recordId;
+      currentLabTimepoint = timepoint;
+      currentLabReportName = record.lab_test_name || '';
+      uploadedPhotoPath = record.photo_path;
+      resetRecordForm();
+      labDraftValues = {};
+      (res.data.items || []).forEach(item => { labDraftValues[item.field_name] = item.value; });
+      fillPatientForm({ name: record.patient_name, gender: record.gender, age: record.age, phone: record.phone, id_number: record.id_number });
+      populateLabCategorySelect(keys);
+      renderCategoryLabFields();
+      $('#labFieldsSection').removeClass('hidden');
+      $('#recordPanelTitle').text('补全检验记录(' + timepoint + ')');
+      $('#recordPanelHint').text('* 为类别必填项。请根据本条原始报告补全，勿将不同时间报告的结果混填。');
+      showPanel('recordPanel');
+    }).fail(function (xhr) { alert(xhr.responseJSON?.message || '记录加载失败'); });
+  }).fail(function () { alert('类别加载失败'); });
+}
+
+$(document).on('click', '.edit-lab-record-btn', function () { editLabRecord($(this).data('id'), $(this).attr('data-timepoint')); });
 
 function escapeHtml(value) {
   if (value === null || value === undefined) return "";
@@ -350,6 +516,8 @@ function autoRecognize() {
 
         fillStep = "生成检验字段";
         var recognizedValues = data.values && typeof data.values === "object" ? data.values : {};
+        labDraftValues = Object.assign({}, recognizedValues);
+        currentLabReportName = data.lab_test_name || '';
         var responseFields = Array.isArray(data.fields) ? data.fields : [];
         var recognizedFields = responseFields.filter(function (f) {
           if (!f || !f.field_name) return false;
@@ -373,12 +541,18 @@ function autoRecognize() {
           $("#saveRecordBtn").text("保存信息");
         } else {
           $("[name=patient_phone], [name=patient_id_number]").removeClass("hidden");
-          var recognizedCategory = normalizeLabCategoryName(currentRecordCategory || data.record_category || data.lab_test_name || data.category_label || currentCategoryLabel);
+          labCategories = data.lab_categories || labCategories;
+          var recognizedCategory = (data.category_inference && data.category_inference.selected) || [];
           populateLabCategorySelect(recognizedCategory);
-          currentRecordCategory = $("#labTestName").val() || currentRecordCategory || recognizedCategory;
-          currentCategoryLabel = getLabCategoryLabel(currentRecordCategory) || currentCategoryLabel;
-          $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标"));
-          $("#recordPanelHint").text("确认无误后保存当前检验类别，保存成功会返回病例详情。");
+          $("#dynamicFields").empty();
+          renderCategoryLabFields();
+          var selectedCategories = getSelectedLabCategoryKeys();
+          currentRecordCategory = selectedCategories.join(",");
+          currentCategoryLabel = getLabCategoryLabels(selectedCategories).join("+");
+          $("#recordPanelTitle").text("校对" + (currentCategoryLabel || "检验指标") + "(" + currentLabTimepoint + ")");
+          var uncertain = (data.category_inference && data.category_inference.ambiguous) || [];
+          var classificationHint = uncertain.length ? '部分指标为多个类别共用，请核对并手动选择：' + getLabCategoryLabels(uncertain).join('、') + '。' : (recognizedCategory.length ? '已根据检验指标匹配类别，请核对。' : '现有指标不足以确定类别，请手动选择。');
+          $("#recordPanelHint").text('检验时间点：' + currentLabTimepoint + '；对应血浆编号：' + (currentPlasmaNumbers[currentLabTimepoint] || '未填写') + '。' + classificationHint + ' 所选类别的全部指标均可人工填写和修改，未识别结果留空。* 为必填项，未填齐可暂存但不计为完成。');
           $("#labFieldsSection").removeClass("hidden");
           $("#saveRecordBtn").text("保存信息");
         }

@@ -219,7 +219,7 @@ CREATE TABLE `lab_records` (
   `patient_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `disease_id` int(11) NOT NULL,
-  `record_category` varchar(50) DEFAULT NULL,
+  `record_category` varchar(255) DEFAULT NULL,
   `lab_test_name` varchar(120) DEFAULT NULL,
   `photo_path` varchar(255) DEFAULT NULL,
   `ai_raw` text,
@@ -374,6 +374,7 @@ CREATE TABLE `patients` (
   `updated_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `case_number` varchar(1000) DEFAULT NULL,
   `plasma_number` varchar(1000) DEFAULT NULL,
+  `plasma_number_72h` varchar(1000) DEFAULT NULL,
   `registration_number` varchar(1000) DEFAULT NULL,
   `height` int(11) DEFAULT NULL,
   `weight` int(11) DEFAULT NULL,
@@ -385,6 +386,7 @@ CREATE TABLE `patients` (
   `diagnosis_disease` varchar(100) DEFAULT NULL,
   `preliminary_diagnosis` text,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_patient_identity` (`name`,`gender`,`age`),
   KEY `idx_patient_lookup` (`name`,`phone`,`id_number`),
   KEY `idx_patient_hospital` (`hospital_id`,`id`),
   KEY `idx_patient_user` (`user_id`)
@@ -517,3 +519,60 @@ CREATE TABLE `users` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-06-12 16:45:26
+
+--
+-- 以下为检验类别改造新增表，由 app/services/lab_catalog.py 在启动时自动创建。
+-- 类别管理检验指标；疾病配置必查类别；指标可在多个类别间复用。
+--
+
+CREATE TABLE `lab_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `category_key` varchar(63) NOT NULL,
+  `label` varchar(120) NOT NULL,
+  `enabled` tinyint(4) NOT NULL DEFAULT 1,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `category_key` (`category_key`),
+  UNIQUE KEY `label` (`label`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `lab_category_fields` (
+  `category_id` int(11) NOT NULL,
+  `field_id` int(11) NOT NULL,
+  `required` tinyint(4) NOT NULL DEFAULT 1,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`category_id`,`field_id`),
+  KEY `field_id` (`field_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `disease_lab_categories` (
+  `disease_id` int(11) NOT NULL,
+  `category_id` int(11) NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`disease_id`,`category_id`),
+  KEY `category_id` (`category_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `lab_record_categories` (
+  `record_id` int(11) NOT NULL,
+  `category_id` int(11) NOT NULL,
+  PRIMARY KEY (`record_id`,`category_id`),
+  KEY `category_id` (`category_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `lab_completion_snapshots` (
+  `patient_id` int(11) NOT NULL,
+  `snapshot_json` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`patient_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `lab_catalog_migrations` (
+  `version` varchar(40) NOT NULL,
+  `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 72h检验与0h使用相同指标字段，但存入独立记录及类别关联表。
+CREATE TABLE `lab_records_72h` LIKE `lab_records`;
+CREATE TABLE `lab_record_categories_72h` LIKE `lab_record_categories`;

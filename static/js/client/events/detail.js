@@ -36,6 +36,22 @@ $(document).on("click", "#saveBaseInfoBtn", function () {
     });
 });
 
+$(document).on("click", "#save72hPlasmaBtn", function () {
+  if (!currentPatientId) return;
+  const button = this;
+  button.disabled = true;
+  $.ajax({
+    url: "/api/patients/" + currentPatientId + "/plasma-number-72h",
+    method: "POST", contentType: "application/json",
+    data: JSON.stringify({ plasma_number_72h: $('#baseInfoList [data-field="plasma_number_72h"]').val() })
+  }).done(function (res) {
+    setMsg("baseInfoMsg", res.message || "72h血浆编号已保存");
+    loadPatientDetail(currentPatientId, "base");
+  }).fail(function (xhr) {
+    setMsg("baseInfoMsg", xhr.responseJSON?.message || "72h血浆编号保存失败", true);
+  }).always(function () { button.disabled = false; });
+});
+
 $(document).on("click", "#saveDiagnosisBtn", function () {
   if (!currentPatientId) return;
   const history = Array.from(document.querySelectorAll(".medical-history-checkbox"))

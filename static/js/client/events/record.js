@@ -128,15 +128,23 @@ $("#saveRecordBtn").on("click", function () {
   }
   const values = {};
   $("#dynamicFields input").each(function () { values[this.name] = $(this).val(); });
-  const selectedLabCategory = $("#labTestName").val() || "";
-  const selectedLabLabel = getLabCategoryLabel(selectedLabCategory);
-  if (!selectedLabCategory || !selectedLabLabel) {
-    setMsg("recordMsg", "请选择检验类别", true);
+  const selectedLabCategories = getSelectedLabCategoryKeys();
+  const selectedLabLabel = getLabCategoryLabels(selectedLabCategories).join("+");
+  if (!selectedLabCategories.length || !selectedLabLabel) {
+    setMsg("recordMsg", "请至少选择一个检验类别", true);
+    setSaveRecordButtonSaving(false);
+    return;
+  }
+  const missingRequired = [];
+  $('#dynamicFields input[data-required="1"]').each(function () {
+    if (!this.value.trim()) missingRequired.push(this.name);
+  });
+  if (missingRequired.length && !confirm('还有 ' + missingRequired.length + ' 个必填指标未填写。本次仅暂存，未填齐的类别不计为完成。是否继续？')) {
     setSaveRecordButtonSaving(false);
     return;
   }
   $.ajax({
-    url: "/api/records",
+    url: "/api/records" + (currentEditingLabRecordId ? '/' + currentEditingLabRecordId : ''),
     method: "POST",
     contentType: "application/json",
     data: JSON.stringify({
@@ -145,11 +153,13 @@ $("#saveRecordBtn").on("click", function () {
       patient,
       values,
       photo_path: uploadedPhotoPath,
-      record_category: selectedLabCategory,
-      lab_test_name: selectedLabLabel
+      timepoint: currentLabTimepoint,
+      record_category: selectedLabCategories,
+      lab_test_name: currentLabReportName
     })
   }).done(function (res) {
-    setMsg("recordMsg", selectedLabLabel + "上传成功");
+    setMsg("recordMsg", "检验(" + currentLabTimepoint + ")：" + (res.message || "记录已保存"));
+    currentEditingLabRecordId = null;
     clearDiseaseSelectionContext();
     loadDiseases();
     loadCaseList();
@@ -193,16 +203,15 @@ $(document).on("click", ".lab-category-upload-btn", function (event) {
   const patientId = this.getAttribute("data-patient-id") || currentPatientId;
   const category = this.getAttribute("data-category") || "";
   const label = this.getAttribute("data-label") || "检验";
-  openDiseaseSelectionForLabUpload(patientId, category, label);
+  openDiseaseSelectionForLabUpload(patientId, category, label, this.getAttribute('data-timepoint') || '0h');
 });
 
 $(document).on("change", "#labTestName", function () {
-  currentRecordCategory = this.value || "";
-  currentCategoryLabel = getLabCategoryLabel(currentRecordCategory) || "";
+  refreshSelectedLabCategoryState();
 });
 
 $(document).on("click", ".lab-record-item", function () {
-  loadLabRecordDetail(this.getAttribute("data-record-id"));
+  loadLabRecordDetail(this.getAttribute("data-record-id"), this.getAttribute("data-timepoint"));
 });
 
 $(document).on("click", ".treat-record-item", function () {

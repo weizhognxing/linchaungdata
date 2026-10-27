@@ -1,7 +1,9 @@
 // Patient detail tab switching: sub-tab visibility, diagnosis form helpers.
 // Loaded as plain browser script; globals shared across client scripts.
 function updatePatientDetailNotice(tab, isCompleteCase) {
-  const message = isCompleteCase ? "当前病例为完整记录，提交后不能修改。" : (patientDetailNotices[tab || "base"] || patientDetailNotices.base);
+  const message = isCompleteCase
+    ? (tab === 'lab' ? '0h检验已提交，仍可补录72h检验。' : tab === 'base' ? '已提交病例仅可补录72h血浆编号。' : '当前病例为完整记录，提交后不能修改。')
+    : (patientDetailNotices[tab || "base"] || patientDetailNotices.base);
   setMsg("patientDetailMsg", message, false);
 }
 
@@ -68,7 +70,8 @@ function showLabSubTab(tab) {
     button.classList.toggle("active", button.getAttribute("data-lab-tab") === tab);
   });
   $("#labListPanel").toggleClass("hidden", tab !== "list");
-  $("#labAddPanel").toggleClass("hidden", tab !== "add");
+  $("#labAddPanel0h").toggleClass("hidden", tab !== "add0h");
+  $("#labAddPanel72h").toggleClass("hidden", tab !== "add72h");
 }
 
 function showCaseSubTab(tab) {

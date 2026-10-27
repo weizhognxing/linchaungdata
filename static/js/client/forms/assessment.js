@@ -5,12 +5,14 @@ function renderAssessmentFields(disease) {
   const fields = assessmentFieldsByDisease[disease] || [];
   const html = fields.map(function (field) {
     const readonly = field[3] ? ' readonly' : '';
+    const optional = field[6] ? ' data-optional="1"' : '';
+    const requiredMark = field[6] ? '' : ' *';
     if (field[5] === "oxygen_dual_unit") {
       return '<div class="form-field"><label>' + field[1] + ' *</label><div class="input-with-unit"><input class="assessment-input assessment-mmhg-input" data-field="oxygen_partial_pressure" type="number" placeholder="氧分压"><span>mmHg</span></div><div class="input-with-unit"><input class="assessment-kpa-input" type="number" placeholder="氧分压"><span>kPa</span></div></div>';
     }
-    const input = '<input class="assessment-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '"' + readonly + '>';
+    const input = '<input class="assessment-input" data-field="' + field[0] + '" type="' + field[2] + '" placeholder="' + field[1] + '"' + readonly + optional + '>';
     const control = field[4] ? '<div class="input-with-unit">' + input + '<span>' + field[4] + '</span></div>' : input;
-    return '<div class="form-field"><label>' + field[1] + ' *</label>' + control + '</div>';
+    return '<div class="form-field"><label>' + field[1] + requiredMark + '</label>' + control + '</div>';
   }).join("");
   $("#assessmentDynamicFields").html(html || '<div class="detail-item">该疾病暂无评估字段配置</div>');
   setMsg("assessmentMsg", fields.length ? "当前选择为" + disease + "评估表单" : "该疾病暂无评估字段配置", !fields.length);

@@ -13,6 +13,7 @@
   <div id="detailBaseTab" class="detail-tab-page">
     <div id="baseInfoList" class="base-info-form"></div>
     <button id="saveBaseInfoBtn">保存基础信息</button>
+    <button id="save72hPlasmaBtn" class="hidden">保存72h血浆编号</button>
     <p class="message" id="baseInfoMsg"></p>
   </div>
   <div id="detailDiagnosisTab" class="detail-tab-page hidden">
@@ -69,15 +70,21 @@
   <div id="detailLabTab" class="detail-tab-page hidden">
     <div class="inner-tabs">
       <button class="inner-tab active" data-lab-tab="list">检验记录</button>
-      <button class="inner-tab" data-lab-tab="add">添加检验</button>
+      <button class="inner-tab" data-lab-tab="add0h">添加检验(0h)</button>
+      <button class="inner-tab" data-lab-tab="add72h">添加检验(72h)</button>
     </div>
     <div id="labListPanel" class="inner-tab-page">
       <div id="labRecordList" class="detail-list"></div>
     </div>
-    <div id="labAddPanel" class="inner-tab-page hidden">
-      <div class="subhead">检验类别上传进度</div>
-      <div id="labCategorySummary" class="lab-category-summary"></div>
-      <div id="labCategoryActions" class="case-actions wrap-actions"></div>
+    <div id="labAddPanel0h" class="inner-tab-page hidden">
+      <div class="subhead">检验类别完成进度（必填项填齐）</div>
+      <div id="labCategorySummary0h" class="lab-category-summary"></div>
+      <div id="labCategoryActions0h" class="case-actions wrap-actions"></div>
+    </div>
+    <div id="labAddPanel72h" class="inner-tab-page hidden">
+      <div class="subhead">72h检验类别进度</div>
+      <div id="labCategorySummary72h" class="lab-category-summary"></div>
+      <div id="labCategoryActions72h" class="case-actions wrap-actions"></div>
     </div>
   </div>
   <div id="detailAssessmentTab" class="detail-tab-page hidden">
@@ -93,7 +100,7 @@
       <div id="diagnosisRecordListAssessment" class="detail-list"></div>
       <div id="assessmentFormPanel" class="panel hidden">
         <h3>入院时评估</h3>
-        <p class="hint">请提前计算好下面的评估数据：SOFA、APACHE2、barthel、MODS评分、GCS评分等。以下信息均为必填。</p>
+        <p class="hint">请提前计算好下面的评估数据：SOFA、APACHE2、barthel、MODS评分、GCS评分等。标 * 的信息为必填。</p>
         <div id="assessmentDynamicFields" class="grid two"></div>
         <button id="addAssessmentBtn">保存评估记录</button>
         <p class="message" id="assessmentMsg"></p>

@@ -9,6 +9,10 @@ function loadPatientDetail(patientId, activeTab, subTab) {
         return;
       }
       const patient = res.data.patient || {};
+      currentPlasmaNumbers = { '0h': patient.plasma_number || '', '72h': patient.plasma_number_72h || '' };
+      labCategories = res.data.lab_categories || [];
+      currentLabProgress = res.data.lab_progress || {};
+      currentLabProgress72h = res.data.lab_progress_72h || {};
       currentPatientId = patientId;
       currentTreatmentRecords = res.data.treatments || [];
       currentFollowupRecords = res.data.followups || [];
@@ -24,11 +28,12 @@ function loadPatientDetail(patientId, activeTab, subTab) {
         '<div><strong>' + (patient.name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (patient.gender || '-') + ' ｜ 年龄：' + (patient.age || '-') + ' ｜ 唯一识别号：' + (patient.id_number || '-') + ' ｜ 状态：' + getCaseStatusLabel(patient) + '</div>'
       );
-      $("#labCategoryActions").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
+      $("#labCategoryActions0h").toggleClass("hidden", getCaseIntegrity(patient) === 'complete');
       const isCompleteCase = getCaseIntegrity(patient) === 'complete';
       currentPatientIsComplete = isCompleteCase;
       $("#saveBaseInfoBtn, #saveDiagnosisBtn, #addAssessmentBtn, #addTreatBtn, #addFollowBtn").toggleClass("hidden", isCompleteCase);
-      $("#detailLabTab .inner-tab[data-lab-tab=add], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add], #detailDiagnosisTab .inner-tab[data-diagnosis-tab=add]").toggleClass("hidden", isCompleteCase);
+      $("#save72hPlasmaBtn").toggleClass("hidden", !isCompleteCase);
+      $("#detailLabTab .inner-tab[data-lab-tab=add0h], #detailAssessmentTab .inner-tab[data-assessment-tab=add], #detailTreatTab .inner-tab[data-treat-tab=add], #detailFollowTab .inner-tab[data-follow-tab=add], #detailDiagnosisTab .inner-tab[data-diagnosis-tab=add]").toggleClass("hidden", isCompleteCase);
       $(".delete-diagnosis-btn").toggleClass("hidden", isCompleteCase);
       updatePatientDetailNotice(activeTab, isCompleteCase);
 
@@ -52,21 +57,24 @@ function loadPatientDetail(patientId, activeTab, subTab) {
             '</select></div>';
         }
         return '<div class="form-field"><label>' + f.form_label + (f.required ? ' *' : '') + '</label>' +
-          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + resolveBaseInfoInputType(f) + '" value="' + attrValue(resolveBaseInfoValue(f)) + '" placeholder="' + f.form_label + '"' + (isCompleteCase ? ' disabled' : '') + '></div>';
+          '<input class="base-info-input" data-field="' + f.field_name + '" type="' + resolveBaseInfoInputType(f) + '" value="' + attrValue(resolveBaseInfoValue(f)) + '" placeholder="' + f.form_label + '"' + (isCompleteCase && f.field_name !== 'plasma_number_72h' ? ' disabled' : '') + '></div>';
       }).join('') || '<div class="detail-item">暂无基础信息</div>';
       $("#baseInfoList").html(baseHtml);
       setMsg("baseInfoMsg", "", false);
 
-      const labHtml = (res.data.lab_records || []).map(function (r) {
-        const categoryName = r.lab_test_name || getLabCategoryLabel(r.record_category) || '-';
+      const labHtml = [['0h', res.data.lab_records || []], ['72h', res.data.lab_records_72h || []]].map(function (group) {
+        return group[1].map(function (r) {
+        const categoryName = getLabCategoryDisplayName(r);
         const diseaseText = r.disease_name ? ' ｜ 疾病：' + r.disease_name : '';
-        return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '">' +
-          '<strong>' + categoryName + '</strong>' + diseaseText + ' ｜ 录入人：' + (r.operator_name || '-') +
+        return '<div class="detail-item lab-record-item" data-record-id="' + r.id + '" data-timepoint="' + group[0] + '">' +
+          '<strong>' + group[0] + ' · ' + escapeHtml(categoryName) + '</strong>' + diseaseText + ' ｜ 录入人：' + (r.operator_name || '-') +
           '<div class="case-meta">点击查看检验详情</div>' +
           '</div>';
+        }).join('');
       }).join('') || '<div class="detail-item">暂无检验记录</div>';
       $("#labRecordList").html(labHtml);
-      renderLabCategoryActions(patient, res.data.lab_records || [], res.data.diagnosis_records || []);
+      renderLabCategoryActions(patient, currentLabProgress, res.data.diagnosis_records || [], '0h');
+      renderLabCategoryActions(patient, currentLabProgress72h, res.data.diagnosis_records || [], '72h');
 
       const treatHtml = (currentTreatmentRecords || []).map(function (r) {
         const details = [];
@@ -233,9 +241,10 @@ function loadCareRecordDetail(type, recordId) {
   showPanel("careReportPanel");
 }
 
-function loadLabRecordDetail(recordId) {
+function loadLabRecordDetail(recordId, timepoint) {
+  timepoint = timepoint || '0h';
   setMsg("labReportMsg", "", false);
-  $.getJSON("/api/records/" + recordId)
+  $.getJSON("/api/records/" + recordId, { timepoint: timepoint })
     .done(function (res) {
       if (!res.success) {
         setMsg("labReportMsg", "检验详情加载失败", true);
@@ -247,8 +256,11 @@ function loadLabRecordDetail(recordId) {
       $("#labReportMeta").html(
         '<div><strong>' + (record.patient_name || '-') + '</strong></div>' +
         '<div class="case-meta">性别：' + (record.gender || '-') + ' ｜ 年龄：' + (record.age || '-') + ' ｜ 唯一识别号：' + (record.id_number || '-') + '</div>' +
-        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验类别：' + (record.lab_test_name || '-') + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
-        '<div class="case-meta">检验时间：' + (record.created_at || '-') + '</div>'
+        '<div class="case-meta">疾病：' + (record.disease_name || '-') + ' ｜ 检验时间点：' + timepoint + ' ｜ 对应血浆编号：' + escapeHtml(record[timepoint === '72h' ? 'plasma_number_72h' : 'plasma_number_0h'] || '未填写') + '</div>' +
+        '<div class="case-meta">检验类别：' + escapeHtml(getLabCategoryDisplayName(record)) + ' ｜ 录入人：' + (record.operator_name || '-') + '</div>' +
+        '<div class="case-meta">报告名称：' + escapeHtml(record.lab_test_name || '-') + '</div>' +
+        '<div class="case-meta">录入时间：' + (record.created_at || '-') + '</div>' +
+        (res.data.editable ? '<button class="edit-lab-record-btn" data-id="' + recordId + '" data-timepoint="' + timepoint + '">编辑／补全检验记录</button>' : '')
       );
       const items = res.data.items || [];
       const html = items.map(function (item) {
