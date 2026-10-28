@@ -146,6 +146,19 @@ def export_cases():
                 own_conditions.append("p.user_id=%s")
                 own_params.append(current_user["id"])
 
+            # The download quota is based on all of the user's complete cases,
+            # not only the cases matching the currently selected disease.
+            cur.execute(
+                f"""
+                SELECT COUNT(DISTINCT p.id) AS total
+                FROM patients p
+                LEFT JOIN lab_records r ON r.patient_id=p.id
+                WHERE ({' OR '.join(own_conditions)}) AND {complete_sql}
+                """,
+                own_params,
+            )
+            own_total_complete = int((cur.fetchone() or {}).get("total", 0) or 0)
+
             cur.execute(
                 f"""
                 SELECT DISTINCT p.id
@@ -156,7 +169,7 @@ def export_cases():
                 own_params + disease_params,
             )
             own_patient_ids = [row["id"] for row in cur.fetchall()]
-            other_limit = len(own_patient_ids) * multiplier
+            other_limit = own_total_complete * multiplier
 
             other_patient_ids = _select_other_patient_ids(
                 cur, current_user, patient_columns, complete_sql, disease_sql, disease_params,
