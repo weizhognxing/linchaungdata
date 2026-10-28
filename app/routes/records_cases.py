@@ -32,16 +32,52 @@ def _priority_hospital_id(cur, patient_columns):
     return row["id"] if row else None
 
 
+def _scoped_user_ids(cur, user_id):
+    """Return the user and all descendants in the parent/child account tree."""
+    scope = {int(user_id)}
+    frontier = [int(user_id)]
+    while frontier:
+        placeholders = ",".join(["%s"] * len(frontier))
+        cur.execute(
+            f"SELECT id FROM users WHERE parent_id IN ({placeholders})",
+            frontier,
+        )
+        next_ids = []
+        for row in cur.fetchall():
+            child_id = int(row["id"])
+            if child_id not in scope:
+                scope.add(child_id)
+                next_ids.append(child_id)
+        frontier = next_ids
+        if len(scope) > 10000:
+            break
+    return sorted(scope)
+
+
 def _select_other_patient_ids(cur, current_user, patient_columns, complete_sql, disease_sql,
-                              disease_params, own_patient_ids, other_limit):
+                              disease_params, own_patient_ids, other_limit,
+                              excluded_user_ids=None):
     """Pick other users' complete patients, preferring the priority hospital first."""
     if other_limit <= 0:
         return []
-    other_conditions = ["r.user_id IS NOT NULL AND r.user_id<>%s"]
-    other_params = [current_user["id"]]
-    if "user_id" in patient_columns:
-        other_conditions.append("p.user_id IS NOT NULL AND p.user_id<>%s")
-        other_params.append(current_user["id"])
+    excluded = [int(value) for value in (excluded_user_ids or [current_user["id"]])]
+    if len(excluded) == 1:
+        other_conditions = ["r.user_id IS NOT NULL AND r.user_id<>%s"]
+        other_params = [excluded[0]]
+        if "user_id" in patient_columns:
+            other_conditions.append("p.user_id IS NOT NULL AND p.user_id<>%s")
+            other_params.append(excluded[0])
+    else:
+        placeholders = ",".join(["%s"] * len(excluded))
+        other_conditions = [
+            f"r.user_id IS NOT NULL AND r.user_id NOT IN ({placeholders})"
+        ]
+        other_params = list(excluded)
+        if "user_id" in patient_columns:
+            other_conditions.append(
+                f"p.user_id IS NOT NULL AND p.user_id NOT IN ({placeholders})"
+            )
+            other_params += list(excluded)
 
     def select(exclude_ids, limit, priority_sql="", priority_params=None):
         placeholders = ",".join(["%s"] * len(exclude_ids))
@@ -140,11 +176,13 @@ def export_cases():
             if not complete_conditions:
                 return fail("当前数据库缺少完整记录状态字段，无法导出完整记录", 400)
             complete_sql = "(" + " OR ".join(complete_conditions) + ")"
-            own_conditions = ["r.user_id=%s"]
-            own_params = [current_user["id"]]
+            scope_user_ids = _scoped_user_ids(cur, current_user["id"])
+            scope_placeholders = ",".join(["%s"] * len(scope_user_ids))
+            own_conditions = [f"r.user_id IN ({scope_placeholders})"]
+            own_params = list(scope_user_ids)
             if "user_id" in patient_columns:
-                own_conditions.append("p.user_id=%s")
-                own_params.append(current_user["id"])
+                own_conditions.append(f"p.user_id IN ({scope_placeholders})")
+                own_params += list(scope_user_ids)
 
             # The download quota is based on all of the user's complete cases,
             # not only the cases matching the currently selected disease.
@@ -173,7 +211,7 @@ def export_cases():
 
             other_patient_ids = _select_other_patient_ids(
                 cur, current_user, patient_columns, complete_sql, disease_sql, disease_params,
-                own_patient_ids, other_limit,
+                own_patient_ids, other_limit, excluded_user_ids=scope_user_ids,
             )
 
             patient_ids = own_patient_ids + other_patient_ids
